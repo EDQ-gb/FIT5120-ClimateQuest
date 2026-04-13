@@ -50,11 +50,6 @@ async function main() {
     await exec(`alter table users modify column email varchar(320) null`);
   }
 
-  const hasAvatarUrl = await columnExists("users", "avatar_url");
-  if (!hasAvatarUrl) {
-    await exec(`alter table users add column avatar_url text null`);
-  }
-
   if (!(await indexExists("users", "uq_users_username"))) {
     await exec(`alter table users add unique key uq_users_username (username)`);
   }

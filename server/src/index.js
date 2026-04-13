@@ -89,7 +89,6 @@ function publicUserRow(row) {
     id: row.id,
     username: row.username,
     displayName: row.display_name || "",
-    avatarUrl: row.avatar_url || "",
     createdAt: row.created_at,
   };
 }
@@ -207,7 +206,7 @@ app.get("/api/auth/me", async (req, res, next) => {
     if (!userId) return res.status(200).json({ user: null });
 
     const result = await query(
-      `select id, username, display_name, avatar_url, created_at
+      `select id, username, display_name, created_at
        from users
        where id = ?`,
       [userId]
@@ -236,7 +235,7 @@ app.post("/api/auth/username", async (req, res, next) => {
 
     await query(`update users set username = ? where id = ?`, [username, userId]);
     const result = await query(
-      `select id, username, display_name, avatar_url, created_at from users where id = ?`,
+      `select id, username, display_name, created_at from users where id = ?`,
       [userId]
     );
     res.json({ user: publicUserRow(result.rows[0]) });
@@ -248,40 +247,6 @@ app.post("/api/auth/username", async (req, res, next) => {
   }
 });
 
-function normalizeAvatarDataUrl(value) {
-  if (value === null || value === undefined || value === "") return null;
-  if (typeof value !== "string") return null;
-  return value.trim();
-}
-
-function isValidAvatarDataUrl(dataUrl) {
-  if (!dataUrl) return true; // allow clearing avatar
-  if (dataUrl.length > 350_000) return false;
-  return /^data:image\/(png|jpeg|jpg|webp);base64,[a-z0-9+/=\r\n]+$/i.test(
-    dataUrl
-  );
-}
-
-app.post("/api/auth/avatar", async (req, res, next) => {
-  try {
-    const userId = requireAuth(req, res);
-    if (!userId) return;
-
-    const avatarUrl = normalizeAvatarDataUrl(req.body?.avatarUrl);
-    if (!isValidAvatarDataUrl(avatarUrl)) {
-      return res.status(400).json({ error: "INVALID_AVATAR" });
-    }
-
-    await query(`update users set avatar_url = ? where id = ?`, [avatarUrl, userId]);
-    const result = await query(
-      `select id, username, display_name, avatar_url, created_at from users where id = ?`,
-      [userId]
-    );
-    res.json({ user: publicUserRow(result.rows[0]) });
-  } catch (err) {
-    next(err);
-  }
-});
 
 // Basic error handler
 app.use((err, req, res, next) => {

@@ -7,10 +7,7 @@
         </li>
       </ul>
       <button type="button" class="login-btn" @click="onLogin">
-        <span v-if="user" class="avatar" :style="{ background: avatarBg }">
-          <img v-if="avatarSrc" :src="avatarSrc" alt="avatar" />
-          <span v-else>{{ avatarText }}</span>
-        </span>
+        <span v-if="user" class="avatar" :style="{ background: avatarBg }">{{ avatarText }}</span>
         <span>{{ loginButtonText }}</span>
       </button>
     </nav>
@@ -78,10 +75,7 @@
         <Transition name="pop">
           <div class="user-menu" role="dialog" aria-modal="true" @click.stop>
         <div class="user-menu-header">
-          <div class="avatar" :style="{ background: avatarBg }">
-            <img v-if="avatarSrc" :src="avatarSrc" alt="avatar" />
-            <span v-else>{{ avatarText }}</span>
-          </div>
+          <div class="avatar" :style="{ background: avatarBg }">{{ avatarText }}</div>
           <div class="user-meta">
             <div class="user-name">{{ user.displayName || user.username }}</div>
             <div class="user-handle">@{{ user.username }}</div>
@@ -89,48 +83,9 @@
         </div>
 
         <div class="menu-actions">
-          <button type="button" class="menu-btn" @click="openAvatarModal">Change avatar</button>
           <button type="button" class="menu-btn" @click="openUsernameModal">Edit username</button>
           <button type="button" class="menu-btn menu-btn-danger" @click="onLogout">Sign out</button>
         </div>
-          </div>
-        </Transition>
-      </div>
-    </Transition>
-
-    <Transition name="fade">
-      <div v-if="avatarOpen" class="modal-backdrop" @click.self="closeAvatarModal">
-        <Transition name="pop">
-          <div class="modal" role="dialog" aria-modal="true" @click.stop>
-            <div class="modal-header">
-              <div class="modal-title">Change avatar</div>
-            </div>
-
-            <div class="form">
-              <div class="field">
-                <label>Upload image (PNG/JPG/WebP, ≤ 200KB)</label>
-                <input type="file" accept="image/png,image/jpeg,image/webp" @change="onAvatarFile" />
-              </div>
-
-              <div class="field" v-if="avatarPreview">
-                <label>Preview</label>
-                <div class="avatar" :style="{ background: avatarBg, width: '64px', height: '64px' }">
-                  <img :src="avatarPreview" alt="preview" />
-                </div>
-              </div>
-
-              <div class="form-actions">
-                <button type="button" class="link-btn" @click="closeAvatarModal">Cancel</button>
-                <button type="button" class="link-btn" :disabled="busy" @click="clearAvatar">Remove</button>
-                <button type="button" class="primary-btn" :disabled="busy || !avatarPreview" @click="submitAvatar">
-                  {{ busy ? 'Working...' : 'Save' }}
-                </button>
-              </div>
-
-              <div class="error" v-if="avatarError">
-                {{ avatarError }}
-              </div>
-            </div>
           </div>
         </Transition>
       </div>
@@ -191,10 +146,6 @@ const busy = ref(false)
 const errorMsg = ref('')
 const menuOpen = ref(false)
 
-const avatarOpen = ref(false)
-const avatarPreview = ref('')
-const avatarError = ref('')
-
 const usernameOpen = ref(false)
 const newUsername = ref('')
 const usernameError = ref('')
@@ -221,11 +172,6 @@ const avatarBg = computed(() => {
   let h = 0
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360
   return `hsla(${h}, 85%, 45%, 0.85)`
-})
-
-const avatarSrc = computed(() => {
-  const v = user.value?.avatarUrl || ''
-  return v || ''
 })
 
 async function api(path, options = {}) {
@@ -326,80 +272,6 @@ function closeMenu() {
   menuOpen.value = false
 }
 
-function openAvatarModal() {
-  closeMenu()
-  avatarError.value = ''
-  avatarPreview.value = ''
-  avatarOpen.value = true
-}
-
-function closeAvatarModal() {
-  avatarOpen.value = false
-  avatarError.value = ''
-  avatarPreview.value = ''
-}
-
-function onAvatarFile(e) {
-  const file = e?.target?.files?.[0]
-  if (!file) return
-  avatarError.value = ''
-
-  if (file.size > 200 * 1024) {
-    avatarError.value = 'File too large (max 200KB).'
-    return
-  }
-  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-    avatarError.value = 'Unsupported file type.'
-    return
-  }
-
-  const reader = new FileReader()
-  reader.onload = () => {
-    avatarPreview.value = String(reader.result || '')
-  }
-  reader.onerror = () => {
-    avatarError.value = 'Failed to read file.'
-  }
-  reader.readAsDataURL(file)
-}
-
-async function submitAvatar() {
-  if (busy.value) return
-  busy.value = true
-  avatarError.value = ''
-  try {
-    const payload = { avatarUrl: avatarPreview.value }
-    const data = await api('/api/auth/avatar', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
-    user.value = data.user
-    closeAvatarModal()
-  } catch (e) {
-    avatarError.value = String(e?.message || 'Update failed')
-  } finally {
-    busy.value = false
-  }
-}
-
-async function clearAvatar() {
-  if (busy.value) return
-  busy.value = true
-  avatarError.value = ''
-  try {
-    const data = await api('/api/auth/avatar', {
-      method: 'POST',
-      body: JSON.stringify({ avatarUrl: '' }),
-    })
-    user.value = data.user
-    closeAvatarModal()
-  } catch (e) {
-    avatarError.value = String(e?.message || 'Update failed')
-  } finally {
-    busy.value = false
-  }
-}
-
 function openUsernameModal() {
   closeMenu()
   usernameError.value = ''
@@ -447,7 +319,6 @@ onUnmounted(() => {
 function onKeydown(e) {
   if (e.key !== 'Escape') return
   if (usernameOpen.value) return closeUsernameModal()
-  if (avatarOpen.value) return closeAvatarModal()
   if (menuOpen.value) return closeMenu()
   if (authOpen.value) return closeAuth()
 }
