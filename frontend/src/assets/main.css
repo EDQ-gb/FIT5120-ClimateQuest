@@ -254,6 +254,26 @@ body {
   z-index: 50;
 }
 
+/* Transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 160ms ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.pop-enter-active,
+.pop-leave-active {
+  transition: transform 180ms cubic-bezier(0.2, 0.9, 0.2, 1), opacity 180ms ease;
+}
+.pop-enter-from,
+.pop-leave-to {
+  transform: translateY(6px) scale(0.98);
+  opacity: 0;
+}
+
 .modal {
   width: min(520px, calc(100vw - 32px));
   border-radius: 18px;

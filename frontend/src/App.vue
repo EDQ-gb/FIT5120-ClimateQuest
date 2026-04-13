@@ -18,13 +18,14 @@
       <button type="button" class="cta-button" @click="onCta">{{ ctaText }}</button>
     </div>
 
-    <div v-if="authOpen" class="modal-backdrop" @click.self="closeAuth">
-      <div class="modal" role="dialog" aria-modal="true">
+    <Transition name="fade">
+      <div v-if="authOpen" class="modal-backdrop" @click.self="closeAuth">
+        <Transition name="pop">
+          <div class="modal" role="dialog" aria-modal="true" @click.stop>
         <div class="modal-header">
           <div class="modal-title">
             {{ authMode === 'login' ? 'Sign in' : 'Create account' }}
           </div>
-          <button type="button" class="icon-btn" @click="closeAuth">×</button>
         </div>
 
         <div class="form">
@@ -64,32 +65,38 @@
             {{ errorMsg }}
           </div>
         </div>
+          </div>
+        </Transition>
       </div>
-    </div>
+    </Transition>
 
-    <div v-if="menuOpen && user" class="modal-backdrop" @click.self="closeMenu">
-      <div class="user-menu" role="dialog" aria-modal="true">
+    <Transition name="fade">
+      <div v-if="menuOpen && user" class="modal-backdrop" @click.self="closeMenu">
+        <Transition name="pop">
+          <div class="user-menu" role="dialog" aria-modal="true" @click.stop>
         <div class="user-menu-header">
           <div class="avatar" :style="{ background: avatarBg }">{{ avatarText }}</div>
           <div class="user-meta">
             <div class="user-name">{{ user.displayName || user.username }}</div>
             <div class="user-handle">@{{ user.username }}</div>
           </div>
-          <button type="button" class="icon-btn" @click="closeMenu">×</button>
         </div>
 
         <div class="menu-actions">
           <button type="button" class="menu-btn" @click="openUsernameModal">Edit username</button>
           <button type="button" class="menu-btn menu-btn-danger" @click="onLogout">Sign out</button>
         </div>
+          </div>
+        </Transition>
       </div>
-    </div>
+    </Transition>
 
-    <div v-if="usernameOpen" class="modal-backdrop" @click.self="closeUsernameModal">
-      <div class="modal" role="dialog" aria-modal="true">
+    <Transition name="fade">
+      <div v-if="usernameOpen" class="modal-backdrop" @click.self="closeUsernameModal">
+        <Transition name="pop">
+          <div class="modal" role="dialog" aria-modal="true" @click.stop>
         <div class="modal-header">
           <div class="modal-title">Edit username</div>
-          <button type="button" class="icon-btn" @click="closeUsernameModal">×</button>
         </div>
 
         <div class="form">
@@ -109,13 +116,15 @@
             {{ usernameError }}
           </div>
         </div>
+          </div>
+        </Transition>
       </div>
-    </div>
+    </Transition>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 
 const navLinks = [
   { label: 'Home', key: 'home' },
@@ -300,5 +309,17 @@ function onCta() {
 
 onMounted(async () => {
   await refreshMe()
+  window.addEventListener('keydown', onKeydown)
 })
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown)
+})
+
+function onKeydown(e) {
+  if (e.key !== 'Escape') return
+  if (usernameOpen.value) return closeUsernameModal()
+  if (menuOpen.value) return closeMenu()
+  if (authOpen.value) return closeAuth()
+}
 </script>
