@@ -1,4 +1,5 @@
 module.exports = function handler(req, res) {
-  res.status(200).json({ ok: true, path: req.url || "" });
+  res.setHeader("content-type", "application/json");
+  res.end(JSON.stringify({ ok: true, path: req.url || "" }));
 };
 
