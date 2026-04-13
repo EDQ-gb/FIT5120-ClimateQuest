@@ -1,34 +1,36 @@
 // Vercel Serverless Function (Node): proxy /api/auth/* to Render backend.
 // This keeps auth cookies first-party on the Vercel domain.
 
-const BACKEND_BASE = "https://fit5120-climatequest.onrender.com";
+import { Buffer } from 'node:buffer'
 
-module.exports = async function handler(req, res) {
+const BACKEND_BASE = 'https://fit5120-climatequest.onrender.com'
+
+export default async function handler(req, res) {
   try {
-    const pathParam = req.query?.path;
+    const pathParam = req.query?.path
     const tail = Array.isArray(pathParam)
-      ? pathParam.join("/")
-      : typeof pathParam === "string"
+      ? pathParam.join('/')
+      : typeof pathParam === 'string'
         ? pathParam
-        : "";
+        : ''
 
-    const url = `${BACKEND_BASE}/api/auth/${tail}`;
+    const url = `${BACKEND_BASE}/api/auth/${tail}`
 
-    const headers = {};
+    const headers = {}
     for (const [k, v] of Object.entries(req.headers || {})) {
-      if (!v) continue;
-      const key = k.toLowerCase();
-      if (key === "host") continue;
-      if (key === "connection") continue;
-      if (key === "content-length") continue;
-      headers[key] = v;
+      if (!v) continue
+      const key = k.toLowerCase()
+      if (key === 'host') continue
+      if (key === 'connection') continue
+      if (key === 'content-length') continue
+      headers[key] = v
     }
 
-    const method = req.method || "GET";
+    const method = req.method || 'GET'
     const body =
-      method === "GET" || method === "HEAD"
+      method === 'GET' || method === 'HEAD'
         ? undefined
-        : typeof req.body === "string"
+        : typeof req.body === 'string'
           ? req.body
           : req.body
             ? JSON.stringify(req.body)
@@ -38,38 +40,45 @@ module.exports = async function handler(req, res) {
       method,
       headers,
       body,
-      redirect: "manual",
-    });
+      redirect: 'manual',
+    })
 
-    res.statusCode = upstream.status;
+    res.statusCode = upstream.status
 
     const setCookies =
-      typeof upstream.headers.getSetCookie === "function"
+      typeof upstream.headers.getSetCookie === 'function'
         ? upstream.headers.getSetCookie()
-        : null;
+        : null
 
     upstream.headers.forEach((value, key) => {
-      const k = key.toLowerCase();
-      if (k === "transfer-encoding") return;
-      if (k === "content-length") return;
-      if (k === "content-encoding") return;
-      if (k === "set-cookie") return;
-      res.setHeader(key, value);
-    });
+      const k = key.toLowerCase()
+      if (k === 'transfer-encoding') return
+      if (k === 'content-length') return
+      if (k === 'content-encoding') return
+      if (k === 'set-cookie') return
+      res.setHeader(key, value)
+    })
 
     if (setCookies && setCookies.length) {
-      res.setHeader("set-cookie", setCookies);
+      res.setHeader('set-cookie', setCookies)
     } else {
-      const single = upstream.headers.get("set-cookie");
-      if (single) res.setHeader("set-cookie", single);
+      const single = upstream.headers.get('set-cookie')
+      if (single) res.setHeader('set-cookie', single)
     }
 
-    const buf = Buffer.from(await upstream.arrayBuffer());
-    res.end(buf);
+    const buf = Buffer.from(await upstream.arrayBuffer())
+    res.end(buf)
   } catch (e) {
-    res.statusCode = 502;
-    res.setHeader("content-type", "application/json");
-    res.end(JSON.stringify({ error: "BAD_GATEWAY" }));
+    res.statusCode = 502
+    res.setHeader('content-type', 'application/json')
+    res.end(JSONifyError(e))
   }
-};
+}
+
+function JSONifyError(e) {
+  return JSON.stringify({
+    error: 'BAD_GATEWAY',
+    message: e && typeof e.message === 'string' ? e.message : undefined,
+  })
+}
 
