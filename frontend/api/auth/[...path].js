@@ -8,11 +8,22 @@ const BACKEND_BASE = 'https://fit5120-climatequest.onrender.com'
 export default async function handler(req, res) {
   try {
     const pathParam = req.query?.path
-    const tail = Array.isArray(pathParam)
+    let tail = Array.isArray(pathParam)
       ? pathParam.join('/')
       : typeof pathParam === 'string'
         ? pathParam
         : ''
+
+    // Fallback: derive tail from URL if platform doesn't populate query params
+    if (!tail) {
+      const raw = typeof req.url === 'string' ? req.url : ''
+      const marker = '/api/auth/'
+      const idx = raw.indexOf(marker)
+      if (idx >= 0) {
+        tail = raw.slice(idx + marker.length).split('?')[0]
+      }
+      tail = String(tail || '').replace(/^\/+/, '')
+    }
 
     const url = `${BACKEND_BASE}/api/auth/${tail}`
 
