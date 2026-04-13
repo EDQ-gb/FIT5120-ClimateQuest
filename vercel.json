@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "api/auth/[...path].js": {
-      "runtime": "nodejs20.x"
-    }
-  },
   "rewrites": [
     { "source": "/", "destination": "/front.html" }
   ],
