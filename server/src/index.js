@@ -200,12 +200,16 @@ app.get("/api/auth/me", async (req, res, next) => {
 // Basic error handler
 app.use((err, req, res, next) => {
   const status = err && typeof err.status === "number" ? err.status : 500;
-  if (NODE_ENV !== "production") {
-    // eslint-disable-next-line no-console
-    console.error(err);
-  }
+  // Always log server errors in Render logs (avoid leaking secrets in response body)
+  // eslint-disable-next-line no-console
+  console.error({
+    message: err?.message,
+    code: err?.code,
+    errno: err?.errno,
+    sqlState: err?.sqlState,
+  });
   res.status(status).json({
-    error: "INTERNAL_ERROR",
+    error: status === 500 ? err?.code || "INTERNAL_ERROR" : "REQUEST_ERROR",
     message: NODE_ENV === "production" ? undefined : String(err?.message || err),
   });
 });
