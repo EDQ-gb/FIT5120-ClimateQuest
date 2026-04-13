@@ -56,13 +56,26 @@ module.exports = async function handler(req, res) {
 
     // Forward headers (especially Set-Cookie).
     // Strip content-encoding because Node fetch may already decode the body.
+    const setCookies =
+      typeof upstream.headers.getSetCookie === "function"
+        ? upstream.headers.getSetCookie()
+        : null;
+
     upstream.headers.forEach((value, key) => {
       const k = key.toLowerCase();
       if (k === "transfer-encoding") return;
       if (k === "content-length") return;
       if (k === "content-encoding") return;
+      if (k === "set-cookie") return; // handled below to preserve multiple cookies
       res.setHeader(key, value);
     });
+
+    if (setCookies && setCookies.length) {
+      res.setHeader("set-cookie", setCookies);
+    } else {
+      const single = upstream.headers.get("set-cookie");
+      if (single) res.setHeader("set-cookie", single);
+    }
 
     const buf = Buffer.from(await upstream.arrayBuffer());
     res.send(buf);
