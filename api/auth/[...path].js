@@ -43,15 +43,15 @@ module.exports = async function handler(req, res) {
       redirect: "manual",
     });
 
-    // Forward status
     res.status(upstream.status);
 
-    // Forward headers (especially Set-Cookie)
+    // Forward headers (especially Set-Cookie).
+    // Strip content-encoding because Node fetch may already decode the body.
     upstream.headers.forEach((value, key) => {
       const k = key.toLowerCase();
       if (k === "transfer-encoding") return;
-      // Let Vercel set content-length automatically
       if (k === "content-length") return;
+      if (k === "content-encoding") return;
       res.setHeader(key, value);
     });
 
