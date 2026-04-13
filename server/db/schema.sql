@@ -6,6 +6,7 @@ create table if not exists users (
   email varchar(320) null,
   password_hash varchar(255) not null,
   display_name varchar(80) null,
+  avatar_url text null,
   created_at timestamp not null default current_timestamp,
   primary key (id),
   unique key uq_users_username (username),
