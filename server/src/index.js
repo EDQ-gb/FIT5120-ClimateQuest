@@ -106,6 +106,15 @@ function setLoggedInSession(req, userId) {
   });
 }
 
+function requireAuth(req, res) {
+  const userId = req.session.userId;
+  if (!userId) {
+    res.status(401).json({ error: "UNAUTHORIZED" });
+    return null;
+  }
+  return userId;
+}
+
 app.get("/api/health", (req, res) => {
   res.json({ ok: true });
 });
@@ -210,6 +219,30 @@ app.get("/api/auth/me", async (req, res, next) => {
 
     res.json({ user: publicUserRow(result.rows[0]) });
   } catch (err) {
+    next(err);
+  }
+});
+
+app.post("/api/auth/username", async (req, res, next) => {
+  try {
+    const userId = requireAuth(req, res);
+    if (!userId) return;
+
+    const username = normalizeUsername(req.body?.username);
+    if (!isValidUsername(username)) {
+      return res.status(400).json({ error: "INVALID_USERNAME" });
+    }
+
+    await query(`update users set username = ? where id = ?`, [username, userId]);
+    const result = await query(
+      `select id, username, display_name, created_at from users where id = ?`,
+      [userId]
+    );
+    res.json({ user: publicUserRow(result.rows[0]) });
+  } catch (err) {
+    if (err && (err.code === "ER_DUP_ENTRY" || err.code === "ER_DUP_KEY")) {
+      return res.status(409).json({ error: "USERNAME_TAKEN" });
+    }
     next(err);
   }
 });

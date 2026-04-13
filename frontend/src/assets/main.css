@@ -85,7 +85,7 @@ body {
 .login-btn {
   position: absolute;
   right: 40px;
-  padding: 10px 28px;
+  padding: 8px 14px;
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.6);
   color: #ffffff;
@@ -94,11 +94,101 @@ body {
   font-weight: 400;
   cursor: pointer;
   transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .login-btn:hover {
   background: #ffffff;
   color: #000000;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.login-btn:hover .avatar {
+  color: rgba(0, 0, 0, 0.85);
+  border-color: rgba(0, 0, 0, 0.2);
+}
+
+.user-menu {
+  position: absolute;
+  top: 90px;
+  right: 40px;
+  width: min(320px, calc(100vw - 32px));
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  z-index: 20;
+}
+
+.user-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.user-meta {
+  display: grid;
+  gap: 2px;
+}
+
+.user-name {
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  line-height: 1.1;
+}
+
+.user-handle {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.9rem;
+}
+
+.menu-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.menu-btn {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.menu-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.menu-btn-danger {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 0, 0, 0.12);
+}
+
+.menu-btn-danger:hover {
+  background: rgba(255, 0, 0, 0.18);
 }
 
 .main-content {
