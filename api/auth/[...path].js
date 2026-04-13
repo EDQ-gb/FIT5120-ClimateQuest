@@ -7,11 +7,20 @@ const BACKEND_BASE =
 module.exports = async function handler(req, res) {
   try {
     const pathParam = req.query?.path;
-    const tail = Array.isArray(pathParam)
+    let tail = Array.isArray(pathParam)
       ? pathParam.join("/")
       : typeof pathParam === "string"
         ? pathParam
         : "";
+
+    // Fallback: derive tail from URL if platform doesn't populate query params
+    if (!tail) {
+      const url = req.url || "";
+      const marker = "/api/auth/";
+      const idx = url.indexOf(marker);
+      if (idx >= 0) tail = url.slice(idx + marker.length).split("?")[0];
+      tail = String(tail || "").replace(/^\/+/, "");
+    }
 
     const url = `${BACKEND_BASE}/api/auth/${tail}`;
 
