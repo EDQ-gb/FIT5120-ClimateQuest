@@ -93,6 +93,19 @@ function publicUserRow(row) {
   };
 }
 
+function setLoggedInSession(req, userId) {
+  return new Promise((resolve, reject) => {
+    req.session.regenerate((regenErr) => {
+      if (regenErr) return reject(regenErr);
+      req.session.userId = userId;
+      req.session.save((saveErr) => {
+        if (saveErr) return reject(saveErr);
+        resolve();
+      });
+    });
+  });
+}
+
 app.get("/api/health", (req, res) => {
   res.json({ ok: true });
 });
@@ -125,7 +138,7 @@ app.post("/api/auth/register", async (req, res, next) => {
       [username]
     );
     const user = publicUserRow(result.rows[0] || {});
-    req.session.userId = user.id;
+    await setLoggedInSession(req, user.id);
     res.status(201).json({ user });
   } catch (err) {
     if (err && (err.code === "ER_DUP_ENTRY" || err.code === "ER_DUP_KEY")) {
@@ -163,7 +176,7 @@ app.post("/api/auth/login", async (req, res, next) => {
     if (!ok) return res.status(401).json({ error: "INVALID_CREDENTIALS" });
 
     const user = publicUserRow(row);
-    req.session.userId = user.id;
+    await setLoggedInSession(req, user.id);
     res.json({ user });
   } catch (err) {
     next(err);
