@@ -10,6 +10,10 @@ const { getPool, query } = require("./db");
 const app = express();
 
 app.disable("x-powered-by");
+// Required for secure cookies behind Render/Vercel proxies (x-forwarded-proto)
+if (NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
 
 app.use(express.json({ limit: "1mb" }));
 
