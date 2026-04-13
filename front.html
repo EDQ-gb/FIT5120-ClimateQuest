@@ -315,7 +315,7 @@
                     authOpen: false,
                     authMode: 'login', // 'login' | 'register'
                     form: {
-                        email: '',
+                        username: '',
                         password: '',
                         displayName: '',
                     },
@@ -325,7 +325,7 @@
             },
             computed: {
                 loginButtonText() {
-                    if (this.user) return this.user.displayName || this.user.email;
+                    if (this.user) return this.user.displayName || this.user.username;
                     return 'Login';
                 },
             },
@@ -393,7 +393,7 @@
                     try {
                         if (this.authMode === 'register') {
                             const payload = {
-                                email: this.form.email,
+                                username: this.form.username,
                                 password: this.form.password,
                                 displayName: this.form.displayName,
                             };
@@ -403,7 +403,7 @@
                             });
                             this.user = data.user;
                         } else {
-                            const payload = { email: this.form.email, password: this.form.password };
+                            const payload = { username: this.form.username, password: this.form.password };
                             const data = await this.api('/api/auth/login', {
                                 method: 'POST',
                                 body: JSON.stringify(payload),
@@ -452,38 +452,38 @@
                         <div class="modal" role="dialog" aria-modal="true">
                             <div class="modal-header">
                                 <div class="modal-title">
-                                    {{ authMode === 'login' ? '登录' : '注册' }}
+                                    {{ authMode === 'login' ? 'Sign in' : 'Create account' }}
                                 </div>
                                 <button type="button" class="icon-btn" @click="closeAuth">×</button>
                             </div>
 
                             <div class="form">
                                 <div class="field" v-if="authMode === 'register'">
-                                    <label>昵称（可选）</label>
+                                    <label>Display name (optional)</label>
                                     <input v-model="form.displayName" placeholder="Display name" autocomplete="nickname" />
                                 </div>
 
                                 <div class="field">
-                                    <label>邮箱</label>
-                                    <input v-model="form.email" placeholder="you@example.com" autocomplete="email" />
+                                    <label>Username</label>
+                                    <input v-model="form.username" placeholder="e.g. jarvis_01" autocomplete="username" />
                                 </div>
 
                                 <div class="field">
-                                    <label>密码</label>
-                                    <input v-model="form.password" type="password" placeholder="至少 8 位" autocomplete="current-password" />
+                                    <label>Password</label>
+                                    <input v-model="form.password" type="password" placeholder="At least 8 characters" autocomplete="current-password" />
                                 </div>
 
                                 <div class="form-actions">
                                     <button type="button" class="link-btn" @click="toggleAuthMode">
-                                        {{ authMode === 'login' ? '没有账号？去注册' : '已有账号？去登录' }}
+                                        {{ authMode === 'login' ? 'No account? Create one' : 'Already have an account? Sign in' }}
                                     </button>
                                     <button type="button" class="primary-btn" :disabled="busy" @click="submitAuth">
-                                        {{ busy ? '处理中...' : (authMode === 'login' ? '登录' : '注册') }}
+                                        {{ busy ? 'Working...' : (authMode === 'login' ? 'Sign in' : 'Create account') }}
                                     </button>
                                 </div>
 
                                 <div class="hint" v-if="!errorMsg">
-                                    说明：这是 Cookie Session 登录（HttpOnly）。你需要启动后端并配置 FRONTEND_ORIGIN 与 apiBase。
+                                    This uses HttpOnly Cookie Session auth. Make sure your backend CORS origin (FRONTEND_ORIGIN) matches this site, and apiBase points to your backend.
                                 </div>
                                 <div class="error" v-else>
                                     {{ errorMsg }}

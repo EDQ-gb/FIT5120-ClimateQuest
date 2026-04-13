@@ -61,12 +61,13 @@ app.use(
   })
 );
 
-function normalizeEmail(email) {
-  return String(email || "").trim().toLowerCase();
+function normalizeUsername(username) {
+  return String(username || "").trim().toLowerCase();
 }
 
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+function isValidUsername(username) {
+  // 3-32 chars: letters, numbers, underscore
+  return /^[a-z0-9_]{3,32}$/.test(username);
 }
 
 function isValidPassword(pw) {
@@ -82,7 +83,7 @@ function normalizeDisplayName(name) {
 function publicUserRow(row) {
   return {
     id: row.id,
-    email: row.email,
+    username: row.username,
     displayName: row.display_name || "",
     createdAt: row.created_at,
   };
@@ -94,15 +95,12 @@ app.get("/api/health", (req, res) => {
 
 app.post("/api/auth/register", async (req, res, next) => {
   try {
-    const email = normalizeEmail(req.body?.email);
+    const username = normalizeUsername(req.body?.username);
     const password = req.body?.password;
     const displayName = normalizeDisplayName(req.body?.displayName);
 
-    if (!isValidEmail(email)) {
-      return res.status(400).json({ error: "INVALID_EMAIL" });
-    }
-    if (email.length > 320) {
-      return res.status(400).json({ error: "INVALID_EMAIL" });
+    if (!isValidUsername(username)) {
+      return res.status(400).json({ error: "INVALID_USERNAME" });
     }
     if (!isValidPassword(password)) {
       return res.status(400).json({ error: "WEAK_PASSWORD", minLength: 8 });
@@ -111,23 +109,23 @@ app.post("/api/auth/register", async (req, res, next) => {
     const passwordHash = await bcrypt.hash(password, 12);
 
     await query(
-      `insert into users (email, password_hash, display_name)
+      `insert into users (username, password_hash, display_name)
        values (?, ?, ?)`,
-      [email, passwordHash, displayName]
+      [username, passwordHash, displayName]
     );
 
     const result = await query(
-      `select id, email, display_name, created_at
+      `select id, username, display_name, created_at
        from users
-       where email = ?`,
-      [email]
+       where username = ?`,
+      [username]
     );
     const user = publicUserRow(result.rows[0] || {});
     req.session.userId = user.id;
     res.status(201).json({ user });
   } catch (err) {
     if (err && (err.code === "ER_DUP_ENTRY" || err.code === "ER_DUP_KEY")) {
-      return res.status(409).json({ error: "EMAIL_TAKEN" });
+      return res.status(409).json({ error: "USERNAME_TAKEN" });
     }
     next(err);
   }
@@ -135,24 +133,21 @@ app.post("/api/auth/register", async (req, res, next) => {
 
 app.post("/api/auth/login", async (req, res, next) => {
   try {
-    const email = normalizeEmail(req.body?.email);
+    const username = normalizeUsername(req.body?.username);
     const password = req.body?.password;
 
-    if (!isValidEmail(email)) {
-      return res.status(400).json({ error: "INVALID_EMAIL" });
-    }
-    if (email.length > 320) {
-      return res.status(400).json({ error: "INVALID_EMAIL" });
+    if (!isValidUsername(username)) {
+      return res.status(400).json({ error: "INVALID_USERNAME" });
     }
     if (typeof password !== "string" || !password) {
       return res.status(400).json({ error: "INVALID_PASSWORD" });
     }
 
     const result = await query(
-      `select id, email, display_name, created_at, password_hash
+      `select id, username, display_name, created_at, password_hash
        from users
-       where email = ?`,
-      [email]
+       where username = ?`,
+      [username]
     );
 
     if (!result.rows || result.rows.length === 0) {
@@ -185,7 +180,7 @@ app.get("/api/auth/me", async (req, res, next) => {
     if (!userId) return res.status(200).json({ user: null });
 
     const result = await query(
-      `select id, email, display_name, created_at
+      `select id, username, display_name, created_at
        from users
        where id = ?`,
       [userId]
