@@ -4,6 +4,8 @@ const session = require("express-session");
 const MySQLStoreFactory = require("express-mysql-session");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
 
 const { FRONTEND_ORIGIN, NODE_ENV, PORT, SESSION_SECRET } = require("./config");
 const { getPool, query, exec } = require("./db");
@@ -28,6 +30,31 @@ app.use(
 const cookieSecure = NODE_ENV === "production";
 const cookieSameSite =
   process.env.COOKIE_SAMESITE || (cookieSecure ? "none" : "lax");
+
+// Ensure required tables exist in the connected database.
+// Render free tier often doesn't provide an interactive shell; auto-bootstrapping
+// avoids "ER_NO_SUCH_TABLE user_state" when the DB is new.
+let _bootstrapped = null;
+async function ensureDbBootstrapped() {
+  if (_bootstrapped) return _bootstrapped;
+  _bootstrapped = (async () => {
+    try {
+      const schemaPath = path.join(__dirname, "..", "db", "schema.sql");
+      const sql = fs.readFileSync(schemaPath, "utf8");
+      await exec(sql);
+      return true;
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error({
+        message: "DB bootstrap failed",
+        error: e?.message,
+        code: e?.code,
+      });
+      return false;
+    }
+  })();
+  return _bootstrapped;
+}
 
 const mysqlPool = getPool();
 const MySQLStore = MySQLStoreFactory(session);
@@ -1203,7 +1230,8 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+  await ensureDbBootstrapped();
   // eslint-disable-next-line no-console
   console.log(`EcoQuest auth server listening on :${PORT}`);
   console.log(`CORS origin: ${FRONTEND_ORIGIN}`);
