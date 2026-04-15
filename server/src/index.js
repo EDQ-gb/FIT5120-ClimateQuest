@@ -1129,7 +1129,7 @@ app.post("/api/shop/buy", async (req, res, next) => {
     } else {
       await query(
         `update user_state
-         set coins = coins - ?,
+         set coins = coins - ?
          where user_id = ?`,
         [cost, userId]
       );

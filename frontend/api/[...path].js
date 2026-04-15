@@ -1,5 +1,5 @@
-// Vercel Serverless Function (Node): proxy /api/auth/* to Render backend.
-// This keeps auth cookies first-party on the Vercel domain.
+// Vercel Serverless Function (Node): proxy /api/* to backend.
+// This keeps cookies first-party on the Vercel domain and avoids CORS + SameSite issues.
 
 import { Buffer } from 'node:buffer'
 
@@ -13,25 +13,15 @@ export default async function handler(req, res) {
       res.end(JSON.stringify({ error: 'MISSING_BACKEND_BASE' }))
       return
     }
-    const pathParam = req.query?.path
-    let tail = Array.isArray(pathParam)
-      ? pathParam.join('/')
-      : typeof pathParam === 'string'
-        ? pathParam
-        : ''
 
-    // Fallback: derive tail from URL if platform doesn't populate query params
-    if (!tail) {
-      const raw = typeof req.url === 'string' ? req.url : ''
-      const marker = '/api/auth/'
-      const idx = raw.indexOf(marker)
-      if (idx >= 0) {
-        tail = raw.slice(idx + marker.length).split('?')[0]
-      }
-      tail = String(tail || '').replace(/^\/+/, '')
-    }
+    // Derive tail after /api/
+    const raw = typeof req.url === 'string' ? req.url : ''
+    const marker = '/api/'
+    const idx = raw.indexOf(marker)
+    const tail = idx >= 0 ? raw.slice(idx + marker.length) : ''
 
-    const url = `${BACKEND_BASE}/api/auth/${tail}`
+    // Keep querystring intact
+    const url = `${BACKEND_BASE}/api/${tail}`.replace(/\/+$/, '')
 
     const headers = {}
     for (const [k, v] of Object.entries(req.headers || {})) {
@@ -51,7 +41,7 @@ export default async function handler(req, res) {
           ? req.body
           : req.body
             ? JSON.stringify(req.body)
-            : undefined;
+            : undefined
 
     const upstream = await fetch(url, {
       method,
@@ -88,14 +78,12 @@ export default async function handler(req, res) {
   } catch (e) {
     res.statusCode = 502
     res.setHeader('content-type', 'application/json')
-    res.end(JSONifyError(e))
+    res.end(
+      JSON.stringify({
+        error: 'BAD_GATEWAY',
+        message: e && typeof e.message === 'string' ? e.message : undefined,
+      })
+    )
   }
-}
-
-function JSONifyError(e) {
-  return JSON.stringify({
-    error: 'BAD_GATEWAY',
-    message: e && typeof e.message === 'string' ? e.message : undefined,
-  })
 }
 
