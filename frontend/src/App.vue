@@ -4,25 +4,17 @@
     <!-- ════════════════════════════════════════════════════
          LANDING PAGE  (home view)
     ════════════════════════════════════════════════════ -->
-    <div v-if="currentView === 'home'" class="hero-section">
-      <nav class="navbar">
-        <ul class="nav-links">
-          <li v-for="item in navLinks" :key="item.key">
-            <button type="button" @click="onNavClick(item.key)">{{ item.label }}</button>
-          </li>
-        </ul>
-        <button type="button" class="login-btn" @click="onLogin">
-          <span v-if="user" class="avatar" :style="{ background: avatarBg }">{{ avatarText }}</span>
-          <span>{{ loginButtonText }}</span>
-        </button>
-      </nav>
-
-      <div class="main-content">
-        <h1 class="main-title">{{ titleLines[0] }}<br />{{ titleLines[1] }}</h1>
-        <p class="subtitle">{{ subtitle }}</p>
-        <button type="button" class="cta-button" @click="onCta">{{ ctaText }}</button>
-      </div>
-    </div>
+    <AppLandingV2
+      v-if="currentView === 'home'"
+      :user="user"
+      :navLinks="navLinks"
+      :loginButtonText="loginButtonText"
+      :avatarText="avatarText"
+      :avatarBg="avatarBg"
+      @navigate="onNavClick"
+      @login="onLogin"
+      @start="onCta"
+    />
 
     <!-- ════════════════════════════════════════════════════
          THEME SELECT (after landing CTA)
@@ -187,6 +179,7 @@ import AppScene from './components/AppScene.vue'
 import AppQuiz from './components/AppQuiz.vue'
 import AppLeaderboard from './components/AppLeaderboard.vue'
 import AppThemeSelect from './components/AppThemeSelect.vue'
+import AppLandingV2 from './components/AppLandingV2.vue'
 import SceneBuilderShell from './components/game/SceneBuilderShell.vue'
 import { getProgress } from './api/features.js'
 
