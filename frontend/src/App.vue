@@ -85,7 +85,7 @@
         <Transition name="pop">
           <div class="modal" role="dialog" aria-modal="true" @click.stop>
             <div class="modal-header">
-              <div class="modal-title">注册 / 登录（无密码）</div>
+              <div class="modal-title">Register / Sign in (passwordless)</div>
             </div>
 
             <div class="form">
@@ -100,15 +100,29 @@
               </div>
 
               <div class="form-actions">
-                <button type="button" class="outline-btn" :disabled="busy" @click="submitSignin">
-                  登录
+                <button
+                  type="button"
+                  class="outline-btn"
+                  :disabled="busy"
+                  :style="authSuggested === 'signin' ? { boxShadow: '0 0 0 3px rgba(0,242,255,0.18)' } : null"
+                  @click="submitSignin"
+                >
+                  Sign in
                 </button>
-                <button type="button" class="link-btn" :disabled="busy" @click="submitRegister">
-                  {{ busy ? 'Working...' : '注册' }}
+                <button
+                  type="button"
+                  class="link-btn"
+                  :disabled="busy"
+                  :style="authSuggested === 'register' ? { color: 'rgba(0,242,255,0.95)' } : null"
+                  @click="submitRegister"
+                >
+                  {{ busy ? 'Working...' : 'Register' }}
                 </button>
               </div>
 
-              <div class="hint" v-if="!errorMsg">注册：新用户名创建账号。登录：已有用户名直接进入。</div>
+              <div class="hint" v-if="!errorMsg">
+                Register creates a new account. Sign in uses an existing username.
+              </div>
               <div class="error" v-else>{{ errorMsg }}</div>
             </div>
           </div>
@@ -313,8 +327,9 @@ async function onPlace(p) {
     await applyPlacementApi('/api/scene/place', p)
   } catch (e) {
     const msg = String(e?.message || '')
-    if (msg === 'INSUFFICIENT_COINS') alert('金币不足：请先完成任务或测验获取 coins，再放置。')
-    else alert(`放置失败：${msg || 'unknown'}`)
+    if (msg === 'INSUFFICIENT_COINS')
+      alert('Not enough coins. Complete Daily Tasks or the Daily Quiz to earn coins, then place items.')
+    else alert(`Place failed: ${msg || 'unknown'}`)
   }
 }
 
@@ -349,6 +364,10 @@ const newUsername = ref('')
 const usernameError = ref('')
 
 const form = reactive({ username: '', displayName: '' })
+
+// Tracks which action the UI should guide users toward when an auth call fails.
+// We keep the existing two-button modal, but we can still “switch” intent.
+const authSuggested = ref('signin') // signin|register
 
 const loginButtonText = computed(() => {
   if (user.value) return user.value.displayName || user.value.username
@@ -409,6 +428,7 @@ function onNavClick(key) {
 function openAuth() {
   authOpen.value = true
   errorMsg.value = ''
+  authSuggested.value = 'signin'
 }
 
 function closeAuth() {
@@ -430,8 +450,12 @@ async function submitRegister() {
     await refreshGameState()
     onNavigate(game.themeLocked ? 'game' : 'theme')
   } catch (e) {
-    const msg = String(e?.message || 'Login failed')
-    errorMsg.value = msg
+    const msg = String(e?.message || 'Register failed')
+    // English UX requirement:
+    // - username already exists → show “already registered”
+    if (msg === 'USERNAME_TAKEN') errorMsg.value = 'This username is already registered.'
+    else errorMsg.value = msg
+    authSuggested.value = 'signin'
   } finally {
     busy.value = false
   }
@@ -452,7 +476,15 @@ async function submitSignin() {
     onNavigate(game.themeLocked ? 'game' : 'theme')
   } catch (e) {
     const msg = String(e?.message || 'Login failed')
-    errorMsg.value = msg === 'USER_NOT_FOUND' ? '用户不存在，请先注册。' : msg
+    // UX requirement:
+    // - login with non-existent username → guide user to register
+    if (msg === 'USER_NOT_FOUND') {
+      errorMsg.value = 'Account not found. Please register first.'
+      authSuggested.value = 'register'
+    } else {
+      errorMsg.value = msg
+      authSuggested.value = 'signin'
+    }
   } finally {
     busy.value = false
   }
