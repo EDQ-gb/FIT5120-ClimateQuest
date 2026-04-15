@@ -1,121 +1,175 @@
 <template>
-  <div class="hero-section">
-    <nav class="navbar">
-      <ul class="nav-links">
-        <li v-for="item in navLinks" :key="item.key">
-          <button type="button" @click="onNavClick(item.key)">{{ item.label }}</button>
-        </li>
-      </ul>
-      <button type="button" class="login-btn" @click="onLogin">
-        <span v-if="user" class="avatar" :style="{ background: avatarBg }">{{ avatarText }}</span>
-        <span>{{ loginButtonText }}</span>
-      </button>
-    </nav>
+  <!-- ─── ROOT WRAPPER (needed to hold both landing + app pages) ─── -->
+  <div class="app-root">
+    <!-- ════════════════════════════════════════════════════
+         LANDING PAGE  (home view)
+    ════════════════════════════════════════════════════ -->
+    <div v-if="currentView === 'home'" class="hero-section">
+      <nav class="navbar">
+        <ul class="nav-links">
+          <li v-for="item in navLinks" :key="item.key">
+            <button type="button" @click="onNavClick(item.key)">{{ item.label }}</button>
+          </li>
+        </ul>
+        <button type="button" class="login-btn" @click="onLogin">
+          <span v-if="user" class="avatar" :style="{ background: avatarBg }">{{ avatarText }}</span>
+          <span>{{ loginButtonText }}</span>
+        </button>
+      </nav>
 
-    <div class="main-content">
-      <h1 class="main-title">{{ titleLines[0] }}<br />{{ titleLines[1] }}</h1>
-      <p class="subtitle">{{ subtitle }}</p>
-      <button type="button" class="cta-button" @click="onCta">{{ ctaText }}</button>
+      <div class="main-content">
+        <h1 class="main-title">{{ titleLines[0] }}<br />{{ titleLines[1] }}</h1>
+        <p class="subtitle">{{ subtitle }}</p>
+        <button type="button" class="cta-button" @click="onCta">{{ ctaText }}</button>
+      </div>
     </div>
 
+    <!-- ════════════════════════════════════════════════════
+         THEME SELECT (after landing CTA)
+    ════════════════════════════════════════════════════ -->
+    <AppThemeSelect
+      v-else-if="currentView === 'theme'"
+      @selected="onThemeSelected"
+      @skip="onThemeSkipped"
+      @back-home="onNavigate('home')"
+    />
+
+    <SceneBuilderShell
+      v-else-if="currentView === 'game'"
+      :user="user"
+      :themeType="game.themeType"
+      :coins="game.coins"
+      :streak="game.streak"
+      :placements="game.placements"
+      @reset="onResetGame"
+      @logout="onLogout"
+      @place="onPlace"
+      @remove="onRemove"
+      @move="onMove"
+      @activity="onActivity"
+      @refresh="refreshGameState"
+    />
+
+    <!-- ════════════════════════════════════════════════════
+         APP SHELL  (all other views)
+    ════════════════════════════════════════════════════ -->
+    <div v-else class="app-shell">
+      <AppSidebar :user="user" :currentView="currentView" @navigate="onNavigate" @logout="onLogout" />
+
+      <div class="shell-main">
+        <!-- Top bar -->
+        <header class="shell-topbar">
+          <div class="shell-page-title">{{ pageTitles[currentView] || 'ClimateQuest' }}</div>
+          <div class="shell-topbar-right">
+            <button class="topbar-home-btn" @click="onNavigate('home')">← Home</button>
+            <span class="topbar-badge gold">🪙 {{ shellCoins.toLocaleString() }}</span>
+            <span class="topbar-badge cyan">🔥 {{ shellStreak }}d streak</span>
+          </div>
+        </header>
+
+        <!-- Page content -->
+        <div class="shell-content">
+          <AppDashboard
+            v-if="currentView === 'dashboard'"
+            :user="user"
+            @navigate="onNavigate"
+            @coins-updated="refreshShellStats"
+          />
+          <AppTasks v-else-if="currentView === 'tasks'" :user="user" @coins-updated="refreshShellStats" />
+          <AppScene v-else-if="currentView === 'scene'" :user="user" />
+          <AppQuiz v-else-if="currentView === 'quiz'" :user="user" @coins-updated="refreshShellStats" />
+          <AppLeaderboard v-else-if="currentView === 'leaderboard'" :user="user" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════
+         AUTH MODALS
+    ════════════════════════════════════════════════════ -->
+
+    <!-- Login / Register modal -->
     <Transition name="fade">
       <div v-if="authOpen" class="modal-backdrop" @click.self="closeAuth">
         <Transition name="pop">
           <div class="modal" role="dialog" aria-modal="true" @click.stop>
-        <div class="modal-header">
-          <div class="modal-title">
-            {{ authMode === 'login' ? 'Sign in' : 'Create account' }}
-          </div>
-        </div>
+            <div class="modal-header">
+              <div class="modal-title">注册 / 登录（无密码）</div>
+            </div>
 
-        <div class="form">
-          <div class="field" v-if="authMode === 'register'">
-            <label>Display name (optional)</label>
-            <input v-model="form.displayName" placeholder="Display name" autocomplete="nickname" />
-          </div>
+            <div class="form">
+              <div class="field">
+                <label>Display name (optional)</label>
+                <input v-model="form.displayName" placeholder="Display name" autocomplete="nickname" />
+              </div>
 
-          <div class="field">
-            <label>Username</label>
-            <input v-model="form.username" placeholder="e.g. jarvis_01" autocomplete="username" />
-          </div>
+              <div class="field">
+                <label>Username</label>
+                <input v-model="form.username" placeholder="e.g. jarvis_01" autocomplete="username" />
+              </div>
 
-          <div class="field">
-            <label>Password</label>
-            <input
-              v-model="form.password"
-              type="password"
-              placeholder="At least 8 characters"
-              autocomplete="current-password"
-            />
-          </div>
+              <div class="form-actions">
+                <button type="button" class="outline-btn" :disabled="busy" @click="submitSignin">
+                  登录
+                </button>
+                <button type="button" class="link-btn" :disabled="busy" @click="submitRegister">
+                  {{ busy ? 'Working...' : '注册' }}
+                </button>
+              </div>
 
-          <div class="form-actions">
-            <button type="button" class="link-btn" @click="toggleAuthMode">
-              {{ authMode === 'login' ? 'No account? Create one' : 'Already have an account? Sign in' }}
-            </button>
-            <button type="button" class="primary-btn" :disabled="busy" @click="submitAuth">
-              {{ busy ? 'Working...' : authMode === 'login' ? 'Sign in' : 'Create account' }}
-            </button>
-          </div>
-
-          <div class="hint" v-if="!errorMsg">
-            This uses HttpOnly Cookie Session auth.
-          </div>
-          <div class="error" v-else>
-            {{ errorMsg }}
-          </div>
-        </div>
+              <div class="hint" v-if="!errorMsg">注册：新用户名创建账号。登录：已有用户名直接进入。</div>
+              <div class="error" v-else>{{ errorMsg }}</div>
+            </div>
           </div>
         </Transition>
       </div>
     </Transition>
 
+    <!-- User menu -->
     <Transition name="fade">
       <div v-if="menuOpen && user" class="modal-backdrop" @click.self="closeMenu">
         <Transition name="pop">
           <div class="user-menu" role="dialog" aria-modal="true" @click.stop>
-        <div class="user-menu-header">
-          <div class="avatar" :style="{ background: avatarBg }">{{ avatarText }}</div>
-          <div class="user-meta">
-            <div class="user-name">{{ user.displayName || user.username }}</div>
-            <div class="user-handle">@{{ user.username }}</div>
-          </div>
-        </div>
+            <div class="user-menu-header">
+              <div class="avatar" :style="{ background: avatarBg }">{{ avatarText }}</div>
+              <div class="user-meta">
+                <div class="user-name">{{ user.displayName || user.username }}</div>
+                <div class="user-handle">@{{ user.username }}</div>
+              </div>
+            </div>
 
-        <div class="menu-actions">
-          <button type="button" class="menu-btn" @click="openUsernameModal">Edit username</button>
-          <button type="button" class="menu-btn menu-btn-danger" @click="onLogout">Sign out</button>
-        </div>
+            <div class="menu-actions">
+              <button type="button" class="menu-btn" @click="openUsernameModal">Edit username</button>
+              <button type="button" class="menu-btn menu-btn-danger" @click="onLogout">Sign out</button>
+            </div>
           </div>
         </Transition>
       </div>
     </Transition>
 
+    <!-- Edit username modal -->
     <Transition name="fade">
       <div v-if="usernameOpen" class="modal-backdrop" @click.self="closeUsernameModal">
         <Transition name="pop">
           <div class="modal" role="dialog" aria-modal="true" @click.stop>
-        <div class="modal-header">
-          <div class="modal-title">Edit username</div>
-        </div>
+            <div class="modal-header">
+              <div class="modal-title">Edit username</div>
+            </div>
 
-        <div class="form">
-          <div class="field">
-            <label>New username</label>
-            <input v-model="newUsername" placeholder="3-32 chars: a-z 0-9 _" autocomplete="username" />
-          </div>
+            <div class="form">
+              <div class="field">
+                <label>New username</label>
+                <input v-model="newUsername" placeholder="3-32 chars: a-z 0-9 _" autocomplete="username" />
+              </div>
 
-          <div class="form-actions">
-            <button type="button" class="link-btn" @click="closeUsernameModal">Cancel</button>
-            <button type="button" class="primary-btn" :disabled="busy" @click="submitUsername">
-              {{ busy ? 'Working...' : 'Save' }}
-            </button>
-          </div>
+              <div class="form-actions">
+                <button type="button" class="link-btn" @click="closeUsernameModal">Cancel</button>
+                <button type="button" class="primary-btn" :disabled="busy" @click="submitUsername">
+                  {{ busy ? 'Working...' : 'Save' }}
+                </button>
+              </div>
 
-          <div class="error" v-if="usernameError">
-            {{ usernameError }}
-          </div>
-        </div>
+              <div class="error" v-if="usernameError">{{ usernameError }}</div>
+            </div>
           </div>
         </Transition>
       </div>
@@ -125,6 +179,159 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+
+import AppSidebar from './components/AppSidebar.vue'
+import AppDashboard from './components/AppDashboard.vue'
+import AppTasks from './components/AppTasks.vue'
+import AppScene from './components/AppScene.vue'
+import AppQuiz from './components/AppQuiz.vue'
+import AppLeaderboard from './components/AppLeaderboard.vue'
+import AppThemeSelect from './components/AppThemeSelect.vue'
+import SceneBuilderShell from './components/game/SceneBuilderShell.vue'
+import { getProgress } from './api/features.js'
+
+const currentView = ref('home')
+
+const game = reactive({
+  themeType: 'forest',
+  sceneProgress: 0,
+  coins: 0,
+  streak: 0,
+  trees: 0,
+  flowers: 0,
+  placements: null,
+  themeLocked: false,
+})
+
+// Debug helpers removed (kept app flow clean)
+
+const pageTitles = {
+  theme: 'Choose Theme',
+  dashboard: 'Dashboard',
+  tasks: 'Daily Tasks',
+  scene: 'My Scene',
+  quiz: 'Climate Quiz',
+  leaderboard: 'Leaderboard',
+}
+
+const shellCoins = ref(0)
+const shellStreak = ref(0)
+
+async function refreshShellStats() {
+  try {
+    const p = await getProgress()
+    if (p) {
+      shellCoins.value = p.coins || 0
+      shellStreak.value = p.streak || 0
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function onNavigate(view) {
+  // Flow guard (stable version):
+  // - home stays as-is
+  // - after theme is locked, user cannot go back home unless logout
+  if (view === 'home' && user.value && game.themeLocked) return
+  currentView.value = view
+  if (view !== 'home') refreshShellStats()
+}
+
+async function refreshGameState() {
+  try {
+    const gs = await fetch('/api/game/state', { credentials: 'include', cache: 'no-store' }).then((r) => r.json())
+    if (gs?.themeType) game.themeType = gs.themeType
+    if (typeof gs?.sceneProgress === 'number') game.sceneProgress = gs.sceneProgress
+    if (typeof gs?.coins === 'number') game.coins = gs.coins
+    if (typeof gs?.trees === 'number') game.trees = gs.trees
+    if (typeof gs?.flowers === 'number') game.flowers = gs.flowers
+    game.placements = gs?.placements || null
+    game.themeLocked = !!gs?.themeLocked
+
+    // Keep using existing progress endpoint for streak/level display
+    const prog = await getProgress()
+    if (prog) game.streak = prog.streak || 0
+  } catch {
+    // ignore
+  }
+}
+
+function onActivity(payload) {
+  // Keep the topbar feeling responsive; refresh will reconcile any mismatch.
+  if (payload && typeof payload.totalCoins === 'number') game.coins = payload.totalCoins
+  if (payload && typeof payload.streak === 'number') game.streak = payload.streak
+  if (payload && typeof payload.sceneProgress === 'number') game.sceneProgress = payload.sceneProgress
+}
+
+async function onResetGame() {
+  try {
+    await fetch('/api/game/reset', { method: 'POST', credentials: 'include' }).then((r) => r.json())
+  } catch {
+    // ignore
+  }
+  onNavigate('theme')
+}
+
+async function onThemeSelected(type) {
+  if (type) game.themeType = type
+  // ensure theme_locked is reflected before entering game (prevents random bounces)
+  await refreshGameState()
+  onNavigate('game')
+}
+
+function onThemeSkipped() {
+  onNavigate('game')
+  refreshGameState()
+}
+
+async function applyPlacementApi(url, body) {
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(body),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data?.error || `HTTP_${res.status}`)
+    if (data?.placements) game.placements = data.placements
+    return data
+  } catch {
+    return null
+  }
+}
+
+async function onPlace(p) {
+  // Connect coins: buy first, then place on grid
+  try {
+    const itemId = String(p?.itemId || '')
+    const type = String(p?.type || '')
+    if (!itemId || !type) return
+    const buyRes = await fetch('/api/shop/buy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ item: type, qty: 1, itemId }),
+    }).then((r) => r.json())
+    if (buyRes?.error) throw new Error(buyRes.error)
+    // reflect coins immediately
+    if (typeof buyRes?.coins === 'number') game.coins = buyRes.coins
+    await applyPlacementApi('/api/scene/place', p)
+  } catch (e) {
+    const msg = String(e?.message || '')
+    if (msg === 'INSUFFICIENT_COINS') alert('金币不足：请先完成任务或测验获取 coins，再放置。')
+    else alert(`放置失败：${msg || 'unknown'}`)
+  }
+}
+
+async function onRemove(p) {
+  await applyPlacementApi('/api/scene/remove', p)
+}
+
+async function onMove(p) {
+  await applyPlacementApi('/api/scene/move', p)
+}
 
 const navLinks = [
   { label: 'Home', key: 'home' },
@@ -141,20 +348,14 @@ const ctaText = 'Start Your Quest'
 
 const user = ref(null)
 const authOpen = ref(false)
-const authMode = ref('login') // 'login' | 'register'
 const busy = ref(false)
 const errorMsg = ref('')
 const menuOpen = ref(false)
-
 const usernameOpen = ref(false)
 const newUsername = ref('')
 const usernameError = ref('')
 
-const form = reactive({
-  username: '',
-  password: '',
-  displayName: '',
-})
+const form = reactive({ username: '', displayName: '' })
 
 const loginButtonText = computed(() => {
   if (user.value) return user.value.displayName || user.value.username
@@ -192,20 +393,29 @@ async function refreshMe() {
   try {
     const data = await api('/api/auth/me', { method: 'GET' })
     user.value = data.user
+    if (data.user) {
+      await refreshGameState()
+      // On refresh: if already locked theme, stay in game; otherwise keep home until Start is clicked.
+      currentView.value = game.themeLocked ? 'game' : 'home'
+      refreshShellStats()
+    } else {
+      currentView.value = 'home'
+    }
   } catch {
     user.value = null
+    currentView.value = 'home'
   }
 }
 
 function onNavClick(key) {
-  console.log('nav:', key)
+  if (key === 'home') return onNavigate('home')
+  if (!user.value) return openAuth()
+  onNavigate(key === 'home' ? 'home' : key === 'scene' ? 'scene' : key)
 }
 
-function openAuth(mode) {
-  authMode.value = mode
+function openAuth() {
   authOpen.value = true
   errorMsg.value = ''
-  form.password = ''
 }
 
 function closeAuth() {
@@ -213,37 +423,43 @@ function closeAuth() {
   errorMsg.value = ''
 }
 
-function toggleAuthMode() {
-  openAuth(authMode.value === 'login' ? 'register' : 'login')
-}
-
-async function submitAuth() {
+async function submitRegister() {
   if (busy.value) return
   busy.value = true
   errorMsg.value = ''
   try {
-    if (authMode.value === 'register') {
-      const payload = {
-        username: form.username,
-        password: form.password,
-        displayName: form.displayName,
-      }
-      const data = await api('/api/auth/register', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      })
-      user.value = data.user
-    } else {
-      const payload = { username: form.username, password: form.password }
-      const data = await api('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      })
-      user.value = data.user
-    }
+    const data = await api('/api/auth/username-register', {
+      method: 'POST',
+      body: JSON.stringify({ username: form.username, displayName: form.displayName }),
+    })
+    user.value = data.user
     closeAuth()
+    await refreshGameState()
+    onNavigate(game.themeLocked ? 'game' : 'theme')
   } catch (e) {
-    errorMsg.value = String(e?.message || 'Login failed')
+    const msg = String(e?.message || 'Login failed')
+    errorMsg.value = msg
+  } finally {
+    busy.value = false
+  }
+}
+
+async function submitSignin() {
+  if (busy.value) return
+  busy.value = true
+  errorMsg.value = ''
+  try {
+    const data = await api('/api/auth/username-signin', {
+      method: 'POST',
+      body: JSON.stringify({ username: form.username }),
+    })
+    user.value = data.user
+    closeAuth()
+    await refreshGameState()
+    onNavigate(game.themeLocked ? 'game' : 'theme')
+  } catch (e) {
+    const msg = String(e?.message || 'Login failed')
+    errorMsg.value = msg === 'USER_NOT_FOUND' ? '用户不存在，请先注册。' : msg
   } finally {
     busy.value = false
   }
@@ -257,6 +473,9 @@ async function onLogout() {
   } finally {
     user.value = null
     menuOpen.value = false
+    onNavigate('home')
+    shellCoins.value = 0
+    shellStreak.value = 0
   }
 }
 
@@ -265,7 +484,7 @@ function onLogin() {
     menuOpen.value = !menuOpen.value
     return
   }
-  openAuth('login')
+  openAuth()
 }
 
 function closeMenu() {
@@ -289,10 +508,9 @@ async function submitUsername() {
   busy.value = true
   usernameError.value = ''
   try {
-    const payload = { username: newUsername.value }
     const data = await api('/api/auth/username', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ username: newUsername.value }),
     })
     user.value = data.user
     closeUsernameModal()
@@ -304,7 +522,16 @@ async function submitUsername() {
 }
 
 function onCta() {
-  console.log('cta click')
+  errorMsg.value = ''
+  if (user.value) onNavigate(game.themeLocked ? 'game' : 'theme')
+  else authOpen.value = true
+}
+
+function onKeydown(e) {
+  if (e.key !== 'Escape') return
+  if (usernameOpen.value) return closeUsernameModal()
+  if (menuOpen.value) return closeMenu()
+  if (authOpen.value) return closeAuth()
 }
 
 onMounted(async () => {
@@ -315,11 +542,4 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
 })
-
-function onKeydown(e) {
-  if (e.key !== 'Escape') return
-  if (usernameOpen.value) return closeUsernameModal()
-  if (menuOpen.value) return closeMenu()
-  if (authOpen.value) return closeAuth()
-}
 </script>
