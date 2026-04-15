@@ -18,7 +18,6 @@
 
     <div class="landing2-inner">
       <div class="landing2-top land-in-0">
-        <div class="landing2-eyebrow">Google-inspired · Climate Education</div>
         <div class="landing2-title" aria-label="ClimateQuest">
           <span class="word-climate">CLIMATE</span>
           <span class="word-quest">QUEST</span>

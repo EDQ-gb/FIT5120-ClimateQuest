@@ -247,7 +247,8 @@ function onNavigate(view) {
 
 async function refreshGameState() {
   try {
-    const gs = await fetch('/api/game/state', { credentials: 'include', cache: 'no-store' }).then((r) => r.json())
+    // Use the shared API helper so auth/session failures don't get silently treated as "no theme locked".
+    const gs = await api('/api/game/state', { method: 'GET' })
     if (gs?.themeType) game.themeType = gs.themeType
     if (typeof gs?.sceneProgress === 'number') game.sceneProgress = gs.sceneProgress
     if (typeof gs?.coins === 'number') game.coins = gs.coins
@@ -259,8 +260,10 @@ async function refreshGameState() {
     // Keep using existing progress endpoint for streak/level display
     const prog = await getProgress()
     if (prog) game.streak = prog.streak || 0
-  } catch {
-    // ignore
+  } catch (e) {
+    // If this fails right after sign-in, we'd otherwise show ThemeSelect by mistake.
+    // Keep previous themeLocked instead of forcing it false.
+    return null
   }
 }
 

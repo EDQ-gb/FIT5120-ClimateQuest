@@ -6,7 +6,7 @@ const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 
 const { FRONTEND_ORIGIN, NODE_ENV, PORT, SESSION_SECRET } = require("./config");
-const { getPool, query } = require("./db");
+const { getPool, query, exec } = require("./db");
 
 const app = express();
 
@@ -117,12 +117,43 @@ function requireAuth(req, res) {
 }
 
 async function ensureUserState(userId) {
+  // Some teammates may run the server against an existing DB created before we
+  // introduced `theme_locked`. If the column is missing, game-state reads crash
+  // and the frontend mistakenly forces users back to ThemeSelect on relogin.
+  await ensureUserStateSchema();
   await query(
     `insert into user_state (user_id)
      values (?)
      on duplicate key update user_id = user_id`,
     [userId]
   );
+}
+
+let _schemaEnsured = null;
+async function ensureUserStateSchema() {
+  if (_schemaEnsured) return _schemaEnsured;
+  _schemaEnsured = (async () => {
+    try {
+      // Prefer SHOW COLUMNS (often allowed even when information_schema is restricted).
+      const r = await query(`show columns from user_state like 'theme_locked'`);
+      if (r.rows && r.rows.length > 0) return true;
+      // Use `exec` (pool.query) for DDL to avoid driver edge cases with prepared statements.
+      await exec(
+        `alter table user_state
+         add column theme_locked tinyint(1) not null default 0`
+      );
+      return true;
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error({
+        message: "ensureUserStateSchema failed",
+        error: e?.message,
+        code: e?.code,
+      });
+      return false;
+    }
+  })();
+  return _schemaEnsured;
 }
 
 async function touchActive(userId) {
