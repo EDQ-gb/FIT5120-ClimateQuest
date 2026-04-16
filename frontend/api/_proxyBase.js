@@ -5,7 +5,10 @@ const BACKEND_BASE = process.env.BACKEND_BASE || 'https://fit5120-climatequest.o
 function getTailAndQuery(req) {
   const raw = typeof req.url === 'string' ? req.url : ''
   const u = new URL(raw || '/', 'http://local')
-  const tail = (u.searchParams.get('path') || '').replace(/^\/+/, '')
+  const queryPath = req.query?.path
+  const fromQuery =
+    Array.isArray(queryPath) ? queryPath.join('/') : typeof queryPath === 'string' ? queryPath : ''
+  const tail = String(fromQuery || u.searchParams.get('path') || '').replace(/^\/+/, '')
   u.searchParams.delete('path')
   const qs = u.searchParams.toString()
   return { tail, qs: qs ? `?${qs}` : '' }
