@@ -388,6 +388,44 @@ if (process.env.ADMIN_SECRET) {
   });
 }
 
+async function maybeStartupSetCoins() {
+  const username = normalizeUsername(process.env.STARTUP_SET_COINS_USERNAME || "");
+  const coinsRaw = process.env.STARTUP_SET_COINS_VALUE;
+  if (!username || coinsRaw == null || coinsRaw === "") return;
+
+  const coins = parseInt(String(coinsRaw).replace(/_/g, ""), 10);
+  if (!isValidUsername(username) || !Number.isFinite(coins) || coins < 0 || coins > 2147483647) {
+    // eslint-disable-next-line no-console
+    console.error({
+      message: "Startup coin set skipped (invalid env)",
+      username,
+      coinsRaw,
+    });
+    return;
+  }
+
+  try {
+    const found = await query(`select id from users where username = ? limit 1`, [username]);
+    if (!found.rows?.length) {
+      // eslint-disable-next-line no-console
+      console.log(`Startup coin set: user not found (${username})`);
+      return;
+    }
+    const userId = found.rows[0].id;
+    await ensureUserState(userId);
+    await query(`update user_state set coins = ? where user_id = ?`, [coins, userId]);
+    // eslint-disable-next-line no-console
+    console.log(`Startup coin set OK: ${username} -> ${coins}`);
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error({
+      message: "Startup coin set failed",
+      error: e?.message,
+      code: e?.code,
+    });
+  }
+}
+
 // Authentication is intentionally *passwordless* for this project:
 // - Register: create a new username (409 if taken)
 // - Signin: log in with existing username (404 if not found)
@@ -1279,6 +1317,7 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, async () => {
   await ensureDbBootstrapped();
+  await maybeStartupSetCoins();
   // eslint-disable-next-line no-console
   console.log(`EcoQuest auth server listening on :${PORT}`);
   console.log(`CORS origin: ${FRONTEND_ORIGIN}`);

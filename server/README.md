@@ -93,3 +93,11 @@ curl.exe -sS -X POST "https://fit5120-climatequest.onrender.com/api/admin/set-co
 
 不设 `ADMIN_SECRET` 时服务器**不会注册**该路由。也可用本地脚本 `npm run db:grant-coins`（需配置 `MYSQL_URL`），与接口二选一即可。
 
+### 运维：云端自动修正金币（无需手动调用接口）
+如果你希望“push 后 Render 自动把某个用户的金币修正到一个值”，可以在 Render 环境变量里设置：
+
+- `STARTUP_SET_COINS_USERNAME=edq`
+- `STARTUP_SET_COINS_VALUE=999999`
+
+服务每次启动都会尝试查找该用户并把 `user_state.coins` 更新为该值（幂等）。不设置这两个变量则不会执行任何自动修正。
+
