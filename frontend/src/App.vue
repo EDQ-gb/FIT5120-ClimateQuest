@@ -238,6 +238,13 @@ async function refreshShellStats() {
 }
 
 function onNavigate(view) {
+  // "My Scene" always enters the interactive scene builder flow.
+  if (view === 'scene') {
+    if (!user.value) return openAuth()
+    currentView.value = game.themeLocked ? 'game' : 'theme'
+    refreshShellStats()
+    return
+  }
   // Flow guard (stable version):
   // - home stays as-is
   // - after theme is locked, user cannot go back home unless logout
