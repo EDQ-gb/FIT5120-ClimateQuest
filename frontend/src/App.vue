@@ -33,6 +33,7 @@
       :coins="game.coins"
       :streak="game.streak"
       :placements="game.placements"
+      @back="onNavigate('dashboard')"
       @reset="onResetGame"
       @logout="onLogout"
       @place="onPlace"

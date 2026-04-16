@@ -14,14 +14,28 @@ export default async function handler(req, res) {
       return
     }
 
-    // Derive tail after /api/
-    const raw = typeof req.url === 'string' ? req.url : ''
-    const marker = '/api/'
-    const idx = raw.indexOf(marker)
-    const tail = idx >= 0 ? raw.slice(idx + marker.length) : ''
+    // Vercel catch-all functions usually expose the matched path in req.query.path.
+    // Fallback to parsing req.url so this also works outside Vercel.
+    const pathParam = req.query?.path
+    let tail = Array.isArray(pathParam)
+      ? pathParam.join('/')
+      : typeof pathParam === 'string'
+        ? pathParam
+        : ''
 
-    // Keep querystring intact
-    const url = `${BACKEND_BASE}/api/${tail}`.replace(/\/+$/, '')
+    const raw = typeof req.url === 'string' ? req.url : ''
+    const u = new URL(raw || '/api', 'http://local')
+    if (!tail) {
+      const marker = '/api/'
+      const idx = raw.indexOf(marker)
+      tail = idx >= 0 ? raw.slice(idx + marker.length).split('?')[0] : ''
+    }
+    tail = String(tail || '').replace(/^\/+/, '')
+
+    // Preserve querystring (except dynamic "path" helper param).
+    u.searchParams.delete('path')
+    const qs = u.searchParams.toString()
+    const url = `${BACKEND_BASE}/api/${tail}${qs ? `?${qs}` : ''}`.replace(/\/+$/, '')
 
     const headers = {}
     for (const [k, v] of Object.entries(req.headers || {})) {

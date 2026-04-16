@@ -7,6 +7,7 @@
       <span class="topbar-info">Grid 20×20 · Kenney Nature Kit</span>
 
       <div class="topbar-right">
+        <button class="btn subtle" type="button" @click="$emit('back')">Dashboard</button>
         <button class="btn subtle" type="button" @click="openPanel('tasks')">Daily Tasks</button>
         <button class="btn subtle" type="button" @click="openPanel('quiz')">Daily Quiz</button>
         <span class="pill">🪙 {{ coins.toLocaleString() }}</span>
@@ -95,7 +96,7 @@ const props = defineProps({
   placements: { type: Object, default: null }, // { items: [...] }
 })
 
-const emit = defineEmits(['reset', 'logout', 'place', 'move', 'remove', 'refresh', 'activity'])
+const emit = defineEmits(['back', 'reset', 'logout', 'place', 'move', 'remove', 'refresh', 'activity'])
 
 const gameCanvas = ref(null)
 const minimapCanvas = ref(null)
