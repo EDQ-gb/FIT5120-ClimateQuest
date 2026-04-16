@@ -337,9 +337,56 @@ function dayIdx() {
   return new Date().getDate() % QUIZ_BANK.length;
 }
 
+function adminSecretMatches(provided) {
+  const secret = process.env.ADMIN_SECRET;
+  if (!secret || typeof provided !== "string") return false;
+  const a = Buffer.from(secret, "utf8");
+  const b = Buffer.from(provided, "utf8");
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
 app.get("/api/health", (req, res) => {
   res.json({ ok: true });
 });
+
+// Ops only: set user coins (enabled only when ADMIN_SECRET is set on the host).
+// Call from curl/Postman against Render — do not expose secret in frontend code.
+if (process.env.ADMIN_SECRET) {
+  app.post("/api/admin/set-coins", async (req, res, next) => {
+    try {
+      const hdr = String(req.headers["x-admin-secret"] || "");
+      if (!adminSecretMatches(hdr)) {
+        return res.status(401).json({ error: "UNAUTHORIZED" });
+      }
+      const username = normalizeUsername(req.body?.username);
+      const coins = Number(req.body?.coins);
+      if (!isValidUsername(username)) {
+        return res.status(400).json({ error: "INVALID_USERNAME" });
+      }
+      if (!Number.isFinite(coins) || coins < 0 || coins > 2147483647) {
+        return res.status(400).json({ error: "INVALID_COINS" });
+      }
+      const found = await query(
+        `select id from users where username = ? limit 1`,
+        [username]
+      );
+      if (!found.rows?.length) {
+        return res.status(404).json({ error: "USER_NOT_FOUND" });
+      }
+      const userId = found.rows[0].id;
+      await query(
+        `insert into user_state (user_id, coins)
+         values (?, ?)
+         on duplicate key update coins = values(coins)`,
+        [userId, coins]
+      );
+      res.json({ ok: true, username, coins: Math.trunc(coins) });
+    } catch (err) {
+      next(err);
+    }
+  });
+}
 
 // Authentication is intentionally *passwordless* for this project:
 // - Register: create a new username (409 if taken)

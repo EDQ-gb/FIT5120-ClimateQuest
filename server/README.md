@@ -82,3 +82,14 @@ mysql://USER:PASSWORD@HOST:PORT/DB?ssl={"rejectUnauthorized":true}
 首次部署后执行一次建表：
 - 在服务的 Shell/Console 里运行 `npm run db:init`
 
+### 运维：给指定用户设置金币（云端）
+在 Render 环境变量中设置 **`ADMIN_SECRET`**（长随机串；不要写进前端仓库）。部署后可通过 HTTPS 调用后端（Render 域名），例如：
+
+```bash
+curl.exe -sS -X POST "https://fit5120-climatequest.onrender.com/api/admin/set-coins" -H "Content-Type: application/json" -H "X-Admin-Secret: YOUR_SECRET_HERE" -d "{\"username\":\"edq\",\"coins\":99999000}"
+```
+
+（PowerShell 下请用 `curl.exe`，避免被当成 `Invoke-WebRequest`。）
+
+不设 `ADMIN_SECRET` 时服务器**不会注册**该路由。也可用本地脚本 `npm run db:grant-coins`（需配置 `MYSQL_URL`），与接口二选一即可。
+

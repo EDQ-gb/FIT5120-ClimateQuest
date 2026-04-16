@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node src/index.js",
     "start": "node src/index.js",
-    "db:init": "node scripts/init-db.js"
+    "db:init": "node scripts/init-db.js",
+    "db:grant-coins": "node scripts/grant-coins.js"
   },
   "keywords": [],
   "author": "",
