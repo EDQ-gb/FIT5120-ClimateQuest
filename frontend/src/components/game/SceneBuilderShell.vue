@@ -7,9 +7,7 @@
       <span class="topbar-info">Grid 20×20 · Kenney Nature Kit</span>
 
       <div class="topbar-right">
-        <button class="btn subtle" type="button" @click="$emit('back')">Dashboard</button>
-        <button class="btn subtle" type="button" @click="openPanel('tasks')">Daily Tasks</button>
-        <button class="btn subtle" type="button" @click="openPanel('quiz')">Daily Quiz</button>
+        <button class="btn subtle" type="button" @click="$emit('back')">Home</button>
         <span class="pill">🪙 {{ coins.toLocaleString() }}</span>
         <span class="pill">🔥 {{ streak }}d</span>
         <button class="btn danger" type="button" @click="$emit('logout')">Logout</button>
@@ -64,20 +62,6 @@
       <span>Objects: <b>{{ objectCount }}</b></span>
       <span>Grid: <b>{{ gridPosLabel }}</b></span>
     </div>
-
-    <div v-if="panelOpen" class="panel-overlay" @click.self="closePanel">
-      <div class="panel">
-        <div class="panel-top">
-          <div class="panel-title">{{ panelTitle }}</div>
-          <button class="btn" type="button" @click="closePanel">Close</button>
-        </div>
-        <div class="panel-body">
-          <AppTasks v-if="activePanel === 'tasks'" :user="user" @coins-updated="onActivityUpdated" />
-          <AppQuiz v-else-if="activePanel === 'quiz'" :user="user" @coins-updated="onActivityUpdated" />
-          <div v-else class="panel-empty">Coming soon.</div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -85,8 +69,6 @@
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { getTheme, getItemById, getItemByIdAnyTheme } from '../../game/assets/catalog.js'
 import { createSceneBuilderCore } from '../../game/iso/sceneBuilderCore.js'
-import AppTasks from '../AppTasks.vue'
-import AppQuiz from '../AppQuiz.vue'
 
 const props = defineProps({
   user: { type: Object, default: null },
@@ -152,23 +134,6 @@ const objectCount = computed(() => (Array.isArray(props.placements?.items) ? pro
 const gridPosLabel = computed(() => (gridPos.col == null ? '-' : `${gridPos.col},${gridPos.row}`))
 
 const themeClass = computed(() => `theme-${props.themeType}`)
-
-const panelOpen = ref(false)
-const activePanel = ref('tasks') // tasks|quiz
-const panelTitle = computed(() => (activePanel.value === 'quiz' ? 'Daily Quiz' : 'Daily Tasks'))
-
-function openPanel(key) {
-  activePanel.value = key
-  panelOpen.value = true
-}
-function closePanel() {
-  panelOpen.value = false
-}
-async function onActivityUpdated(payload) {
-  // Optimistic UI update (coins/streak) + authoritative refresh (coins/placements/decay).
-  emit('activity', payload || null)
-  emit('refresh')
-}
 
 // For now, the visual shell is wired; the isometric draw/interaction core will be implemented in the next todo.
 function resizeCanvas() {
@@ -519,45 +484,6 @@ canvas {
 }
 .statusbar span b {
   color: rgba(255, 255, 255, 0.75);
-}
-
-.panel-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(8px);
-  display: grid;
-  place-items: center;
-  z-index: 2000;
-}
-.panel {
-  width: min(980px, calc(100vw - 28px));
-  height: min(78vh, 720px);
-  border-radius: 16px;
-  background: rgba(0, 0, 0, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-.panel-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-.panel-title {
-  color: #fff;
-  font-weight: 800;
-}
-.panel-body {
-  padding: 14px;
-  overflow: auto;
-  flex: 1;
-}
-.panel-empty {
-  color: rgba(255, 255, 255, 0.7);
 }
 
 /* ── MINIMAP ── */

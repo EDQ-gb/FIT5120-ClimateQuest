@@ -33,7 +33,7 @@
       :coins="game.coins"
       :streak="game.streak"
       :placements="game.placements"
-      @back="onNavigate('dashboard')"
+      @back="onNavigate('home')"
       @reset="onResetGame"
       @logout="onLogout"
       @place="onPlace"
@@ -225,30 +225,36 @@ const pageTitles = {
 const shellCoins = ref(0)
 const shellStreak = ref(0)
 
+function syncShellFromGame() {
+  shellCoins.value = game.coins || 0
+  shellStreak.value = game.streak || 0
+}
+
 async function refreshShellStats() {
   try {
     const p = await getProgress()
     if (p) {
       shellCoins.value = p.coins || 0
       shellStreak.value = p.streak || 0
+      // Keep scene and shell counters in sync when updates come from non-scene pages.
+      game.coins = p.coins || 0
+      game.streak = p.streak || 0
     }
   } catch {
     // ignore
   }
 }
 
-function onNavigate(view) {
+async function onNavigate(view) {
   // "My Scene" always enters the interactive scene builder flow.
   if (view === 'scene') {
     if (!user.value) return openAuth()
     currentView.value = game.themeLocked ? 'game' : 'theme'
-    refreshShellStats()
+    // Enter scene with authoritative latest coins/streak/placements.
+    await refreshGameState()
+    syncShellFromGame()
     return
   }
-  // Flow guard (stable version):
-  // - home stays as-is
-  // - after theme is locked, user cannot go back home unless logout
-  if (view === 'home' && user.value && game.themeLocked) return
   currentView.value = view
   if (view !== 'home') refreshShellStats()
 }
@@ -268,6 +274,7 @@ async function refreshGameState() {
     // Keep using existing progress endpoint for streak/level display
     const prog = await getProgress()
     if (prog) game.streak = prog.streak || 0
+    syncShellFromGame()
   } catch (e) {
     // If this fails right after sign-in, we'd otherwise show ThemeSelect by mistake.
     // Keep previous themeLocked instead of forcing it false.
@@ -280,6 +287,7 @@ function onActivity(payload) {
   if (payload && typeof payload.totalCoins === 'number') game.coins = payload.totalCoins
   if (payload && typeof payload.streak === 'number') game.streak = payload.streak
   if (payload && typeof payload.sceneProgress === 'number') game.sceneProgress = payload.sceneProgress
+  syncShellFromGame()
 }
 
 async function onResetGame() {
@@ -334,7 +342,10 @@ async function onPlace(p) {
     }).then((r) => r.json())
     if (buyRes?.error) throw new Error(buyRes.error)
     // reflect coins immediately
-    if (typeof buyRes?.coins === 'number') game.coins = buyRes.coins
+    if (typeof buyRes?.coins === 'number') {
+      game.coins = buyRes.coins
+      syncShellFromGame()
+    }
     await applyPlacementApi('/api/scene/place', p)
   } catch (e) {
     const msg = String(e?.message || '')
