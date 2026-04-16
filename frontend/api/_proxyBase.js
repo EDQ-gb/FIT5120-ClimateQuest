@@ -1,11 +1,17 @@
-// Vercel Serverless Function (Node): proxy /api/* to backend.
-// This keeps cookies first-party on the Vercel domain and avoids CORS + SameSite issues.
-
 import { Buffer } from 'node:buffer'
 
 const BACKEND_BASE = process.env.BACKEND_BASE || 'https://fit5120-climatequest.onrender.com'
 
-export default async function handler(req, res) {
+function getTailAndQuery(req) {
+  const raw = typeof req.url === 'string' ? req.url : ''
+  const u = new URL(raw || '/', 'http://local')
+  const tail = (u.searchParams.get('path') || '').replace(/^\/+/, '')
+  u.searchParams.delete('path')
+  const qs = u.searchParams.toString()
+  return { tail, qs: qs ? `?${qs}` : '' }
+}
+
+export async function proxyWithPrefix(req, res, prefix) {
   try {
     if (!BACKEND_BASE) {
       res.statusCode = 500
@@ -14,28 +20,8 @@ export default async function handler(req, res) {
       return
     }
 
-    // Vercel catch-all functions usually expose the matched path in req.query.path.
-    // Fallback to parsing req.url so this also works outside Vercel.
-    const pathParam = req.query?.path
-    let tail = Array.isArray(pathParam)
-      ? pathParam.join('/')
-      : typeof pathParam === 'string'
-        ? pathParam
-        : ''
-
-    const raw = typeof req.url === 'string' ? req.url : ''
-    const u = new URL(raw || '/api', 'http://local')
-    if (!tail) {
-      const marker = '/api/'
-      const idx = raw.indexOf(marker)
-      tail = idx >= 0 ? raw.slice(idx + marker.length).split('?')[0] : ''
-    }
-    tail = String(tail || '').replace(/^\/+/, '')
-
-    // Preserve querystring (except dynamic "path" helper param).
-    u.searchParams.delete('path')
-    const qs = u.searchParams.toString()
-    const url = `${BACKEND_BASE}/api/${tail}${qs ? `?${qs}` : ''}`.replace(/\/+$/, '')
+    const { tail, qs } = getTailAndQuery(req)
+    const url = `${BACKEND_BASE}/api/${prefix}${tail ? `/${tail}` : ''}${qs}`
 
     const headers = {}
     for (const [k, v] of Object.entries(req.headers || {})) {
@@ -57,19 +43,11 @@ export default async function handler(req, res) {
             ? JSON.stringify(req.body)
             : undefined
 
-    const upstream = await fetch(url, {
-      method,
-      headers,
-      body,
-      redirect: 'manual',
-    })
-
+    const upstream = await fetch(url, { method, headers, body, redirect: 'manual' })
     res.statusCode = upstream.status
 
     const setCookies =
-      typeof upstream.headers.getSetCookie === 'function'
-        ? upstream.headers.getSetCookie()
-        : null
+      typeof upstream.headers.getSetCookie === 'function' ? upstream.headers.getSetCookie() : null
 
     upstream.headers.forEach((value, key) => {
       const k = key.toLowerCase()
@@ -80,9 +58,8 @@ export default async function handler(req, res) {
       res.setHeader(key, value)
     })
 
-    if (setCookies && setCookies.length) {
-      res.setHeader('set-cookie', setCookies)
-    } else {
+    if (setCookies && setCookies.length) res.setHeader('set-cookie', setCookies)
+    else {
       const single = upstream.headers.get('set-cookie')
       if (single) res.setHeader('set-cookie', single)
     }

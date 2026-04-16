@@ -1,5 +1,11 @@
 {
   "rewrites": [
+    { "source": "/api/auth/(.*)", "destination": "/api/auth?path=$1" },
+    { "source": "/api/game/(.*)", "destination": "/api/game?path=$1" },
+    { "source": "/api/scene/(.*)", "destination": "/api/scene?path=$1" },
+    { "source": "/api/shop/(.*)", "destination": "/api/shop?path=$1" },
+    { "source": "/api/tasks/(.*)", "destination": "/api/tasks?path=$1" },
+    { "source": "/api/quiz/(.*)", "destination": "/api/quiz?path=$1" },
     { "source": "/front.html", "destination": "/index.html" },
     { "source": "/", "destination": "/index.html" }
   ],
