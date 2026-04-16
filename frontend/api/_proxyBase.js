@@ -2,13 +2,19 @@ import { Buffer } from 'node:buffer'
 
 const BACKEND_BASE = process.env.BACKEND_BASE || 'https://fit5120-climatequest.onrender.com'
 
-function getTailAndQuery(req) {
+function getTailAndQuery(req, prefix) {
   const raw = typeof req.url === 'string' ? req.url : ''
   const u = new URL(raw || '/', 'http://local')
   const queryPath = req.query?.path
   const fromQuery =
     Array.isArray(queryPath) ? queryPath.join('/') : typeof queryPath === 'string' ? queryPath : ''
-  const tail = String(fromQuery || u.searchParams.get('path') || '').replace(/^\/+/, '')
+  const pathname = typeof u.pathname === 'string' ? u.pathname : ''
+  const marker = `/api/${prefix}`
+  const fromPathname = pathname.startsWith(marker) ? pathname.slice(marker.length).replace(/^\/+/, '') : ''
+  const rawTail = String(fromPathname || fromQuery || u.searchParams.get('path') || '')
+  const normalizedTail = rawTail.replace(/^\/+/, '')
+  const dupPrefix = `${prefix}/`
+  const tail = normalizedTail.startsWith(dupPrefix) ? normalizedTail.slice(dupPrefix.length) : normalizedTail
   u.searchParams.delete('path')
   const qs = u.searchParams.toString()
   return { tail, qs: qs ? `?${qs}` : '' }
@@ -23,7 +29,7 @@ export async function proxyWithPrefix(req, res, prefix) {
       return
     }
 
-    const { tail, qs } = getTailAndQuery(req)
+    const { tail, qs } = getTailAndQuery(req, prefix)
     const url = `${BACKEND_BASE}/api/${prefix}${tail ? `/${tail}` : ''}${qs}`
 
     const headers = {}
