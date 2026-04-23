@@ -405,12 +405,11 @@ export function createSceneBuilderCore(opts) {
 
     if (e.button !== 0) return
 
-    // WYSIWYG placement: prioritize the currently highlighted preview cell.
-    // If hover isn't available (e.g. first click before any hover), fall back
-    // to hit-testing this mousedown event.
-    const fallback = hitCellFromEvent(e)
-    const col = hoverCell?.col ?? fallback.col
-    const row = hoverCell?.row ?? fallback.row
+    // Strict WYSIWYG: only place/remove on the currently highlighted preview
+    // tile so click result always matches what the user sees.
+    if (!hoverCell) return
+    const col = hoverCell.col
+    const row = hoverCell.row
     if (!validCell(col, row)) return
 
     const placements = getPlacements()
@@ -472,12 +471,8 @@ export function createSceneBuilderCore(opts) {
     offsetX = mouseX - worldX * zoom
     offsetY = mouseY - worldY * zoom
 
-    // Keep the preview cell synced under the cursor after zoom even if the
-    // pointer doesn't move, so click-to-place matches what user sees.
-    const h = hitCellFromEvent(e)
-    hoverCell = { col: h.col, row: h.row }
-    if (validCell(h.col, h.row)) setGridPos?.(h.col, h.row)
-    else setGridPos?.(null, null)
+    // Do not force-update hoverCell on wheel: placement should stay bound to
+    // the visible preview tile until the next mouse move updates it naturally.
     setTooltip?.({ show: false, x: 0, y: 0, text: '' })
   }
 
