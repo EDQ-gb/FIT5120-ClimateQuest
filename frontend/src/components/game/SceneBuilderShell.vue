@@ -214,6 +214,7 @@ watch(
   box-sizing: border-box;
 }
 .sb-root {
+  --sb-topbar-h: 64px;
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -225,6 +226,12 @@ watch(
 
 /* ── TOP BAR ── */
 .topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--sb-topbar-h);
+  box-sizing: border-box;
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -298,6 +305,7 @@ watch(
   display: flex;
   flex: 1;
   overflow: hidden;
+  padding-top: var(--sb-topbar-h);
 }
 
 /* ── LEFT PALETTE ── */
@@ -464,7 +472,7 @@ canvas {
   padding: 4px 10px;
   font-size: 0.75rem;
   pointer-events: none;
-  z-index: 1000;
+  z-index: 90;
   display: none;
 }
 .tooltip.show {
@@ -529,6 +537,9 @@ canvas {
 }
 
 @media (max-width: 860px) {
+  .sb-root {
+    --sb-topbar-h: 56px;
+  }
   .palette {
     width: 160px;
   }

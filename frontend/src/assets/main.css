@@ -336,6 +336,7 @@ body {
 }
 
 .shell-main {
+  --shell-topbar-h: 80px;
   margin-left: 220px;
   min-height: 100vh;
   display: flex;
@@ -343,8 +344,10 @@ body {
 }
 
 .shell-topbar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 220px;
+  width: calc(100% - 220px);
   height: 80px;
   display: flex;
   align-items: center;
@@ -396,15 +399,18 @@ body {
 
 .shell-content {
   flex: 1;
-  padding: 24px 24px 28px;
+  padding: calc(24px + var(--shell-topbar-h)) 24px 28px;
   overflow-y: auto;
 }
 
 @media (max-width: 640px) {
   .shell-main {
+    --shell-topbar-h: 80px;
     margin-left: 56px;
   }
   .shell-topbar {
+    left: 56px;
+    width: calc(100% - 56px);
     padding: 0 16px;
   }
 }

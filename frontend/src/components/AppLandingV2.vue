@@ -529,6 +529,7 @@ onMounted(() => {
 
 <style scoped>
 .landing2 {
+  --landing2-nav-h: 64px;
   position: relative;
   width: 100%;
   height: 100vh;
@@ -544,11 +545,11 @@ onMounted(() => {
 }
 
 .landing2-nav {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
-  height: 64px;
+  height: var(--landing2-nav-h);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -621,13 +622,12 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   /* More bottom padding so the Start button isn't glued to the bottom edge */
-  padding: clamp(18px, 3vh, 44px) 0 clamp(18px, 4vh, 44px);
+  padding: calc(clamp(18px, 3vh, 44px) + var(--landing2-nav-h)) 0 clamp(18px, 4vh, 44px);
   pointer-events: none;
 }
 
 .landing2-top {
-  /* prevent overlap with the nav (which is positioned absolute) */
-  margin-top: 56px;
+  margin-top: 0;
 }
 
 .landing2-bottom {
@@ -731,6 +731,12 @@ onMounted(() => {
 }
 
 @media (max-width: 720px) {
+  .landing2 {
+    --landing2-nav-h: 58px;
+  }
+  .landing2-nav {
+    height: var(--landing2-nav-h);
+  }
   .landing2-links {
     display: none;
   }
