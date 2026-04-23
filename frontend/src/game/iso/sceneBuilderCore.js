@@ -50,10 +50,13 @@ export function createSceneBuilderCore(opts) {
   let offsetX = 0
   let offsetY = 0
   let zoom = 1
+  const MIN_ZOOM = 0.35
+  const MAX_ZOOM = 1.8
+  const ZOOM_STEP = 1.08
 
-  let dragging = false
-  let dragStart = null
-  let moving = null // { fromKey, pickedObj, startCol, startRow }
+  let isPanning = false
+  let panLastX = 0
+  let panLastY = 0
 
   const imageCache = new Map()
   function getImage(src) {
@@ -354,6 +357,17 @@ export function createSceneBuilderCore(opts) {
   }
 
   function onMouseMove(e) {
+    if (isPanning) {
+      const dx = e.clientX - panLastX
+      const dy = e.clientY - panLastY
+      offsetX += dx
+      offsetY += dy
+      panLastX = e.clientX
+      panLastY = e.clientY
+      setTooltip?.({ show: false, x: 0, y: 0, text: '' })
+      return
+    }
+
     const h = hitCellFromEvent(e)
     const col = h.col
     const row = h.row
@@ -378,6 +392,17 @@ export function createSceneBuilderCore(opts) {
   }
 
   function onMouseDown(e) {
+    if (e.button === 2) {
+      e.preventDefault()
+      isPanning = true
+      panLastX = e.clientX
+      panLastY = e.clientY
+      setTooltip?.({ show: false, x: 0, y: 0, text: '' })
+      return
+    }
+
+    if (e.button !== 0) return
+
     const h = hitCellFromEvent(e)
     const { col, row } = h
     if (!validCell(col, row)) return
@@ -407,7 +432,43 @@ export function createSceneBuilderCore(opts) {
   }
 
   function onMouseUp(e) {
-    // move mode removed
+    if (isPanning && (e.button === 2 || e.button === 0)) {
+      isPanning = false
+    }
+  }
+
+  function onMouseLeave() {
+    if (isPanning) isPanning = false
+  }
+
+  function onContextMenu(e) {
+    e.preventDefault()
+  }
+
+  function clamp(v, min, max) {
+    return Math.max(min, Math.min(max, v))
+  }
+
+  function onWheel(e) {
+    e.preventDefault()
+
+    const rect = canvas.getBoundingClientRect()
+    const mouseX = e.clientX - rect.left
+    const mouseY = e.clientY - rect.top
+    const oldZoom = zoom
+    const nextZoom = clamp(e.deltaY < 0 ? oldZoom * ZOOM_STEP : oldZoom / ZOOM_STEP, MIN_ZOOM, MAX_ZOOM)
+    if (nextZoom === oldZoom) return
+
+    // Keep the cell under cursor stable while zooming.
+    const oldHitX = mouseX - (TILE_W * oldZoom) / 2
+    const worldX = (oldHitX - offsetX) / oldZoom
+    const worldY = (mouseY - offsetY) / oldZoom
+
+    zoom = nextZoom
+
+    const newHitX = mouseX - (TILE_W * zoom) / 2
+    offsetX = newHitX - worldX * zoom
+    offsetY = mouseY - worldY * zoom
   }
 
   let raf = 0
@@ -418,6 +479,9 @@ export function createSceneBuilderCore(opts) {
     window.addEventListener('resize', resize)
     canvas.addEventListener('mousemove', onMouseMove)
     canvas.addEventListener('mousedown', onMouseDown)
+    canvas.addEventListener('mouseleave', onMouseLeave)
+    canvas.addEventListener('contextmenu', onContextMenu)
+    canvas.addEventListener('wheel', onWheel, { passive: false })
     window.addEventListener('mouseup', onMouseUp)
     render()
   }
@@ -427,6 +491,9 @@ export function createSceneBuilderCore(opts) {
     window.removeEventListener('resize', resize)
     canvas.removeEventListener('mousemove', onMouseMove)
     canvas.removeEventListener('mousedown', onMouseDown)
+    canvas.removeEventListener('mouseleave', onMouseLeave)
+    canvas.removeEventListener('contextmenu', onContextMenu)
+    canvas.removeEventListener('wheel', onWheel)
     window.removeEventListener('mouseup', onMouseUp)
   }
 
