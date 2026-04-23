@@ -10,11 +10,15 @@ function gridToScreen(col, row, offsetX, offsetY, zoom) {
 }
 
 function screenToGrid(sx, sy, offsetX, offsetY, zoom) {
-  const dx = (sx - offsetX) / zoom
-  const dy = (sy - offsetY) / zoom
-  const col = Math.floor((dx / (TILE_W / 2) + dy / (TILE_H / 2)) / 2)
-  const row = Math.floor((dy / (TILE_H / 2) - dx / (TILE_W / 2)) / 2)
-  return { col, row }
+  // Each cell's diamond is centered at (TILE_W/2, TILE_H/2) relative to the
+  // bounding-box origin returned by gridToScreen(). Shift the cursor into a
+  // cell-center space, then invert the isometric basis and round to the
+  // nearest cell whose diamond contains the point.
+  const dx = (sx - offsetX) / zoom - TILE_W / 2
+  const dy = (sy - offsetY) / zoom - TILE_H / 2
+  const colF = dx / TILE_W + dy / TILE_H
+  const rowF = dy / TILE_H - dx / TILE_W
+  return { col: Math.round(colF), row: Math.round(rowF) }
 }
 
 function keyFor(col, row) {
@@ -348,10 +352,8 @@ export function createSceneBuilderCore(opts) {
 
   function hitCellFromEvent(e) {
     const rect = canvas.getBoundingClientRect()
-    // Grid tiles are rendered with half-tile offsets in both X/Y (drawIsoGround + gridToScreen).
-    // Subtract both so pointer hit-testing matches visual tile coordinates.
-    const x = e.clientX - rect.left - (TILE_W * zoom) / 2
-    const y = e.clientY - rect.top - (TILE_H * zoom) / 2
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
     const { col, row } = screenToGrid(x, y, offsetX, offsetY, zoom)
     return { col, row, x: e.clientX, y: e.clientY }
   }
@@ -459,18 +461,12 @@ export function createSceneBuilderCore(opts) {
     const nextZoom = clamp(e.deltaY < 0 ? oldZoom * ZOOM_STEP : oldZoom / ZOOM_STEP, MIN_ZOOM, MAX_ZOOM)
     if (nextZoom === oldZoom) return
 
-    // Keep the cell under cursor stable while zooming.
-    const oldHitX = mouseX - (TILE_W * oldZoom) / 2
-    const oldHitY = mouseY - (TILE_H * oldZoom) / 2
-    const worldX = (oldHitX - offsetX) / oldZoom
-    const worldY = (oldHitY - offsetY) / oldZoom
-
+    // Keep the world point under the cursor fixed while zooming.
+    const worldX = (mouseX - offsetX) / oldZoom
+    const worldY = (mouseY - offsetY) / oldZoom
     zoom = nextZoom
-
-    const newHitX = mouseX - (TILE_W * zoom) / 2
-    const newHitY = mouseY - (TILE_H * zoom) / 2
-    offsetX = newHitX - worldX * zoom
-    offsetY = newHitY - worldY * zoom
+    offsetX = mouseX - worldX * zoom
+    offsetY = mouseY - worldY * zoom
   }
 
   let raf = 0
