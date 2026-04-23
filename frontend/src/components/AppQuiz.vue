@@ -86,7 +86,13 @@ async function submit() {
   const res = await submitQuiz(quiz.value.idx, selected.value)
   result.value = res
   quiz.value.completed = true
-  if (res?.correct) emit('coins-updated')
+  if (res?.correct) {
+    emit('coins-updated', {
+      totalCoins: res?.totalCoins,
+      streak: res?.streak,
+      sceneProgress: res?.sceneProgress,
+    })
+  }
   submitting.value = false
 }
 

@@ -242,13 +242,25 @@ function syncShellFromGame() {
   shellStreak.value = game.streak || 0
 }
 
-async function refreshShellStats() {
+async function refreshShellStats(payload = null) {
+  if (payload && typeof payload.totalCoins === 'number') {
+    shellCoins.value = payload.totalCoins
+    game.coins = payload.totalCoins
+  }
+  if (payload && typeof payload.streak === 'number') {
+    shellStreak.value = payload.streak
+    game.streak = payload.streak
+  }
+  if (payload && typeof payload.sceneProgress === 'number') {
+    game.sceneProgress = payload.sceneProgress
+  }
+
+  // Keep one authoritative refresh in background for consistency.
   try {
     const p = await getProgress()
     if (p) {
       shellCoins.value = p.coins || 0
       shellStreak.value = p.streak || 0
-      // Keep scene and shell counters in sync when updates come from non-scene pages.
       game.coins = p.coins || 0
       game.streak = p.streak || 0
     }

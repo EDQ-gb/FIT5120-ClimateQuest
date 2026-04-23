@@ -955,11 +955,48 @@ app.post("/api/quiz/submit", async (req, res, next) => {
       );
     }
 
+    const st = await query(
+      `select coins, scene_progress
+       from user_state
+       where user_id = ?`,
+      [userId]
+    );
+    const state = st.rows?.[0] || {};
+
+    const activeDaysR = await query(
+      `select distinct d from (
+         select distinct completed_on as d
+         from task_logs
+         where user_id = ?
+         union
+         select distinct completed_on as d
+         from quiz_results
+         where user_id = ?
+       ) x
+       order by d desc
+       limit 365`,
+      [userId, userId]
+    );
+    const activeSet = new Set(
+      (activeDaysR.rows || []).map((r) => ymdLocal(new Date(r.d)))
+    );
+    let streak = 0;
+    for (let i = 0; i < 365; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const k = ymdLocal(d);
+      if (activeSet.has(k)) streak += 1;
+      else if (i > 0) break;
+    }
+
     res.json({
       correct,
       correctAnswer: q.ans,
       explanation: q.exp,
       coinsEarned,
+      totalCoins: Number(state.coins || 0),
+      sceneProgress: Number(state.scene_progress || 0),
+      streak,
     });
   } catch (err) {
     next(err);

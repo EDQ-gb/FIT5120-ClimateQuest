@@ -102,6 +102,19 @@ function calcStreak(completions) {
   return streak
 }
 
+function calcActivityStreak(completions, quizLog) {
+  let streak = 0
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i)
+    const k = d.toISOString().split('T')[0]
+    const hasTask = (completions[k] || []).length > 0
+    const hasQuiz = !!quizLog[k]
+    if (hasTask || hasQuiz) streak++
+    else if (i > 0) break
+  }
+  return streak
+}
+
 function calcTotals(completions) {
   let tasks = 0, co2 = 0
   Object.values(completions).forEach(day => {
@@ -197,7 +210,16 @@ export async function submitQuiz(idx, answer) {
       set(K.coins, getCoins() + 25); set(K.xp, getXp() + 25)
       const scene = getSceneState(); scene.progress = Math.min(100, scene.progress+3); set(K.scene, scene)
     }
-    return { correct, correctAnswer: q.ans, explanation: q.exp, coinsEarned: correct ? 25 : 0 }
+    const completions = getCompletions()
+    return {
+      correct,
+      correctAnswer: q.ans,
+      explanation: q.exp,
+      coinsEarned: correct ? 25 : 0,
+      totalCoins: getCoins(),
+      sceneProgress: getSceneState().progress,
+      streak: calcActivityStreak(completions, log),
+    }
   }
 }
 
