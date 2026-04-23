@@ -21,6 +21,15 @@ function screenToGrid(sx, sy, offsetX, offsetY, zoom) {
   return { col: Math.round(colF), row: Math.round(rowF) }
 }
 
+function diamondDistanceToCell(sx, sy, col, row, offsetX, offsetY, zoom) {
+  const centerX = (col - row) * (TILE_W / 2) * zoom + offsetX + (TILE_W / 2) * zoom
+  const centerY = (col + row) * (TILE_H / 2) * zoom + offsetY + (TILE_H / 2) * zoom
+  const nx = Math.abs(sx - centerX) / ((TILE_W / 2) * zoom)
+  const ny = Math.abs(sy - centerY) / ((TILE_H / 2) * zoom)
+  // <= 1 means inside this isometric diamond.
+  return nx + ny
+}
+
 function keyFor(col, row) {
   return `${col},${row}`
 }
@@ -354,8 +363,29 @@ export function createSceneBuilderCore(opts) {
     const rect = canvas.getBoundingClientRect()
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
-    const { col, row } = screenToGrid(x, y, offsetX, offsetY, zoom)
-    return { col, row, x: e.clientX, y: e.clientY }
+    const approx = screenToGrid(x, y, offsetX, offsetY, zoom)
+
+    let bestCol = approx.col
+    let bestRow = approx.row
+    let bestDist = Infinity
+
+    // Search around the approximate cell and choose the actual diamond under
+    // cursor. This avoids off-by-one near tile boundaries.
+    for (let dc = -1; dc <= 1; dc++) {
+      for (let dr = -1; dr <= 1; dr++) {
+        const c = approx.col + dc
+        const r = approx.row + dr
+        if (!validCell(c, r)) continue
+        const d = diamondDistanceToCell(x, y, c, r, offsetX, offsetY, zoom)
+        if (d < bestDist) {
+          bestDist = d
+          bestCol = c
+          bestRow = r
+        }
+      }
+    }
+
+    return { col: bestCol, row: bestRow, x: e.clientX, y: e.clientY }
   }
 
   function onMouseMove(e) {
