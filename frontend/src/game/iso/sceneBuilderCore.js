@@ -34,6 +34,14 @@ function keyFor(col, row) {
   return `${col},${row}`
 }
 
+function getSpriteDrawRectForTile(tileX, tileY, tileW, tileH, imgW, imgH) {
+  // Anchor sprite foot at the tile center so preview aligns to module center.
+  return {
+    dx: tileX - imgW / 2 + tileW / 2,
+    dy: tileY - imgH + tileH / 2,
+  }
+}
+
 export function createSceneBuilderCore(opts) {
   const {
     canvas,
@@ -154,8 +162,7 @@ export function createSceneBuilderCore(opts) {
     const s = Number.isFinite(def.scale) ? def.scale : def.kind === 'decor' ? 0.72 : 1
     const iw = IMG_W * zoom * s
     const ih = IMG_H * zoom * s
-    const dx = x - iw / 2 + tw / 2
-    const dy = y - ih + th
+    const { dx, dy } = getSpriteDrawRectForTile(x, y, tw, th, iw, ih)
 
     if (def.tint) {
       ctx.drawImage(img, dx, dy, iw, ih)
@@ -315,8 +322,9 @@ export function createSceneBuilderCore(opts) {
           const s = Number.isFinite(def.scale) ? def.scale : def.kind === 'decor' ? 0.72 : 1
           const iw = IMG_W * zoom * s
           const ih = IMG_H * zoom * s
+          const { dx, dy } = getSpriteDrawRectForTile(x, y, tw, th, iw, ih)
           ctx.globalAlpha = 0.6
-          ctx.drawImage(img, x - iw / 2 + tw / 2, y - ih + th, iw, ih)
+          ctx.drawImage(img, dx, dy, iw, ih)
           ctx.globalAlpha = 1
         }
       }
