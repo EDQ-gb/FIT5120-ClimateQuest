@@ -467,8 +467,9 @@ async function refreshMe() {
     user.value = data.user
     if (data.user) {
       await refreshGameState()
-      // On refresh: if already locked theme, stay in game; otherwise keep home until Start is clicked.
-      currentView.value = game.themeLocked ? 'game' : 'home'
+      // Do not force users into scene on page refresh.
+      // Scene should open only when users explicitly navigate to "My Scene".
+      currentView.value = 'home'
       refreshShellStats()
     } else {
       currentView.value = 'home'
