@@ -283,9 +283,11 @@ async function onNavigate(view) {
   // "My Scene" always enters the interactive scene builder flow.
   if (view === 'scene') {
     if (!user.value) return openAuth()
-    currentView.value = game.themeLocked ? 'game' : 'theme'
+    const prevThemeLocked = !!game.themeLocked
     // Enter scene with authoritative latest coins/streak/placements.
     await refreshGameState()
+    const resolvedThemeLocked = !!game.themeLocked || prevThemeLocked
+    currentView.value = resolvedThemeLocked ? 'game' : 'theme'
     syncShellFromGame()
     return
   }
