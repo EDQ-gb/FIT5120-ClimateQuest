@@ -751,8 +751,8 @@ app.post("/api/scene/place", async (req, res, next) => {
 
     const itemId = req.body?.itemId ? String(req.body.itemId).trim() : "";
     const type = req.body?.type ? String(req.body.type).trim() : "";
-    const col = clampGrid(req.body?.col, 20);
-    const row = clampGrid(req.body?.row, 20);
+    const col = clampGrid(req.body?.col, 26);
+    const row = clampGrid(req.body?.row, 26);
     if (!itemId || !type || col == null || row == null) {
       return res.status(400).json({ error: "INVALID_PLACEMENT" });
     }
@@ -799,8 +799,8 @@ app.post("/api/scene/remove", async (req, res, next) => {
     await ensureUserState(userId);
 
     const itemId = req.body?.itemId ? String(req.body.itemId).trim() : "";
-    const col = clampGrid(req.body?.col, 20);
-    const row = clampGrid(req.body?.row, 20);
+    const col = clampGrid(req.body?.col, 26);
+    const row = clampGrid(req.body?.row, 26);
     if (col == null || row == null) return res.status(400).json({ error: "INVALID_PLACEMENT" });
 
     const r = await query(
@@ -842,10 +842,10 @@ app.post("/api/scene/move", async (req, res, next) => {
     await ensureUserState(userId);
 
     const itemId = req.body?.itemId ? String(req.body.itemId).trim() : "";
-    const fromCol = clampGrid(req.body?.fromCol, 20);
-    const fromRow = clampGrid(req.body?.fromRow, 20);
-    const toCol = clampGrid(req.body?.toCol, 20);
-    const toRow = clampGrid(req.body?.toRow, 20);
+    const fromCol = clampGrid(req.body?.fromCol, 26);
+    const fromRow = clampGrid(req.body?.fromRow, 26);
+    const toCol = clampGrid(req.body?.toCol, 26);
+    const toRow = clampGrid(req.body?.toRow, 26);
     if (!itemId || fromCol == null || fromRow == null || toCol == null || toRow == null) {
       return res.status(400).json({ error: "INVALID_PLACEMENT" });
     }
