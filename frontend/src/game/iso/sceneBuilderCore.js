@@ -35,11 +35,11 @@ function keyFor(col, row) {
 }
 
 function getSpriteDrawRectForTile(tileX, tileY, tileW, tileH, imgW, imgH) {
-  // Anchor sprite CENTER to tile CENTER so both ghost and placed object stay
-  // exactly on the highlighted module center (not on a corner).
+  // Anchor sprite bottom-center to tile center.
+  // This makes planting feel natural while still matching highlighted tile.
   return {
     dx: tileX - imgW / 2 + tileW / 2,
-    dy: tileY - imgH / 2 + tileH / 2,
+    dy: tileY - imgH + tileH / 2,
   }
 }
 
