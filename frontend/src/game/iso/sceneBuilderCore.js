@@ -348,10 +348,10 @@ export function createSceneBuilderCore(opts) {
 
   function hitCellFromEvent(e) {
     const rect = canvas.getBoundingClientRect()
-    // Grid tiles are rendered with an extra half-tile X offset in drawIsoGround().
-    // Subtract it here so pointer hit-testing matches the visual tile position.
+    // Grid tiles are rendered with half-tile offsets in both X/Y (drawIsoGround + gridToScreen).
+    // Subtract both so pointer hit-testing matches visual tile coordinates.
     const x = e.clientX - rect.left - (TILE_W * zoom) / 2
-    const y = e.clientY - rect.top
+    const y = e.clientY - rect.top - (TILE_H * zoom) / 2
     const { col, row } = screenToGrid(x, y, offsetX, offsetY, zoom)
     return { col, row, x: e.clientX, y: e.clientY }
   }
@@ -461,14 +461,16 @@ export function createSceneBuilderCore(opts) {
 
     // Keep the cell under cursor stable while zooming.
     const oldHitX = mouseX - (TILE_W * oldZoom) / 2
+    const oldHitY = mouseY - (TILE_H * oldZoom) / 2
     const worldX = (oldHitX - offsetX) / oldZoom
-    const worldY = (mouseY - offsetY) / oldZoom
+    const worldY = (oldHitY - offsetY) / oldZoom
 
     zoom = nextZoom
 
     const newHitX = mouseX - (TILE_W * zoom) / 2
+    const newHitY = mouseY - (TILE_H * zoom) / 2
     offsetX = newHitX - worldX * zoom
-    offsetY = mouseY - worldY * zoom
+    offsetY = newHitY - worldY * zoom
   }
 
   let raf = 0
