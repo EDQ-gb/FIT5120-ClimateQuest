@@ -106,8 +106,6 @@ async function tryCheat() {
     window.alert(`Cheat 失败：${res.error}`)
     return
   }
-
-  window.alert(`Cheat 成功：+${amount} coins`)
   emit('coins-updated', { totalCoins: res?.totalCoins })
   await reloadBoard()
 }
