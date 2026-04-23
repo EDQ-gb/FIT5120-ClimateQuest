@@ -80,9 +80,19 @@
             @navigate="onNavigate"
             @coins-updated="refreshShellStats"
           />
-          <AppTasks v-else-if="currentView === 'tasks'" :user="user" @coins-updated="refreshShellStats" />
+          <AppTasks
+            v-else-if="currentView === 'tasks'"
+            :user="user"
+            :coins="shellCoins"
+            @coins-updated="refreshShellStats"
+          />
           <AppScene v-else-if="currentView === 'scene'" :user="user" />
-          <AppQuiz v-else-if="currentView === 'quiz'" :user="user" @coins-updated="refreshShellStats" />
+          <AppQuiz
+            v-else-if="currentView === 'quiz'"
+            :user="user"
+            :coins="shellCoins"
+            @coins-updated="refreshShellStats"
+          />
           <AppLeaderboard v-else-if="currentView === 'leaderboard'" :user="user" />
         </div>
       </div>

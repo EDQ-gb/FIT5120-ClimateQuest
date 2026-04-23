@@ -1,5 +1,8 @@
 <template>
   <div class="page">
+    <div class="page-top">
+      <span class="coins-pill">🪙 {{ coinText }}</span>
+    </div>
     <div class="grid-2">
       <!-- Quiz panel -->
       <div>
@@ -59,10 +62,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getQuiz, submitQuiz } from '../api/features.js'
 
-defineProps({ user: Object })
+const props = defineProps({
+  user: Object,
+  coins: { type: Number, default: 0 },
+})
 const emit = defineEmits(['coins-updated'])
 
 const quiz       = ref({ completed: false, question: null, idx: 0 })
@@ -70,6 +76,7 @@ const selected   = ref(null)
 const submitting = ref(false)
 const result     = ref(null)
 const loading    = ref(true)
+const coinText   = computed(() => Number(props.coins || 0).toLocaleString())
 
 function select(i) { if (!result.value) selected.value = i }
 
@@ -104,8 +111,18 @@ onMounted(async () => {
 
 <style scoped>
 .page { display:flex;flex-direction:column;gap:16px; }
+.page-top { display:flex;justify-content:flex-end; }
 .grid-2 { display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start; }
 .page-h3 { font-size:1rem;font-weight:700;color:#fff; }
+.coins-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 700;
+  color: #f4c430;
+  background: rgba(244,196,48,0.14);
+  border: 1px solid rgba(244,196,48,0.3);
+}
 .mb12 { margin-bottom:12px; }
 .mb16 { margin-bottom:16px; }
 .mt8  { margin-top:8px; }

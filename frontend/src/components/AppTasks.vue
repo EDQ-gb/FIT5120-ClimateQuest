@@ -2,7 +2,10 @@
   <div class="page">
     <div class="row-between mb12">
       <h3 class="page-h3">Daily Green Actions</h3>
-      <span class="sub-text">{{ doneCount }} / {{ tasks.length }} completed</span>
+      <div class="header-right">
+        <span class="coins-pill">🪙 {{ coinText }}</span>
+        <span class="sub-text">{{ doneCount }} / {{ tasks.length }} completed</span>
+      </div>
     </div>
     <div class="prog-track mb16"><div class="prog-fill" :style="{ width: pct+'%' }"></div></div>
 
@@ -39,11 +42,13 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { getTasks, completeTask } from '../api/features.js'
-
-defineProps({ user: Object })
 // We emit the *resulting* totals so the shell can update immediately
 // without waiting for a separate refresh roundtrip.
 const emit = defineEmits(['coins-updated'])
+const props = defineProps({
+  user: Object,
+  coins: { type: Number, default: 0 },
+})
 
 const tasks      = ref([])
 const loading    = ref(true)
@@ -51,6 +56,7 @@ const completing = ref(null)
 
 const doneCount = computed(() => tasks.value.filter(t => t.completed).length)
 const pct       = computed(() => tasks.value.length ? Math.round(doneCount.value/tasks.value.length*100) : 0)
+const coinText  = computed(() => Number(props.coins || 0).toLocaleString())
 
 async function complete(id) {
   if (completing.value) return
@@ -78,9 +84,19 @@ onMounted(async () => {
 .page    { display:flex;flex-direction:column;gap:12px; }
 .page-h3 { font-size:1rem;font-weight:700;color:#fff; }
 .row-between { display:flex;align-items:center;justify-content:space-between; }
+.header-right { display:flex;align-items:center;gap:10px; }
 .mb12    { margin-bottom:12px; }
 .mb16    { margin-bottom:16px; }
 .sub-text { font-size:.8rem;color:rgba(255,255,255,0.4); }
+.coins-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 700;
+  color: #f4c430;
+  background: rgba(244,196,48,0.14);
+  border: 1px solid rgba(244,196,48,0.3);
+}
 .prog-track { background:rgba(255,255,255,0.1);border-radius:99px;height:7px;overflow:hidden; }
 .prog-fill  { height:100%;border-radius:99px;transition:width .6s;background:linear-gradient(90deg,#2d6a4f,#52d496); }
 .task-card  { display:flex;align-items:center;gap:14px;padding:16px 18px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:14px;transition:opacity .3s; }
