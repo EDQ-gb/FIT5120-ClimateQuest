@@ -34,12 +34,11 @@ function keyFor(col, row) {
   return `${col},${row}`
 }
 
-function getSpriteDrawRectForTile(tileX, tileY, tileW, tileH, imgW, imgH) {
-  // Anchor sprite bottom-center to tile center.
-  // This makes planting feel natural while still matching highlighted tile.
+function getSpriteDrawRectForTile(tileX, tileY, tileW, tileH, imgW, imgH, anchor = { rx: 0.5, ry: 1 }) {
+  // Place the detected sprite "foot point" (anchor) on tile center.
   return {
-    dx: tileX - imgW / 2 + tileW / 2,
-    dy: tileY - imgH + tileH / 2,
+    dx: tileX + tileW / 2 - imgW * anchor.rx,
+    dy: tileY + tileH / 2 - imgH * anchor.ry,
   }
 }
 
@@ -81,6 +80,7 @@ export function createSceneBuilderCore(opts) {
   let panLastY = 0
 
   const imageCache = new Map()
+  const spriteAnchorCache = new Map()
   function getImage(src) {
     if (!src) return null
     const cached = imageCache.get(src)
@@ -94,6 +94,61 @@ export function createSceneBuilderCore(opts) {
     }
     imageCache.set(src, img)
     return img
+  }
+
+  function getSpriteAnchor(src, img) {
+    const cached = spriteAnchorCache.get(src)
+    if (cached) return cached
+    if (!img || !img.complete) return { rx: 0.5, ry: 1 }
+
+    try {
+      const w = img.naturalWidth || img.width || 0
+      const h = img.naturalHeight || img.height || 0
+      if (!w || !h) return { rx: 0.5, ry: 1 }
+
+      const cvs = document.createElement('canvas')
+      cvs.width = w
+      cvs.height = h
+      const c = cvs.getContext('2d', { willReadFrequently: true })
+      c.drawImage(img, 0, 0, w, h)
+      const data = c.getImageData(0, 0, w, h).data
+
+      let hitY = -1
+      let minX = w
+      let maxX = -1
+      const alphaThreshold = 8
+
+      for (let y = h - 1; y >= 0; y--) {
+        let rowMin = w
+        let rowMax = -1
+        for (let x = 0; x < w; x++) {
+          const a = data[(y * w + x) * 4 + 3]
+          if (a > alphaThreshold) {
+            if (x < rowMin) rowMin = x
+            if (x > rowMax) rowMax = x
+          }
+        }
+        if (rowMax >= rowMin) {
+          hitY = y
+          minX = rowMin
+          maxX = rowMax
+          break
+        }
+      }
+
+      let anchor = { rx: 0.5, ry: 1 }
+      if (hitY >= 0) {
+        const footX = (minX + maxX) / 2
+        anchor = {
+          rx: Math.max(0, Math.min(1, footX / w)),
+          ry: Math.max(0, Math.min(1, hitY / h)),
+        }
+      }
+      spriteAnchorCache.set(src, anchor)
+      return anchor
+    } catch {
+      return { rx: 0.5, ry: 1 }
+    }
   }
 
   function validCell(col, row) {
@@ -163,7 +218,8 @@ export function createSceneBuilderCore(opts) {
     const s = Number.isFinite(def.scale) ? def.scale : def.kind === 'decor' ? 0.72 : 1
     const iw = IMG_W * zoom * s
     const ih = IMG_H * zoom * s
-    const { dx, dy } = getSpriteDrawRectForTile(x, y, tw, th, iw, ih)
+    const anchor = getSpriteAnchor(def.src, img)
+    const { dx, dy } = getSpriteDrawRectForTile(x, y, tw, th, iw, ih, anchor)
 
     if (def.tint) {
       ctx.drawImage(img, dx, dy, iw, ih)
@@ -323,7 +379,8 @@ export function createSceneBuilderCore(opts) {
           const s = Number.isFinite(def.scale) ? def.scale : def.kind === 'decor' ? 0.72 : 1
           const iw = IMG_W * zoom * s
           const ih = IMG_H * zoom * s
-          const { dx, dy } = getSpriteDrawRectForTile(x, y, tw, th, iw, ih)
+          const anchor = getSpriteAnchor(def.src, img)
+          const { dx, dy } = getSpriteDrawRectForTile(x, y, tw, th, iw, ih, anchor)
           ctx.globalAlpha = 0.6
           ctx.drawImage(img, dx, dy, iw, ih)
           ctx.globalAlpha = 1
