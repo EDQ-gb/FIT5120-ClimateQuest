@@ -17,24 +17,31 @@
     </div>
 
     <template v-else>
-      <div v-for="u in board" :key="u.rank" class="lb-row" :class="{ you: u.isYou }">
-        <div class="lb-rank" :class="'r' + u.rank">
-          <span v-if="u.rank === 1">🥇</span>
-          <span v-else-if="u.rank === 2">🥈</span>
-          <span v-else-if="u.rank === 3">🥉</span>
-          <span v-else>#{{ u.rank }}</span>
+      <div class="lb-list">
+        <div v-for="u in pagedBoard" :key="u.rank" class="lb-row" :class="{ you: u.isYou }">
+          <div class="lb-rank" :class="'r' + u.rank">
+            <span v-if="u.rank === 1">🥇</span>
+            <span v-else-if="u.rank === 2">🥈</span>
+            <span v-else-if="u.rank === 3">🥉</span>
+            <span v-else>#{{ u.rank }}</span>
+          </div>
+          <div class="lb-avatar" :style="{ background: avatarBg(u.username) }">
+            {{ (u.displayName || u.username || '?').slice(0, 2).toUpperCase() }}
+          </div>
+          <div class="lb-name">
+            {{ u.displayName || u.username }}
+            <span v-if="u.isYou" class="you-tag">You</span>
+          </div>
+          <span class="badge" style="font-size:.7rem;">Lv {{ u.level || 1 }}</span>
+          <span class="cyan text-sm" style="min-width:58px;text-align:right;">🔥 {{ u.streak || 0 }}d</span>
+          <span class="gold fw7 text-sm" style="min-width:80px;text-align:right;">🪙 {{ (u.coins || 0).toLocaleString() }}</span>
         </div>
-        <div class="lb-avatar" :style="{ background: avatarBg(u.username) }">
-          {{ (u.displayName || u.username || '?').slice(0, 2).toUpperCase() }}
-        </div>
-        <div class="lb-name">
-          {{ u.displayName || u.username }}
-          <span v-if="u.isYou" class="you-tag">You</span>
-        </div>
-        <span class="badge" style="font-size:.7rem;">Lv {{ u.level || 1 }}</span>
-        <span class="cyan text-sm" style="min-width:58px;text-align:right;">🔥 {{ u.streak || 0 }}d</span>
-        <span class="gold fw7 text-sm" style="min-width:80px;text-align:right;">🪙 {{ (u.coins || 0).toLocaleString()
-          }}</span>
+      </div>
+
+      <div class="lb-pagination">
+        <button type="button" class="page-btn" :disabled="page <= 1" @click="prevPage">上一页</button>
+        <span class="sub-text">第 {{ page }} / {{ totalPages }} 页</span>
+        <button type="button" class="page-btn" :disabled="page >= totalPages" @click="nextPage">下一页</button>
       </div>
     </template>
 
@@ -47,13 +54,21 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { getLeaderboard } from '../api/features.js'
 
 defineProps({ user: Object })
 
 const board = ref([])
 const loading = ref(true)
+const page = ref(1)
+const pageSize = 10
+
+const totalPages = computed(() => Math.max(1, Math.ceil(board.value.length / pageSize)))
+const pagedBoard = computed(() => {
+  const start = (page.value - 1) * pageSize
+  return board.value.slice(start, start + pageSize)
+})
 
 function avatarBg(username) {
   const s = username || 'user'
@@ -61,8 +76,22 @@ function avatarBg(username) {
   return `hsla(${h},70%,42%,0.9)`
 }
 
+function prevPage() {
+  if (page.value > 1) page.value -= 1
+}
+
+function nextPage() {
+  if (page.value < totalPages.value) page.value += 1
+}
+
+watch(board, () => {
+  if (page.value > totalPages.value) page.value = totalPages.value
+  if (page.value < 1) page.value = 1
+})
+
 onMounted(async () => {
   board.value = (await getLeaderboard()) || []
+  page.value = 1
   loading.value = false
 })
 </script>
@@ -149,6 +178,23 @@ onMounted(async () => {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   transition: border-color .2s;
+}
+
+.lb-list {
+  display: grid;
+  gap: 10px;
+  max-height: min(56vh, 520px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.lb-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.lb-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .lb-row.you {
@@ -242,6 +288,28 @@ onMounted(async () => {
   font-size: .9rem;
   font-weight: 700;
   margin-bottom: 8px;
+}
+
+.lb-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.page-btn {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: .78rem;
+  cursor: pointer;
+}
+
+.page-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 @keyframes spin {

@@ -384,7 +384,7 @@ const navLinks = [
   { label: 'Leaderboard', key: 'leaderboard' },
 ]
 
-const viewsWithoutSidebar = new Set(['tasks', 'quiz', 'leaderboard'])
+const viewsWithoutSidebar = new Set(['dashboard', 'tasks', 'quiz', 'leaderboard'])
 const showSidebar = computed(() => !viewsWithoutSidebar.has(currentView.value))
 
 const titleLines = ['The Climate is Changing', 'So Can You']

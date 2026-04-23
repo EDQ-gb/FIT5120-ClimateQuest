@@ -571,6 +571,9 @@ onMounted(() => {
 
 .landing2-links {
   list-style: none;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: 28px;
@@ -594,7 +597,8 @@ onMounted(() => {
 }
 
 .landing2-login {
-  margin-left: auto;
+  position: absolute;
+  right: 24px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -749,7 +753,7 @@ onMounted(() => {
     display: none;
   }
   .landing2-login {
-    margin-left: auto;
+    right: 10px;
     padding: 6px 10px;
   }
 }
