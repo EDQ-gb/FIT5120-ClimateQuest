@@ -93,11 +93,7 @@
             :coins="shellCoins"
             @coins-updated="refreshShellStats"
           />
-          <AppLeaderboard
-            v-else-if="currentView === 'leaderboard'"
-            :user="user"
-            @coins-updated="refreshShellStats"
-          />
+          <AppLeaderboard v-else-if="currentView === 'leaderboard'" :user="user" />
         </div>
       </div>
     </div>
