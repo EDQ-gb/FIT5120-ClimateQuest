@@ -405,13 +405,12 @@ export function createSceneBuilderCore(opts) {
 
     if (e.button !== 0) return
 
-    // Sync hover cell from the current event position, then prefer it so the
-    // placement always lands on the tile the player sees highlighted under
-    // the cursor (avoids sub-pixel drift between mousemove and mousedown).
-    const h = hitCellFromEvent(e)
-    hoverCell = { col: h.col, row: h.row }
-    const col = hoverCell.col
-    const row = hoverCell.row
+    // WYSIWYG placement: prioritize the currently highlighted preview cell.
+    // If hover isn't available (e.g. first click before any hover), fall back
+    // to hit-testing this mousedown event.
+    const fallback = hitCellFromEvent(e)
+    const col = hoverCell?.col ?? fallback.col
+    const row = hoverCell?.row ?? fallback.row
     if (!validCell(col, row)) return
 
     const placements = getPlacements()
@@ -472,6 +471,14 @@ export function createSceneBuilderCore(opts) {
     zoom = nextZoom
     offsetX = mouseX - worldX * zoom
     offsetY = mouseY - worldY * zoom
+
+    // Keep the preview cell synced under the cursor after zoom even if the
+    // pointer doesn't move, so click-to-place matches what user sees.
+    const h = hitCellFromEvent(e)
+    hoverCell = { col: h.col, row: h.row }
+    if (validCell(h.col, h.row)) setGridPos?.(h.col, h.row)
+    else setGridPos?.(null, null)
+    setTooltip?.({ show: false, x: 0, y: 0, text: '' })
   }
 
   let raf = 0
