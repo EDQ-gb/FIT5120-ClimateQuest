@@ -35,7 +35,8 @@ function keyFor(col, row) {
 }
 
 function getSpriteDrawRectForTile(tileX, tileY, tileW, tileH, imgW, imgH) {
-  // Anchor sprite foot at the tile center so preview aligns to module center.
+  // Anchor sprite foot at the tile center so ghost preview sits on the same
+  // highlighted module, and planted object solidifies at that same spot.
   return {
     dx: tileX - imgW / 2 + tileW / 2,
     dy: tileY - imgH + tileH / 2,
