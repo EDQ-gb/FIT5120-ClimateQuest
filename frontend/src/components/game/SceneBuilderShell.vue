@@ -23,6 +23,21 @@
       </div>
     </div>
 
+    <aside class="scene-stats-card" aria-label="Scene stats">
+      <div class="scene-stats-row">
+        <span class="scene-stats-label">Coins</span>
+        <b class="scene-stats-value">🪙 {{ coins.toLocaleString() }}</b>
+      </div>
+      <div class="scene-stats-row">
+        <span class="scene-stats-label">Streak</span>
+        <b class="scene-stats-value">🔥 {{ streak }}d</b>
+      </div>
+      <div class="scene-stats-row">
+        <span class="scene-stats-label">Placed</span>
+        <b class="scene-stats-value">{{ objectCount }}</b>
+      </div>
+    </aside>
+
     <!-- MAIN -->
     <div class="main">
       <!-- LEFT PALETTE -->
@@ -327,6 +342,37 @@ watch(
   font-weight: 800;
   color: rgba(0, 0, 0, 0.85);
 }
+.scene-stats-card {
+  position: fixed;
+  top: calc(var(--sb-topbar-h) + 10px);
+  right: 14px;
+  z-index: 95;
+  min-width: 170px;
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.scene-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.scene-stats-label {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+.scene-stats-value {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.95);
+}
 
 /* ── MAIN LAYOUT ── */
 .main {
@@ -500,7 +546,7 @@ canvas {
   padding: 4px 10px;
   font-size: 0.75rem;
   pointer-events: none;
-  z-index: 90;
+  z-index: 85;
   display: none;
 }
 .tooltip.show {
@@ -544,16 +590,6 @@ canvas {
   background: radial-gradient(ellipse at center bottom, rgba(14, 44, 30, 0.85) 0%, rgba(6, 12, 10, 0.98) 70%);
 }
 
-.theme-forest .topbar h1 {
-  color: #52d496;
-}
-.theme-glacier .topbar h1 {
-  color: #7fe9ff;
-}
-.theme-cityGreen .topbar h1 {
-  color: #7cff7c;
-}
-
 .theme-glacier .palette {
   background: rgba(0, 0, 0, 0.42);
   border-right-color: rgba(180, 240, 255, 0.14);
@@ -587,6 +623,19 @@ canvas {
   }
   .topbar-user-btn {
     padding: 6px 10px;
+  }
+  .scene-stats-card {
+    top: calc(var(--sb-topbar-h) + 8px);
+    right: 10px;
+    min-width: 150px;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+  .scene-stats-label {
+    font-size: 0.68rem;
+  }
+  .scene-stats-value {
+    font-size: 0.76rem;
   }
   .palette {
     width: 160px;

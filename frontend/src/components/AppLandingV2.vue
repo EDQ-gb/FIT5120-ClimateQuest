@@ -6,7 +6,14 @@
     <nav class="landing2-nav">
       <ul class="landing2-links">
         <li v-for="item in navLinks" :key="item.key">
-          <button type="button" class="landing2-link" @click="$emit('navigate', item.key)">{{ item.label }}</button>
+          <button
+            type="button"
+            class="landing2-link"
+            :class="{ active: item.key === 'home' }"
+            @click="$emit('navigate', item.key)"
+          >
+            {{ item.label }}
+          </button>
         </li>
       </ul>
 
@@ -580,6 +587,9 @@ onMounted(() => {
   transition: color 0.2s ease;
 }
 .landing2-link:hover {
+  color: #fff;
+}
+.landing2-link.active {
   color: #fff;
 }
 
