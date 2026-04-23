@@ -304,8 +304,8 @@ export function createSceneBuilderCore(opts) {
         const img = getImage(def.src)
         if (img && img.complete) {
           const s = Number.isFinite(def.scale) ? def.scale : def.kind === 'decor' ? 0.72 : 1
-          const iw = IMG_W * zoom * 0.75 * s
-          const ih = IMG_H * zoom * 0.75 * s
+          const iw = IMG_W * zoom * s
+          const ih = IMG_H * zoom * s
           ctx.globalAlpha = 0.6
           ctx.drawImage(img, x - iw / 2 + tw / 2, y - ih + th, iw, ih)
           ctx.globalAlpha = 1
@@ -405,8 +405,13 @@ export function createSceneBuilderCore(opts) {
 
     if (e.button !== 0) return
 
+    // Sync hover cell from the current event position, then prefer it so the
+    // placement always lands on the tile the player sees highlighted under
+    // the cursor (avoids sub-pixel drift between mousemove and mousedown).
     const h = hitCellFromEvent(e)
-    const { col, row } = h
+    hoverCell = { col: h.col, row: h.row }
+    const col = hoverCell.col
+    const row = hoverCell.row
     if (!validCell(col, row)) return
 
     const placements = getPlacements()
