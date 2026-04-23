@@ -553,8 +553,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 18px;
-  padding: 0 18px;
+  gap: 28px;
+  padding: 0 24px;
   z-index: 5;
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(10px);
@@ -565,52 +565,50 @@ onMounted(() => {
 .landing2-links {
   list-style: none;
   display: flex;
-  gap: 22px;
+  align-items: center;
+  gap: 28px;
 }
 
 .landing2-link {
   background: transparent;
-  border: 1px solid transparent;
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 0.9rem;
-  padding: 7px 10px;
-  border-radius: 999px;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.98rem;
+  font-weight: 600;
+  padding: 8px 2px;
   cursor: pointer;
-  transition: 0.2s;
+  transition: color 0.2s ease;
 }
 .landing2-link:hover {
   color: #fff;
-  border-color: rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.06);
 }
 
 .landing2-login {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
+  gap: 8px;
+  padding: 7px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.95);
   cursor: pointer;
-  transition: 0.2s;
+  transition: all 0.2s ease;
 }
 .landing2-login:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.11);
 }
 
 .landing2-avatar {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  color: rgba(0, 0, 0, 0.9);
-  font-weight: 900;
-  font-size: 0.75rem;
+  color: rgba(0, 0, 0, 0.85);
+  font-weight: 800;
+  font-size: 0.72rem;
 }
 
 .landing2-inner {
@@ -742,6 +740,7 @@ onMounted(() => {
   }
   .landing2-login {
     margin-left: auto;
+    padding: 6px 10px;
   }
 }
 </style>

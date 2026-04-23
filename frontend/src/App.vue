@@ -34,6 +34,8 @@
       :streak="game.streak"
       :placements="game.placements"
       @back="onNavigate('home')"
+      @navigate="onNavClick"
+      @login="onLogin"
       @reset="onResetGame"
       @logout="onLogout"
       @place="onPlace"
@@ -52,12 +54,22 @@
       <div class="shell-main">
         <!-- Top bar -->
         <header class="shell-topbar">
-          <div class="shell-page-title">{{ pageTitles[currentView] || 'ClimateQuest' }}</div>
-          <div class="shell-topbar-right">
-            <button class="topbar-home-btn" @click="onNavigate('home')">← Home</button>
-            <span class="topbar-badge gold">🪙 {{ shellCoins.toLocaleString() }}</span>
-            <span class="topbar-badge cyan">🔥 {{ shellStreak }}d streak</span>
-          </div>
+          <ul class="shell-nav-links">
+            <li v-for="item in navLinks" :key="item.key">
+              <button
+                type="button"
+                class="shell-nav-link"
+                :class="{ active: currentView === item.key }"
+                @click="onNavClick(item.key)"
+              >
+                {{ item.label }}
+              </button>
+            </li>
+          </ul>
+          <button type="button" class="shell-login-btn" @click="onLogin">
+            <span v-if="user" class="shell-avatar" :style="{ background: avatarBg }">{{ avatarText }}</span>
+            <span>{{ loginButtonText }}</span>
+          </button>
         </header>
 
         <!-- Page content -->

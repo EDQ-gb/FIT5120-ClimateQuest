@@ -2,15 +2,24 @@
   <div class="sb-root" :class="themeClass">
     <!-- TOP BAR -->
     <div class="topbar">
-      <span class="brand-ico">🌍</span>
-      <h1>ClimateQuest</h1>
-      <span class="topbar-info">Grid 20×20 · Kenney Nature Kit</span>
+      <ul class="topbar-links">
+        <li v-for="item in topNavItems" :key="item.key">
+          <button
+            class="topbar-link"
+            :class="{ active: item.key === 'scene' }"
+            type="button"
+            @click="$emit('navigate', item.key)"
+          >
+            {{ item.label }}
+          </button>
+        </li>
+      </ul>
 
       <div class="topbar-right">
-        <button class="btn subtle" type="button" @click="$emit('back')">Home</button>
-        <span class="pill">🪙 {{ coins.toLocaleString() }}</span>
-        <span class="pill">🔥 {{ streak }}d</span>
-        <button class="btn danger" type="button" @click="$emit('logout')">Logout</button>
+        <button class="topbar-user-btn" type="button" @click="$emit('login')">
+          <span class="topbar-avatar" :style="{ background: avatarBg }">{{ avatarText }}</span>
+          <span>{{ loginButtonText }}</span>
+        </button>
       </div>
     </div>
 
@@ -78,7 +87,28 @@ const props = defineProps({
   placements: { type: Object, default: null }, // { items: [...] }
 })
 
-const emit = defineEmits(['back', 'reset', 'logout', 'place', 'move', 'remove', 'refresh', 'activity'])
+const emit = defineEmits(['back', 'reset', 'logout', 'login', 'navigate', 'place', 'move', 'remove', 'refresh', 'activity'])
+
+const topNavItems = [
+  { key: 'home', label: 'Home' },
+  { key: 'scene', label: 'My Scene' },
+  { key: 'tasks', label: 'Tasks' },
+  { key: 'quiz', label: 'Quiz' },
+  { key: 'leaderboard', label: 'Leaderboard' },
+]
+
+const loginButtonText = computed(() => props.user?.displayName || props.user?.username || 'Login')
+const avatarText = computed(() => {
+  const base = (props.user?.displayName || props.user?.username || '').trim()
+  const letters = base.replace(/[^a-zA-Z0-9]/g, '')
+  return (letters || base || 'U').slice(0, 2).toUpperCase()
+})
+const avatarBg = computed(() => {
+  const s = props.user?.username || 'user'
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360
+  return `hsla(${h}, 85%, 45%, 0.85)`
+})
 
 const gameCanvas = ref(null)
 const minimapCanvas = ref(null)
@@ -232,72 +262,70 @@ watch(
   width: 100%;
   height: var(--sb-topbar-h);
   box-sizing: border-box;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding: 10px 18px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: center;
   flex-shrink: 0;
   z-index: 100;
 }
-.topbar h1 {
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: #52d496;
-  letter-spacing: -0.5px;
-}
-.brand-ico {
-  font-size: 1.05rem;
-}
-.topbar-info {
-  font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.45);
-}
-.topbar-right {
-  margin-left: auto;
+.topbar-links {
+  list-style: none;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 28px;
 }
-.pill {
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.08);
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.85);
-}
-.btn {
-  padding: 7px 16px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  font-size: 0.8rem;
+.topbar-link {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.98rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  padding: 8px 2px;
+  transition: color 0.2s ease;
 }
-.btn.subtle {
+.topbar-link:hover {
+  color: #fff;
+}
+.topbar-link.active {
+  color: #fff;
+}
+.topbar-right {
+  position: absolute;
+  right: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.topbar-user-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.88);
+  color: rgba(255, 255, 255, 0.95);
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
-.btn:hover {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.4);
+.topbar-user-btn:hover {
+  background: rgba(255, 255, 255, 0.11);
 }
-.btn.danger {
-  background: rgba(224, 82, 82, 0.15);
-  border-color: rgba(224, 82, 82, 0.4);
-  color: #f09090;
-}
-.btn.danger:hover {
-  background: rgba(224, 82, 82, 0.3);
+.topbar-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: rgba(0, 0, 0, 0.85);
 }
 
 /* ── MAIN LAYOUT ── */
@@ -540,11 +568,28 @@ canvas {
   .sb-root {
     --sb-topbar-h: 56px;
   }
+  .topbar {
+    justify-content: flex-start;
+    padding: 8px 10px;
+  }
+  .topbar-links {
+    gap: 12px;
+    overflow-x: auto;
+    padding-right: 160px;
+  }
+  .topbar-link {
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+  .topbar-right {
+    right: 10px;
+    gap: 6px;
+  }
+  .topbar-user-btn {
+    padding: 6px 10px;
+  }
   .palette {
     width: 160px;
-  }
-  .topbar-info {
-    display: none;
   }
 }
 </style>
