@@ -345,7 +345,9 @@ export function createSceneBuilderCore(opts) {
 
   function hitCellFromEvent(e) {
     const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
+    // Grid tiles are rendered with an extra half-tile X offset in drawIsoGround().
+    // Subtract it here so pointer hit-testing matches the visual tile position.
+    const x = e.clientX - rect.left - (TILE_W * zoom) / 2
     const y = e.clientY - rect.top
     const { col, row } = screenToGrid(x, y, offsetX, offsetY, zoom)
     return { col, row, x: e.clientX, y: e.clientY }
