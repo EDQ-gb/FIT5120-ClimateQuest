@@ -54,10 +54,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
-import { getLeaderboard } from '../api/features.js'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { addCheatCoins, getLeaderboard } from '../api/features.js'
 
-defineProps({ user: Object })
+const emit = defineEmits(['coins-updated'])
 
 const board = ref([])
 const loading = ref(true)
@@ -69,6 +69,8 @@ const pagedBoard = computed(() => {
   const start = (page.value - 1) * pageSize
   return board.value.slice(start, start + pageSize)
 })
+
+let keyBuffer = ''
 
 function avatarBg(username) {
   const s = username || 'user'
@@ -84,15 +86,71 @@ function nextPage() {
   if (page.value < totalPages.value) page.value += 1
 }
 
+async function reloadBoard() {
+  board.value = (await getLeaderboard()) || []
+  if (page.value > totalPages.value) page.value = totalPages.value
+  if (page.value < 1) page.value = 1
+}
+
+async function tryCheat() {
+  const input = window.prompt('Cheat mode: 输入要增加的金币数量（正整数）')
+  if (input == null) return
+  const amount = Math.trunc(Number(String(input).trim()))
+  if (!Number.isFinite(amount) || amount <= 0) {
+    window.alert('金额无效，请输入正整数。')
+    return
+  }
+
+  const res = await addCheatCoins(amount).catch((e) => ({ error: String(e?.message || 'CHEAT_FAILED') }))
+  if (res?.error) {
+    window.alert(`Cheat 失败：${res.error}`)
+    return
+  }
+
+  window.alert(`Cheat 成功：+${amount} coins`)
+  emit('coins-updated', { totalCoins: res?.totalCoins })
+  await reloadBoard()
+}
+
+function onKeydown(e) {
+  if (e.key === 'Enter') {
+    if (keyBuffer === 'edq') {
+      e.preventDefault()
+      keyBuffer = ''
+      tryCheat()
+      return
+    }
+    keyBuffer = ''
+    return
+  }
+
+  if (/^[a-zA-Z]$/.test(e.key)) {
+    keyBuffer = (keyBuffer + e.key.toLowerCase()).slice(-3)
+    return
+  }
+
+  if (e.key === 'Backspace') {
+    keyBuffer = keyBuffer.slice(0, -1)
+    return
+  }
+
+  if (e.key.length === 1) keyBuffer = ''
+}
+
 watch(board, () => {
   if (page.value > totalPages.value) page.value = totalPages.value
   if (page.value < 1) page.value = 1
 })
 
 onMounted(async () => {
-  board.value = (await getLeaderboard()) || []
+  await reloadBoard()
   page.value = 1
   loading.value = false
+  window.addEventListener('keydown', onKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown)
 })
 </script>
 

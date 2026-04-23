@@ -227,3 +227,15 @@ export async function getLeaderboard() {
   try { return await req('/api/leaderboard') }
   catch { return [] } // No mock for leaderboard — needs real backend data
 }
+
+export async function addCheatCoins(amount) {
+  const n = Math.trunc(Number(amount))
+  if (!Number.isFinite(n) || n <= 0) throw new Error('INVALID_AMOUNT')
+  try {
+    return await req('/api/cheat/add-coins', { method: 'POST', body: JSON.stringify({ amount: n }) })
+  } catch {
+    const totalCoins = getCoins() + n
+    set(K.coins, totalCoins)
+    return { ok: true, added: n, totalCoins }
+  }
+}

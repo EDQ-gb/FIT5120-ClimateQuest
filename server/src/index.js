@@ -1141,6 +1141,44 @@ app.get("/api/leaderboard", async (req, res, next) => {
   }
 });
 
+// Cheat mode for local/demo testing: add coins to current user.
+app.post("/api/cheat/add-coins", async (req, res, next) => {
+  try {
+    const userId = requireAuth(req, res);
+    if (!userId) return;
+    await ensureUserState(userId);
+
+    const raw = Number(req.body?.amount);
+    const amount = Math.trunc(raw);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 2147483647) {
+      return res.status(400).json({ error: "INVALID_AMOUNT" });
+    }
+
+    await query(
+      `update user_state
+       set coins = coins + ?
+       where user_id = ?`,
+      [amount, userId]
+    );
+
+    const st = await query(
+      `select coins
+       from user_state
+       where user_id = ?`,
+      [userId]
+    );
+    const totalCoins = Number(st.rows?.[0]?.coins || 0);
+
+    res.json({
+      ok: true,
+      added: amount,
+      totalCoins,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.get("/api/game/state", async (req, res, next) => {
   try {
     const userId = requireAuth(req, res);
