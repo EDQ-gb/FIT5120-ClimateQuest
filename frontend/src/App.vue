@@ -48,8 +48,8 @@
     <!-- ════════════════════════════════════════════════════
          APP SHELL  (all other views)
     ════════════════════════════════════════════════════ -->
-    <div v-else class="app-shell">
-      <AppSidebar :user="user" :currentView="currentView" @navigate="onNavigate" @logout="onLogout" />
+    <div v-else class="app-shell" :class="{ 'no-sidebar': !showSidebar }">
+      <AppSidebar v-if="showSidebar" :user="user" :currentView="currentView" @navigate="onNavigate" @logout="onLogout" />
 
       <div class="shell-main">
         <!-- Top bar -->
@@ -377,11 +377,15 @@ async function onMove(p) {
 
 const navLinks = [
   { label: 'Home', key: 'home' },
+  { label: 'Dashboard', key: 'dashboard' },
   { label: 'My Scene', key: 'scene' },
   { label: 'Tasks', key: 'tasks' },
   { label: 'Quiz', key: 'quiz' },
   { label: 'Leaderboard', key: 'leaderboard' },
 ]
+
+const viewsWithoutSidebar = new Set(['tasks', 'quiz', 'leaderboard'])
+const showSidebar = computed(() => !viewsWithoutSidebar.has(currentView.value))
 
 const titleLines = ['The Climate is Changing', 'So Can You']
 const subtitle =

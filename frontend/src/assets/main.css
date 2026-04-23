@@ -419,6 +419,15 @@ body {
   overflow-y: auto;
 }
 
+.app-shell.no-sidebar .shell-main {
+  margin-left: 0;
+}
+
+.app-shell.no-sidebar .shell-topbar {
+  left: 0;
+  width: 100%;
+}
+
 @media (max-width: 640px) {
   .shell-main {
     --shell-topbar-h: 80px;
@@ -442,6 +451,15 @@ body {
   .shell-login-btn {
     right: 10px;
     padding: 6px 10px;
+  }
+
+  .app-shell.no-sidebar .shell-main {
+    margin-left: 0;
+  }
+
+  .app-shell.no-sidebar .shell-topbar {
+    left: 0;
+    width: 100%;
   }
 }
 

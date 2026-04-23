@@ -106,6 +106,7 @@ const emit = defineEmits(['back', 'reset', 'logout', 'login', 'navigate', 'place
 
 const topNavItems = [
   { key: 'home', label: 'Home' },
+  { key: 'dashboard', label: 'Dashboard' },
   { key: 'scene', label: 'My Scene' },
   { key: 'tasks', label: 'Tasks' },
   { key: 'quiz', label: 'Quiz' },
