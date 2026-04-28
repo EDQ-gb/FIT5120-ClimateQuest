@@ -45,11 +45,28 @@ export const Catalog = {
       id: ThemeId.glacier,
       label: 'Glacier',
       background: 'glacier',
-      // Nature kit doesn't ship explicit ice blocks; we use stone cliffs with a cool tint.
+      // Glacier: avoid trees; use ice/snow/holiday items instead.
       items: [
-        { id: 'glacier_tree_cone', kind: 'tree', label: 'Pine (Snow)', cost: 40, src: '/assets/kenney/Isometric/tree_cone_NE.png', tint: '#cfefff' },
-        { id: 'glacier_tree_default', kind: 'tree', label: 'Tree (Snow)', cost: 40, src: '/assets/kenney/Isometric/tree_default_NE.png', tint: '#cfefff' },
+        // Ice blocks (center placement, counted as "trees" for progress/oxygen tips)
+        { id: 'glacier_ice_rocks_large', kind: 'tree', label: 'Ice Block (Large)', cost: 40, src: '/assets/kenney_kits/holiday_v2/Previews/rocks-large.png', tint: '#d7f3ff' },
+        { id: 'glacier_ice_rocks_medium', kind: 'tree', label: 'Ice Block', cost: 40, src: '/assets/kenney_kits/holiday_v2/Previews/rocks-medium.png', tint: '#d7f3ff' },
+        { id: 'glacier_ice_rocks_small', kind: 'tree', label: 'Ice Block (Small)', cost: 40, src: '/assets/kenney_kits/holiday_v2/Previews/rocks-small.png', tint: '#d7f3ff' },
+
+        // Corner flora (light tint)
         { id: 'glacier_flower_purple', kind: 'flower', label: 'Ice Flower', cost: 12, src: '/assets/kenney/Isometric/flower_purpleA_NE.png', tint: '#cfefff' },
+
+        // Holiday decor
+        { id: 'glacier_tree_christmas', kind: 'tree', label: 'Christmas Tree', cost: 40, src: '/assets/kenney_kits/holiday_v2/Previews/tree-decorated-snow.png' },
+        { id: 'glacier_decor_sled', kind: 'decor', label: 'Sled', cost: 30, src: '/assets/kenney_kits/holiday_v2/Previews/sled.png' },
+        { id: 'glacier_decor_sled_long', kind: 'decor', label: 'Sled (Long)', cost: 30, src: '/assets/kenney_kits/holiday_v2/Previews/sled-long.png' },
+        { id: 'glacier_decor_present_a', kind: 'decor', label: 'Present', cost: 20, src: '/assets/kenney_kits/holiday_v2/Previews/present-a-cube.png' },
+        { id: 'glacier_decor_present_b', kind: 'decor', label: 'Present (Alt)', cost: 20, src: '/assets/kenney_kits/holiday_v2/Previews/present-b-cube.png' },
+        { id: 'glacier_decor_wreath', kind: 'decor', label: 'Wreath', cost: 18, src: '/assets/kenney_kits/holiday_v2/Previews/wreath-decorated.png' },
+        { id: 'glacier_decor_snowman', kind: 'decor', label: 'Snowman', cost: 22, src: '/assets/kenney_kits/holiday_v2/Previews/snowman.png', tags: ['life'] },
+        { id: 'glacier_decor_reindeer', kind: 'decor', label: 'Reindeer', cost: 30, src: '/assets/kenney_kits/holiday_v2/Previews/reindeer.png', tags: ['life'] },
+        { id: 'glacier_decor_snow_pile', kind: 'decor', label: 'Snow Pile', cost: 16, src: '/assets/kenney_kits/holiday_v2/Previews/snow-pile.png' },
+        { id: 'glacier_decor_snow_bunker', kind: 'decor', label: 'Snow Bunker', cost: 16, src: '/assets/kenney_kits/holiday_v2/Previews/snow-bunker.png' },
+
         { id: 'glacier_pet_penguin', kind: 'decor', label: 'Penguin', cost: 30, src: '/assets/kenney_kits/cube-pets/Previews/animal-penguin.png', tags: ['life'] },
         { id: 'glacier_pet_polar_bear', kind: 'decor', label: 'Polar Bear', cost: 30, src: '/assets/kenney_kits/cube-pets/Previews/animal-polar.png', tags: ['life'] },
       ],
