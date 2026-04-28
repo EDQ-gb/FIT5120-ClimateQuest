@@ -18,6 +18,12 @@ frontend/dist/
 server/dist/
 dist/
 
+# Local handoff zips (do not commit)
+_kenney_zips/
+
+# Large unused kit files (we only commit the PNGs we reference)
+frontend/public/assets/kenney_kits/**/Models/
+
 # OS / editor
 .DS_Store
 Thumbs.db

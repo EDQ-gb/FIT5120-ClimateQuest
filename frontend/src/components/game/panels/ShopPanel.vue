@@ -1,7 +1,7 @@
 <template>
   <div class="panel">
     <div class="row">
-      <div class="hint">Spend coins to improve your environment.</div>
+      <div class="hint">Spend Climate Action Coins to improve your environment.</div>
       <div class="coins">🪙 {{ coins.toLocaleString() }}</div>
     </div>
 

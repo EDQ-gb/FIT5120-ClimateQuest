@@ -24,12 +24,6 @@
           <div class="card-name">Glacier</div>
           <div class="card-desc">Restore polar ice through consistent progress.</div>
         </button>
-
-        <button class="theme-card" type="button" @click="pick('cityGreen')" :disabled="busy">
-          <div class="card-icon">🏙️</div>
-          <div class="card-name">City Green</div>
-          <div class="card-desc">Turn a grey city into a greener place with small actions.</div>
-        </button>
       </div>
 
       <div class="theme-actions">
@@ -132,7 +126,7 @@ async function pick(type) {
 .theme-grid {
   width: min(980px, 100%);
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 14px;
 }
 

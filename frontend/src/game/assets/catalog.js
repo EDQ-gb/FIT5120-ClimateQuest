@@ -1,7 +1,7 @@
 export const ThemeId = {
   forest: 'forest',
   glacier: 'glacier',
-  cityGreen: 'cityGreen',
+
 }
 
 // Minimal curated Kenney sprite set (Iteration 1).
@@ -19,16 +19,26 @@ export const Catalog = {
         { id: 'forest_tree_tall_a', kind: 'tree', label: 'Tall Pine', cost: 40, src: '/assets/kenney/Isometric/tree_pineTallA_NE.png' },
         { id: 'forest_tree_tall_b', kind: 'tree', label: 'Tall Pine B', cost: 40, src: '/assets/kenney/Isometric/tree_pineTallB_NE.png' },
         { id: 'forest_tree_fat', kind: 'tree', label: 'Big Oak', cost: 40, src: '/assets/kenney/Isometric/tree_fat_NE.png' },
+        // More trees (same kit, natural proportions)
+        { id: 'forest_tree_oak', kind: 'tree', label: 'Oak', cost: 40, src: '/assets/kenney/Isometric/tree_oak_NE.png' },
+        { id: 'forest_tree_detailed', kind: 'tree', label: 'Tree (Detailed)', cost: 40, src: '/assets/kenney/Isometric/tree_detailed_NE.png' },
+        { id: 'forest_tree_round_c', kind: 'tree', label: 'Pine Round C', cost: 40, src: '/assets/kenney/Isometric/tree_pineRoundC_NE.png' },
         { id: 'forest_flower_a', kind: 'flower', label: 'Flower A', cost: 12, src: '/assets/kenney/Isometric/flower_redA_NE.png' },
         { id: 'forest_flower_b', kind: 'flower', label: 'Flower B', cost: 12, src: '/assets/kenney/Isometric/flower_yellowA_NE.png' },
-        { id: 'forest_grass_a', kind: 'ground', label: 'Grass', cost: 8, src: '/assets/kenney/Isometric/ground_grass_NE.png' },
-        { id: 'forest_grass_b', kind: 'ground', label: 'Path', cost: 8, src: '/assets/kenney/Isometric/ground_pathStraight_NE.png' },
-        // Fun decorations (platformer kit)
-        { id: 'forest_barrel', kind: 'decor', label: 'Barrel', cost: 18, src: '/assets/kenney_kits/platformer/Previews/barrel.png' },
-        { id: 'forest_arrow_sign', kind: 'decor', label: 'Arrow Sign', cost: 14, src: '/assets/kenney_kits/platformer/Previews/arrow.png' },
-        { id: 'forest_crate', kind: 'decor', label: 'Crate', cost: 16, src: '/assets/kenney_kits/platformer/Previews/crate.png' },
-        { id: 'forest_crate_strong', kind: 'decor', label: 'Crate (Strong)', cost: 20, src: '/assets/kenney_kits/platformer/Previews/crate-strong.png' },
-        { id: 'forest_tree_platformer', kind: 'decor', label: 'Big Tree (Alt)', cost: 26, src: '/assets/kenney_kits/platformer/Previews/tree.png' },
+        // More flora
+        { id: 'forest_flower_purple_a', kind: 'flower', label: 'Flower (Purple)', cost: 12, src: '/assets/kenney/Isometric/flower_purpleA_NE.png' },
+        { id: 'forest_flower_red_c', kind: 'flower', label: 'Flower (Red C)', cost: 12, src: '/assets/kenney/Isometric/flower_redC_NE.png' },
+        // Decor + pets (placed on tile center)
+      
+        { id: 'forest_pet_dog', kind: 'decor', label: 'Dog', cost: 30, src: '/assets/kenney_kits/cube-pets/Previews/animal-dog.png', tags: ['life'] },
+        { id: 'forest_pet_fox', kind: 'decor', label: 'Fox', cost: 30, src: '/assets/kenney_kits/cube-pets/Previews/animal-fox.png', tags: ['life'] },
+        { id: 'forest_pet_cow', kind: 'decor', label: 'Cow', cost: 30, src: '/assets/kenney_kits/cube-pets/Previews/animal-cow.png', tags: ['life'] },
+        { id: 'forest_pet_bunny', kind: 'decor', label: 'Bunny', cost: 30, src: '/assets/kenney_kits/cube-pets/Previews/animal-bunny.png', tags: ['life'] },
+        { id: 'forest_pet_beaver', kind: 'decor', label: 'Beaver', cost: 30, src: '/assets/kenney_kits/cube-pets/Previews/animal-beaver.png', tags: ['life'] },
+        { id: 'forest_pet_elephant', kind: 'decor', label: 'Elephant', cost: 30, src: '/assets/kenney_kits/cube-pets/Previews/animal-elephant.png', tags: ['life'] },
+        // "Moose" isn't in this pack; Deer is the closest match.
+        { id: 'forest_pet_moose', kind: 'decor', label: 'Moose', cost: 30, src: '/assets/kenney_kits/cube-pets/Previews/animal-deer.png', tags: ['life'] },
+        { id: 'forest_pet_tiger', kind: 'decor', label: 'Tiger', cost: 30, src: '/assets/kenney_kits/cube-pets/Previews/animal-tiger.png', tags: ['life'] },
       ],
     },
     glacier: {
@@ -37,33 +47,14 @@ export const Catalog = {
       background: 'glacier',
       // Nature kit doesn't ship explicit ice blocks; we use stone cliffs with a cool tint.
       items: [
-        { id: 'glacier_ice_a', kind: 'ice', label: 'Ice Block A', cost: 35, src: '/assets/kenney/Isometric/cliff_block_stone_NE.png', tint: '#9be7ff' },
-        { id: 'glacier_ice_b', kind: 'ice', label: 'Ice Block B', cost: 35, src: '/assets/kenney/Isometric/cliff_cornerTop_stone_NE.png', tint: '#6bd0ff' },
-        { id: 'glacier_snow_a', kind: 'ground', label: 'Snow Ground', cost: 8, src: '/assets/kenney/Isometric/ground_pathBendBank_NE.png', tint: '#cfefff' },
-        { id: 'glacier_snow_b', kind: 'ground', label: 'Snow Path', cost: 8, src: '/assets/kenney/Isometric/ground_pathStraight_NE.png', tint: '#bfe7ff' },
-        // Holiday kit decorations
-        { id: 'glacier_bench', kind: 'decor', label: 'Bench', cost: 16, src: '/assets/kenney_kits/holiday/Previews/bench.png' },
-        { id: 'glacier_candy_cane', kind: 'decor', label: 'Candy Cane', cost: 10, src: '/assets/kenney_kits/holiday/Previews/candy-cane-red.png' },
-        { id: 'glacier_cabin_wall', kind: 'decor', label: 'Cabin Wall', cost: 28, src: '/assets/kenney_kits/holiday/Previews/cabin-wall.png' },
-        { id: 'glacier_cabin_roof_snow', kind: 'decor', label: 'Snow Roof', cost: 30, src: '/assets/kenney_kits/holiday/Previews/cabin-roof-snow.png' },
+        { id: 'glacier_tree_cone', kind: 'tree', label: 'Pine (Snow)', cost: 40, src: '/assets/kenney/Isometric/tree_cone_NE.png', tint: '#cfefff' },
+        { id: 'glacier_tree_default', kind: 'tree', label: 'Tree (Snow)', cost: 40, src: '/assets/kenney/Isometric/tree_default_NE.png', tint: '#cfefff' },
+        { id: 'glacier_flower_purple', kind: 'flower', label: 'Ice Flower', cost: 12, src: '/assets/kenney/Isometric/flower_purpleA_NE.png', tint: '#cfefff' },
+        { id: 'glacier_pet_penguin', kind: 'decor', label: 'Penguin', cost: 30, src: '/assets/kenney_kits/cube-pets/Previews/animal-penguin.png', tags: ['life'] },
+        { id: 'glacier_pet_polar_bear', kind: 'decor', label: 'Polar Bear', cost: 30, src: '/assets/kenney_kits/cube-pets/Previews/animal-polar.png', tags: ['life'] },
       ],
     },
-    cityGreen: {
-      id: ThemeId.cityGreen,
-      label: 'City Green',
-      background: 'city',
-      items: [
-        { id: 'city_pave_a', kind: 'ground', label: 'Pavement', cost: 8, src: '/assets/kenney/Isometric/ground_pathStraight_NE.png' },
-        { id: 'city_pave_b', kind: 'ground', label: 'Corner', cost: 8, src: '/assets/kenney/Isometric/ground_pathBend_NE.png' },
-        { id: 'city_tree_a', kind: 'tree', label: 'Street Tree', cost: 40, src: '/assets/kenney/Isometric/tree_oak_NE.png' },
-        { id: 'city_tree_b', kind: 'tree', label: 'Street Tree B', cost: 40, src: '/assets/kenney/Isometric/tree_simple_NE.png' },
-        { id: 'city_flower_a', kind: 'flower', label: 'Planter A', cost: 12, src: '/assets/kenney/Isometric/flower_purpleA_NE.png' },
-        { id: 'city_flower_b', kind: 'flower', label: 'Planter B', cost: 12, src: '/assets/kenney/Isometric/flower_redA_NE.png' },
-        // Train kit (public transport vibes)
-        { id: 'city_rail_curve', kind: 'decor', label: 'Rail Curve', cost: 22, src: '/assets/kenney_kits/train/Previews/railroad-rail-curve.png' },
-        { id: 'city_rail_straight', kind: 'decor', label: 'Rail Straight', cost: 20, src: '/assets/kenney_kits/train/Previews/railroad-rail-straight.png' },
-      ],
-    },
+    
   },
 }
 

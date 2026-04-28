@@ -106,7 +106,6 @@ const title = computed(
     ({
       forest: 'Rainforest Quest',
       glacier: 'Glacier Quest',
-      cityGreen: 'City Green Quest',
     })[props.themeType] || 'ClimateQuest'
 )
 

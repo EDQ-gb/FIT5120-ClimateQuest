@@ -25,7 +25,7 @@
 
     <aside class="scene-stats-card" aria-label="Scene stats">
       <div class="scene-stats-row">
-        <span class="scene-stats-label">Coins</span>
+        <span class="scene-stats-label">Climate Action Coins</span>
         <b class="scene-stats-value">🪙 {{ coins.toLocaleString() }}</b>
       </div>
       <div class="scene-stats-row">
@@ -76,6 +76,9 @@
         <canvas ref="gameCanvas"></canvas>
         <!-- minimap removed (too big/noisy); can be re-added later -->
         <div class="tooltip" :class="{ show: tooltip.show }" :style="tooltipStyle">{{ tooltip.text }}</div>
+        <div v-if="toastShow && toastText" class="toast" role="status" aria-live="polite">
+          {{ toastText }}
+        </div>
       </div>
     </div>
 
@@ -100,6 +103,8 @@ const props = defineProps({
   coins: { type: Number, default: 0 },
   streak: { type: Number, default: 0 },
   placements: { type: Object, default: null }, // { items: [...] }
+  toastShow: { type: Boolean, default: false },
+  toastText: { type: String, default: '' },
 })
 
 const emit = defineEmits(['back', 'reset', 'logout', 'login', 'navigate', 'place', 'move', 'remove', 'refresh', 'activity'])
@@ -143,10 +148,8 @@ const paletteCats = computed(() => {
   const items = theme.value.items || []
   const groups = [
     { key: 'tree', label: '🌳 Trees' },
-    { key: 'ground', label: '🌿 Ground' },
     { key: 'flower', label: '🌸 Flora' },
-    { key: 'ice', label: '🧊 Ice' },
-    { key: 'decor', label: '✨ Decor' },
+    { key: 'decor', label: '🐾 Pets' },
   ]
   return groups
     .map((g) => ({ ...g, items: items.filter((x) => x.kind === g.key) }))
@@ -155,10 +158,7 @@ const paletteCats = computed(() => {
 
 function kindCost(kind) {
   if (kind === 'tree') return 40
-  if (kind === 'ground') return 8
   if (kind === 'flower') return 12
-  if (kind === 'ice') return 35
-  if (kind === 'decor') return 15
   return 0
 }
 
@@ -267,7 +267,7 @@ watch(
   overflow: hidden;
   color: #e8f5ee;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  background: #0f1a12;
+  background: #16261b;
 }
 
 /* ── TOP BAR ── */
@@ -529,7 +529,7 @@ watch(
   flex: 1;
   position: relative;
   overflow: hidden;
-  background: radial-gradient(ellipse at center bottom, rgba(34, 80, 34, 0.8) 0%, rgba(10, 25, 10, 0.95) 70%);
+  background: radial-gradient(ellipse at center bottom, rgba(92, 160, 110, 0.55) 0%, rgba(18, 40, 24, 0.92) 72%);
 }
 canvas {
   display: block;
@@ -552,6 +552,24 @@ canvas {
 }
 .tooltip.show {
   display: block;
+}
+
+.toast {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  max-width: min(560px, calc(100% - 28px));
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.86rem;
+  line-height: 1.35;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
 }
 
 /* ── STATUS BAR ── */
@@ -582,13 +600,10 @@ canvas {
 
 /* Theme variants */
 .theme-forest {
-  background: radial-gradient(ellipse at center bottom, rgba(14, 48, 20, 0.85) 0%, rgba(7, 16, 9, 0.98) 70%);
+  background: radial-gradient(ellipse at center bottom, rgba(68, 150, 92, 0.55) 0%, rgba(18, 40, 24, 0.94) 72%);
 }
 .theme-glacier {
-  background: radial-gradient(ellipse at center bottom, rgba(16, 52, 70, 0.85) 0%, rgba(6, 12, 20, 0.98) 70%);
-}
-.theme-cityGreen {
-  background: radial-gradient(ellipse at center bottom, rgba(14, 44, 30, 0.85) 0%, rgba(6, 12, 10, 0.98) 70%);
+  background: radial-gradient(ellipse at center bottom, rgba(88, 170, 210, 0.50) 0%, rgba(12, 22, 34, 0.95) 72%);
 }
 
 .theme-glacier .palette {
