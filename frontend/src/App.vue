@@ -344,6 +344,15 @@ function maybeEmitPlacementTips(prevPlacements, nextPlacements, lastPlacedItem) 
   }
 }
 
+function getItemCostForPlacement(itemId, kind) {
+  const def = itemId ? getItemByIdAnyTheme(String(itemId)) : null
+  if (def && Number.isFinite(def.cost)) return def.cost
+  if (kind === 'tree') return 40
+  if (kind === 'flower') return 12
+  if (kind === 'decor') return 30
+  return 0
+}
+
 // Debug helpers removed (kept app flow clean)
 
 const pageTitles = {
@@ -491,7 +500,8 @@ async function applyPlacementApi(url, body) {
 }
 
 async function onPlace(p) {
-  // Connect coins: buy first, then place on grid
+  // Optimistic UX: show placement immediately, then reconcile with backend.
+  let rollback = null
   try {
     const prevPlacements = game.placements
     const itemId = String(p?.itemId || '')
@@ -525,6 +535,32 @@ async function onPlace(p) {
         }
       }
     }
+
+    // Ensure placements exist so canvas can render instantly
+    if (!game.placements || !Array.isArray(game.placements.items)) game.placements = { items: [] }
+
+    // Optimistic placement + local coin deduction
+    const col = Number.isFinite(p?.col) ? p.col : null
+    const row = Number.isFinite(p?.row) ? p.row : null
+    const optimisticId = `${Date.now()}_${Math.random().toString(16).slice(2)}`
+    const optimisticItem = { itemId, type, col, row, at: new Date().toISOString(), _optimistic: optimisticId }
+    const optimisticCost = getItemCostForPlacement(itemId, type)
+
+    const prevCoins = Number(game.coins || 0)
+    const prevItemsSnapshot = Array.isArray(game.placements.items) ? [...game.placements.items] : []
+    rollback = () => {
+      if (game.placements && Array.isArray(game.placements.items)) {
+        game.placements.items = game.placements.items.filter((it) => it?._optimistic !== optimisticId)
+      }
+      game.coins = prevCoins
+      syncShellFromGame()
+    }
+
+    game.placements.items = [...prevItemsSnapshot, optimisticItem]
+    if (optimisticCost > 0) {
+      game.coins = Math.max(0, prevCoins - optimisticCost)
+      syncShellFromGame()
+    }
     const buyRes = await fetch('/api/shop/buy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -537,10 +573,12 @@ async function onPlace(p) {
       game.coins = buyRes.coins
       syncShellFromGame()
     }
-    await applyPlacementApi('/api/scene/place', p)
+    const placed = await applyPlacementApi('/api/scene/place', p)
+    if (!placed) throw new Error('PLACE_FAILED')
     // Tips: based on placement deltas (trees/ground/life)
     maybeEmitPlacementTips(prevPlacements, game.placements, p)
   } catch (e) {
+    rollback?.()
     const msg = String(e?.message || '')
     if (msg === 'INSUFFICIENT_COINS')
       alert('Not enough Climate Action Coins. Complete Daily Tasks or the Daily Quiz to earn more, then place again.')
