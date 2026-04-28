@@ -324,15 +324,18 @@ body {
   position: relative;
   min-height: 100vh;
   width: 100%;
-  background-image: linear-gradient(
-      to bottom,
-      rgba(0, 0, 0, 0.35) 0%,
-      rgba(0, 0, 0, 0.82) 100%
-    ),
-    url("/img1.jpg");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background-image: none;
+  background-color: var(--app-bg, #101416);
+}
+
+/* Theme-matched solid backgrounds (no images) */
+.app-shell[data-theme='forest'] {
+  --app-bg: #0f1713;
+  --primary-accent: #7fd6c9;
+}
+.app-shell[data-theme='glacier'] {
+  --app-bg: #0d1520;
+  --primary-accent: #a8d8ff;
 }
 
 .shell-main {

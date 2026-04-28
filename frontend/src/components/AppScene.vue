@@ -104,11 +104,12 @@ function draw(){
 function drawForest(ctx,W,H,p){
   const pn=p/100
   const skyG=ctx.createLinearGradient(0,0,0,H*.6)
-  skyG.addColorStop(0,lerpColor('#0a1a0a','#1a4030',pn)); skyG.addColorStop(1,lerpColor('#1a2a10','#4a8030',pn))
+  // Softer, less saturated palette (eye-friendly)
+  skyG.addColorStop(0,lerpColor('#14201b','#3b5c52',pn)); skyG.addColorStop(1,lerpColor('#1b2a20','#5b845f',pn))
   ctx.fillStyle=skyG; ctx.fillRect(0,0,W,H)
-  if(p>15){ const b=Math.min(1,(p-15)/50),sg=ctx.createRadialGradient(W*.72,H*.12,0,W*.72,H*.12,70); sg.addColorStop(0,`rgba(255,230,100,${.25+b*.55})`); sg.addColorStop(.4,`rgba(255,190,40,${.12+b*.2})`); sg.addColorStop(1,'rgba(255,160,0,0)'); ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(W*.72,H*.12,70,0,Math.PI*2); ctx.fill(); ctx.fillStyle=`rgba(255,245,160,${.6+b*.35})`; ctx.beginPath(); ctx.arc(W*.72,H*.12,14,0,Math.PI*2); ctx.fill() }
-  ctx.fillStyle=lerpColor('#0a180a','#2a5018',pn); ctx.beginPath(); ctx.moveTo(0,H*.55); ctx.bezierCurveTo(W*.18,H*.38,W*.38,H*.44,W*.5,H*.46); ctx.bezierCurveTo(W*.65,H*.49,W*.82,H*.36,W,H*.44); ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill()
-  const gG=ctx.createLinearGradient(0,H*.6,0,H); gG.addColorStop(0,lerpColor('#0e1e0a','#38780e',pn)); gG.addColorStop(1,lerpColor('#080f06','#1a380a',pn)); ctx.fillStyle=gG; ctx.fillRect(0,H*.6,W,H*.4)
+  if(p>15){ const b=Math.min(1,(p-15)/50),sg=ctx.createRadialGradient(W*.72,H*.12,0,W*.72,H*.12,70); sg.addColorStop(0,`rgba(255,238,170,${.16+b*.28})`); sg.addColorStop(.4,`rgba(255,216,132,${.10+b*.14})`); sg.addColorStop(1,'rgba(255,200,120,0)'); ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(W*.72,H*.12,70,0,Math.PI*2); ctx.fill(); ctx.fillStyle=`rgba(255,246,214,${.45+b*.18})`; ctx.beginPath(); ctx.arc(W*.72,H*.12,13,0,Math.PI*2); ctx.fill() }
+  ctx.fillStyle=lerpColor('#16231c','#3d6350',pn); ctx.beginPath(); ctx.moveTo(0,H*.55); ctx.bezierCurveTo(W*.18,H*.38,W*.38,H*.44,W*.5,H*.46); ctx.bezierCurveTo(W*.65,H*.49,W*.82,H*.36,W,H*.44); ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill()
+  const gG=ctx.createLinearGradient(0,H*.6,0,H); gG.addColorStop(0,lerpColor('#1a2a1d','#67a26f',pn)); gG.addColorStop(1,lerpColor('#0f1712','#35523a',pn)); ctx.fillStyle=gG; ctx.fillRect(0,H*.6,W,H*.4)
   const maxT=18,numT=Math.ceil(p/100*maxT),xs=seeded(maxT,W*.06,W*.94,7),szs=seeded(maxT,.5,1.1,77)
   for(let i=0;i<numT;i++){ const x=xs[i],sz=szs[i],baseY=H*.63+(xs[i]/W)*H*.06; drawTree(ctx,x,baseY,sz,pn) }
   if(p<40){ const mg=ctx.createLinearGradient(0,H*.55,0,H*.75); mg.addColorStop(0,'rgba(20,30,20,0)'); mg.addColorStop(.5,`rgba(8,18,8,${.35*(1-p/40)})`); mg.addColorStop(1,'rgba(4,10,4,0)'); ctx.fillStyle=mg; ctx.fillRect(0,H*.55,W,H*.2) }
@@ -117,26 +118,27 @@ function drawForest(ctx,W,H,p){
 function drawTree(ctx,x,baseY,sz,pn){
   const h=72*sz,trunk=h*.22; ctx.save(); ctx.translate(x,baseY)
   ctx.fillStyle=lerpColor('#1a0c06','#4a2810',pn); ctx.beginPath(); ctx.moveTo(-5*sz,0); ctx.lineTo(5*sz,0); ctx.lineTo(3*sz,-trunk); ctx.lineTo(-3*sz,-trunk); ctx.closePath(); ctx.fill()
-  ;[1.0,.76,.54].forEach((sc,i)=>{ const cy=-trunk-h*.28*i,cg=ctx.createRadialGradient(0,cy-8*sc,1,0,cy,30*sz*sc); cg.addColorStop(0,lerpColor('#0e220e','#4a9022',pn)); cg.addColorStop(1,lerpColor('#0a1a0a','#2a6010',pn)); ctx.fillStyle=cg; ctx.beginPath(); ctx.ellipse(0,cy,28*sz*sc,28*sz*sc,0,0,Math.PI*2); ctx.fill() })
+  ;[1.0,.76,.54].forEach((sc,i)=>{ const cy=-trunk-h*.28*i,cg=ctx.createRadialGradient(0,cy-8*sc,1,0,cy,30*sz*sc); cg.addColorStop(0,lerpColor('#143018','#5d8f55',pn)); cg.addColorStop(1,lerpColor('#0f1d12','#345a35',pn)); ctx.fillStyle=cg; ctx.beginPath(); ctx.ellipse(0,cy,28*sz*sc,28*sz*sc,0,0,Math.PI*2); ctx.fill() })
   ctx.restore()
 }
 function drawGlacier(ctx,W,H,p){
   const pn=p/100
-  const sg=ctx.createLinearGradient(0,0,0,H*.5); sg.addColorStop(0,lerpColor('#000510','#020b1c',pn)); sg.addColorStop(1,lerpColor('#051020','#0a2040',pn)); ctx.fillStyle=sg; ctx.fillRect(0,0,W,H)
-  if(p>10){ const ab=Math.min(1,(p-10)/55); [['#00ff96','#00a8e8',.14],['#00b4ff','#5000cc',.22]].forEach(([c1,c2,ny])=>{ const y=H*ny,aG=ctx.createLinearGradient(0,0,W,0); const al=Math.round(ab*50).toString(16).padStart(2,'0'); aG.addColorStop(0,c1+'00'); aG.addColorStop(.3,c1+al); aG.addColorStop(.7,c2+al); aG.addColorStop(1,c2+'00'); ctx.fillStyle=aG; ctx.beginPath(); ctx.moveTo(0,y-18); ctx.bezierCurveTo(W*.4,y-30,W*.7,y-10,W,y-18); ctx.lineTo(W,y+18); ctx.bezierCurveTo(W*.7,y+30,W*.4,y+10,0,y+18); ctx.closePath(); ctx.fill() }) }
-  const seaG=ctx.createLinearGradient(0,H*.45,0,H); seaG.addColorStop(0,lerpColor('#030d18','#0a2044',pn)); seaG.addColorStop(1,lerpColor('#020810','#061428',pn)); ctx.fillStyle=seaG; ctx.fillRect(0,H*.45,W,H)
-  ctx.fillStyle=lerpColor('#0a1520','#c0dcf0',pn); ctx.beginPath(); ctx.moveTo(0,H*.52); ctx.bezierCurveTo(W*.22,H*.44,W*.48,H*.5,W*.56,H*.47); ctx.bezierCurveTo(W*.72,H*.43,W*.88,H*.5,W,H*.48); ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill()
+  const sg=ctx.createLinearGradient(0,0,0,H*.5); sg.addColorStop(0,lerpColor('#0e1220','#1a2a42',pn)); sg.addColorStop(1,lerpColor('#0f1c2c','#2f5b86',pn)); ctx.fillStyle=sg; ctx.fillRect(0,0,W,H)
+  if(p>10){ const ab=Math.min(1,(p-10)/55); [['#9be7d6','#9db7ff',.14],['#a8d8ff','#c4a7ff',.22]].forEach(([c1,c2,ny])=>{ const y=H*ny,aG=ctx.createLinearGradient(0,0,W,0); const al=Math.round(ab*36).toString(16).padStart(2,'0'); aG.addColorStop(0,c1+'00'); aG.addColorStop(.3,c1+al); aG.addColorStop(.7,c2+al); aG.addColorStop(1,c2+'00'); ctx.fillStyle=aG; ctx.beginPath(); ctx.moveTo(0,y-18); ctx.bezierCurveTo(W*.4,y-30,W*.7,y-10,W,y-18); ctx.lineTo(W,y+18); ctx.bezierCurveTo(W*.7,y+30,W*.4,y+10,0,y+18); ctx.closePath(); ctx.fill() }) }
+  const seaG=ctx.createLinearGradient(0,H*.45,0,H); seaG.addColorStop(0,lerpColor('#0f2234','#1d4e7b',pn)); seaG.addColorStop(1,lerpColor('#081321','#0f2a44',pn)); ctx.fillStyle=seaG; ctx.fillRect(0,H*.45,W,H)
+  ctx.fillStyle=lerpColor('#132433','#d7ebf7',pn); ctx.beginPath(); ctx.moveTo(0,H*.52); ctx.bezierCurveTo(W*.22,H*.44,W*.48,H*.5,W*.56,H*.47); ctx.bezierCurveTo(W*.72,H*.43,W*.88,H*.5,W,H*.48); ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill()
   const maxI=10,numI=Math.max(2,Math.floor(p/100*maxI)),ixs=seeded(maxI,W*.05,W*.92,33),iszs=seeded(maxI,.45,1.2,66)
   for(let i=0;i<numI;i++){ const x=ixs[i],sz=iszs[i],h=60*sz*(.18+pn*.82); ctx.save(); ctx.translate(x,H*.47+(x/W)*H*.06); const ig=ctx.createLinearGradient(0,-h,0,0); ig.addColorStop(0,lerpColor('#1c2e3a','#dceef8',pn)); ig.addColorStop(1,lerpColor('#111e28','#a8cce0',pn)); ctx.fillStyle=ig; ctx.beginPath(); ctx.moveTo(0,-h); ctx.lineTo(26*sz,0); ctx.lineTo(-22*sz,0); ctx.closePath(); ctx.fill(); ctx.restore() }
   drawHUD(ctx,W,H,'❄️',p)
 }
 function drawDesert(ctx,W,H,p){
   const pn=p/100
-  const skyG=ctx.createLinearGradient(0,0,0,H*.55); skyG.addColorStop(0,lerpColor('#100608','#1c0a1c',pn)); skyG.addColorStop(1,lerpColor('#c05010','#d07030',pn)); ctx.fillStyle=skyG; ctx.fillRect(0,0,W,H)
-  const sunG=ctx.createRadialGradient(W*.68,H*.14,0,W*.68,H*.14,70); sunG.addColorStop(0,`rgba(255,200,60,${.3+pn*.5})`); sunG.addColorStop(.5,`rgba(255,140,10,${.15+pn*.25})`); sunG.addColorStop(1,'rgba(255,80,0,0)'); ctx.fillStyle=sunG; ctx.beginPath(); ctx.arc(W*.68,H*.14,70,0,Math.PI*2); ctx.fill(); ctx.fillStyle=`rgba(255,235,110,${.7+pn*.25})`; ctx.beginPath(); ctx.arc(W*.68,H*.14,17,0,Math.PI*2); ctx.fill()
-  const sandG=ctx.createLinearGradient(0,H*.5,0,H); sandG.addColorStop(0,lerpColor('#3a1a04','#d4a055',pn)); sandG.addColorStop(1,lerpColor('#200e02','#9a6828',pn)); ctx.fillStyle=sandG; ctx.fillRect(0,H*.5,W,H*.5)
-  ;[[.35,.55],[.70,.58],[.10,.62]].forEach(([dx,bot])=>{ const dG=ctx.createLinearGradient(0,H*.6,0,H*bot); dG.addColorStop(0,lerpColor('#2a1204','#c09040',pn)); dG.addColorStop(1,lerpColor('#180a02','#8a5020',pn)); ctx.fillStyle=dG; ctx.beginPath(); ctx.moveTo(0,H*bot); ctx.bezierCurveTo(W*(dx+.1),H*.62,W*(dx+.28),H*(bot-.03),W*(dx+.42),H*(bot-.03)); ctx.bezierCurveTo(W*(dx+.58),H*(bot+.02),W*(dx+.72),H*(bot-.01),W,H*bot); ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill() })
-  if(p>8){ const oR=W*.06+W*.11*pn,ox=W*.38,oy=H*.62,oG=ctx.createRadialGradient(ox,oy,0,ox,oy,oR); oG.addColorStop(0,`rgba(20,80,140,${.4+pn*.5})`); oG.addColorStop(.6,`rgba(10,50,90,${.3+pn*.3})`); oG.addColorStop(1,'rgba(5,25,50,0)'); ctx.fillStyle=oG; ctx.beginPath(); ctx.ellipse(ox,oy,oR,oR*.55,0,0,Math.PI*2); ctx.fill() }
+  // Softer desert palette
+  const skyG=ctx.createLinearGradient(0,0,0,H*.55); skyG.addColorStop(0,lerpColor('#211617','#3a2830',pn)); skyG.addColorStop(1,lerpColor('#c08a62','#e2b07a',pn)); ctx.fillStyle=skyG; ctx.fillRect(0,0,W,H)
+  const sunG=ctx.createRadialGradient(W*.68,H*.14,0,W*.68,H*.14,70); sunG.addColorStop(0,`rgba(255,226,170,${.22+pn*.32})`); sunG.addColorStop(.5,`rgba(255,206,140,${.12+pn*.18})`); sunG.addColorStop(1,'rgba(255,190,120,0)'); ctx.fillStyle=sunG; ctx.beginPath(); ctx.arc(W*.68,H*.14,70,0,Math.PI*2); ctx.fill(); ctx.fillStyle=`rgba(255,246,214,${.55+pn*.15})`; ctx.beginPath(); ctx.arc(W*.68,H*.14,16,0,Math.PI*2); ctx.fill()
+  const sandG=ctx.createLinearGradient(0,H*.5,0,H); sandG.addColorStop(0,lerpColor('#3b2a1a','#e0c49a',pn)); sandG.addColorStop(1,lerpColor('#24170e','#b38b5a',pn)); ctx.fillStyle=sandG; ctx.fillRect(0,H*.5,W,H*.5)
+  ;[[.35,.55],[.70,.58],[.10,.62]].forEach(([dx,bot])=>{ const dG=ctx.createLinearGradient(0,H*.6,0,H*bot); dG.addColorStop(0,lerpColor('#2b1b0f','#c2a06e',pn)); dG.addColorStop(1,lerpColor('#1e1209','#8e6b3e',pn)); ctx.fillStyle=dG; ctx.beginPath(); ctx.moveTo(0,H*bot); ctx.bezierCurveTo(W*(dx+.1),H*.62,W*(dx+.28),H*(bot-.03),W*(dx+.42),H*(bot-.03)); ctx.bezierCurveTo(W*(dx+.58),H*(bot+.02),W*(dx+.72),H*(bot-.01),W,H*bot); ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill() })
+  if(p>8){ const oR=W*.06+W*.11*pn,ox=W*.38,oy=H*.62,oG=ctx.createRadialGradient(ox,oy,0,ox,oy,oR); oG.addColorStop(0,`rgba(84,136,170,${.28+pn*.32})`); oG.addColorStop(.6,`rgba(46,96,132,${.20+pn*.20})`); oG.addColorStop(1,'rgba(20,50,80,0)'); ctx.fillStyle=oG; ctx.beginPath(); ctx.ellipse(ox,oy,oR,oR*.55,0,0,Math.PI*2); ctx.fill() }
   drawHUD(ctx,W,H,'🌵',p)
 }
 function drawHUD(ctx,W,H,icon,p){
@@ -158,24 +160,24 @@ watch(() => [scene.value.type, scene.value.progress], draw)
 
 <style scoped>
 .page    { display:flex;flex-direction:column;gap:16px; }
-.scene-wrap { position:relative;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.12);background:#050e08; }
+.scene-wrap { position:relative;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.12);background:#0d1512; }
 canvas   { display:block;width:100%;height:280px; }
 .scene-hud { position:absolute;bottom:0;left:0;right:0;padding:12px 18px;background:linear-gradient(transparent,rgba(0,0,0,0.65));display:flex;align-items:center;justify-content:space-between; }
 .hud-name { font-size:.95rem;font-weight:700;color:#fff; }
 .hud-sub  { font-size:.72rem;color:rgba(255,255,255,0.5);margin-top:2px; }
-.hud-pct  { font-size:1.5rem;font-weight:800;color:#00f2ff; }
+.hud-pct  { font-size:1.5rem;font-weight:800;color:#a7e1dd; }
 .prog-row { display:flex;align-items:center;justify-content:space-between;margin-bottom:6px; }
 .prog-track { background:rgba(255,255,255,0.1);border-radius:99px;height:7px;overflow:hidden; }
-.prog-fill  { height:100%;border-radius:99px;transition:width .6s;background:linear-gradient(90deg,#0080aa,#00f2ff); }
+.prog-fill  { height:100%;border-radius:99px;transition:width .6s;background:linear-gradient(90deg,#2f8f86,#a7e1dd); }
 .sub-text { font-size:.78rem;color:rgba(255,255,255,0.4); }
-.cyan  { color:#00f2ff; }
+.cyan  { color:#a7e1dd; }
 .green { color:#52d496; }
 .fw7   { font-weight:700; }
 .card-title { font-size:.72rem;font-weight:700;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px; }
 .habitat-row { display:flex;gap:12px; }
 .habitat-opt { flex:1;padding:16px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;text-align:center;cursor:pointer;transition:all .25s; }
-.habitat-opt:hover { border-color:rgba(0,242,255,0.4); }
-.habitat-opt.active { border-color:#00f2ff;background:rgba(0,242,255,0.08); }
+.habitat-opt:hover { border-color:rgba(167,225,221,0.45); }
+.habitat-opt.active { border-color:#a7e1dd;background:rgba(167,225,221,0.10); }
 .opt-icon { font-size:1.8rem;margin-bottom:5px; }
 .opt-name { font-size:.88rem;font-weight:700;color:#fff;margin-bottom:3px; }
 .opt-desc { font-size:.7rem;color:rgba(255,255,255,0.45); }

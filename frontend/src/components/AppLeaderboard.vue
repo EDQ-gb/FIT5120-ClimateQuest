@@ -2,7 +2,7 @@
   <div class="page">
     <div class="row-between mb20">
       <h3 class="page-h3">Top Eco-Champions</h3>
-      <span class="sub-text">Ranked by coins earned</span>
+      <span class="sub-text">Ranked by Climate Action Coins</span>
     </div>
 
     <div v-if="loading" class="center-pad">
@@ -39,16 +39,18 @@
       </div>
 
       <div class="lb-pagination">
-        <button type="button" class="page-btn" :disabled="page <= 1" @click="prevPage">上一页</button>
-        <span class="sub-text">第 {{ page }} / {{ totalPages }} 页</span>
-        <button type="button" class="page-btn" :disabled="page >= totalPages" @click="nextPage">下一页</button>
+        <button type="button" class="page-btn" :disabled="page <= 1" @click="prevPage">Previous</button>
+        <span class="sub-text">Page {{ page }} / {{ totalPages }}</span>
+        <button type="button" class="page-btn" :disabled="page >= totalPages" @click="nextPage">Next</button>
       </div>
     </template>
 
     <div class="info-card mt20">
       <div class="info-title gold">🏆 How to climb the board</div>
-      <p class="sub-text">Complete daily tasks (+10–30 coins), answer the quiz correctly (+25 coins), and maintain your
-        streak. Social features and friend challenges expand in Iteration 2.</p>
+      <p class="sub-text">
+        Complete daily tasks (+10–30 coins), answer the quiz correctly (+25 coins), and keep your streak going. Social
+        features and friend challenges expand in Iteration 2.
+      </p>
     </div>
   </div>
 </template>

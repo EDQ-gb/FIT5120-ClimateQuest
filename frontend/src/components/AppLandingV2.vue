@@ -32,7 +32,7 @@
       </div>
 
       <div class="landing2-bottom land-in-1">
-        <div class="landing2-sub">Build · Protect · Restore Your World</div>
+        <div class="landing2-sub">Play · Learn · Make Real Impact</div>
         <button type="button" class="btn-start" @click="$emit('start')">Start Your Trail →</button>
       </div>
     </div>
@@ -691,13 +691,13 @@ onMounted(() => {
 
 .landing2-sub {
   font-family: 'DM Sans', Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  font-size: clamp(10px, 1.0vw, 12px);
-  font-weight: 300;
-  color: rgba(160, 200, 180, 0.4);
+  font-size: clamp(14px, 1.6vw, 18px);
+  font-weight: 700;
+  color: rgba(210, 232, 222, 0.66);
   letter-spacing: 5px;
   text-transform: uppercase;
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .btn-start {

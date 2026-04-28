@@ -3,6 +3,25 @@ const TILE_H = 64
 const IMG_W = 128
 const IMG_H = 256
 
+function clamp(n, lo, hi) {
+  return Math.max(lo, Math.min(hi, n))
+}
+
+function getNaturalSize(img) {
+  const w = img?.naturalWidth || img?.width || 0
+  const h = img?.naturalHeight || img?.height || 0
+  return { w, h }
+}
+
+function isLikelyTileSprite(img) {
+  const { w, h } = getNaturalSize(img)
+  if (!w || !h) return false
+  // Kenney isometric tiles commonly export around 128×256; treat near-matches as "tile sprites".
+  const rw = w / IMG_W
+  const rh = h / IMG_H
+  return rw > 0.6 && rw < 1.4 && rh > 0.6 && rh < 1.4
+}
+
 function gridToScreen(col, row, offsetX, offsetY, zoom) {
   const sx = (col - row) * (TILE_W / 2) * zoom
   const sy = (col + row) * (TILE_H / 2) * zoom
@@ -40,6 +59,15 @@ function getSpriteDrawRectForTile(tileX, tileY, tileW, tileH, imgW, imgH, anchor
     dx: tileX + tileW / 2 - imgW * anchor.rx,
     dy: tileY + tileH / 2 - imgH * anchor.ry,
   }
+}
+
+function baseScaleForKind(kind) {
+  // One source of truth for sprite sizing.
+  // Change these numbers to resize all items consistently (preview + placed).
+  if (kind === 'decor') return 0.5 // pets / decor
+  if (kind === 'tree') return 1.5
+  if (kind === 'flower') return 1.5
+  return 0.95
 }
 
 export function createSceneBuilderCore(opts) {
@@ -190,6 +218,31 @@ export function createSceneBuilderCore(opts) {
     return grid
   }
 
+  function kindOfPlacement(it) {
+    const def = it?.itemId ? getItemDefById(it.itemId) : null
+    return def?.kind || it?.type || ''
+  }
+
+  function cornerIndexForFlower(it, itemsInCell) {
+    // Deterministic ordering: by `at` then by `itemId`.
+    const flowers = (itemsInCell || [])
+      .filter((x) => kindOfPlacement(x) === 'flower')
+      .slice()
+      .sort((a, b) => {
+        const atA = String(a?.at || '')
+        const atB = String(b?.at || '')
+        if (atA < atB) return -1
+        if (atA > atB) return 1
+        const idA = String(a?.itemId || '')
+        const idB = String(b?.itemId || '')
+        if (idA < idB) return -1
+        if (idA > idB) return 1
+        return 0
+      })
+    const idx = flowers.findIndex((x) => x === it)
+    return idx < 0 ? 0 : idx % 4
+  }
+
   function drawTileBase(x, y, stroke) {
     ctx.save()
     ctx.translate(x, y)
@@ -205,7 +258,7 @@ export function createSceneBuilderCore(opts) {
     ctx.restore()
   }
 
-  function drawObjectAt(col, row, it) {
+  function drawObjectAt(col, row, it, cellItems = null) {
     const def = it?.itemId ? getItemDefById(it.itemId) : null
     if (!def?.src) return
     const img = getImage(def.src)
@@ -215,11 +268,55 @@ export function createSceneBuilderCore(opts) {
     // Match scene_builder.html positioning
     const tw = TILE_W * zoom
     const th = TILE_H * zoom
-    const s = Number.isFinite(def.scale) ? def.scale : def.kind === 'decor' ? 0.72 : 1
-    const iw = IMG_W * zoom * s
-    const ih = IMG_H * zoom * s
+    // Keep original aspect ratio; size controlled by baseScaleForKind().
+    const s = Number.isFinite(def.scale) ? def.scale : baseScaleForKind(def.kind)
+    const nat = getNaturalSize(img)
+    const ratio = nat.w && nat.h ? nat.w / nat.h : IMG_W / IMG_H
+
+    // If the sprite isn't a classic 128×256 tile, scale it down a bit more.
+    const extra = isLikelyTileSprite(img) ? 1 : 0.82
+
+    let iw = 0
+    let ih = 0
+    if (def.kind === 'ground') {
+      // Fit into the standard isometric tile sprite box so it matches floor blocks.
+      const boxW = IMG_W * zoom
+      const boxH = IMG_H * zoom
+      const sf = nat.w && nat.h ? Math.min(boxW / nat.w, boxH / nat.h) : 1
+      iw = clamp((nat.w || IMG_W) * sf * s, 10, boxW)
+      ih = clamp((nat.h || IMG_H) * sf * s, 10, boxH)
+    } else {
+      // Cap sizes to avoid oversized assets while keeping things crisp.
+
+
+
+      ih = clamp(IMG_H * zoom * s * extra, 10, IMG_H * zoom * 1.5)
+
+      iw = clamp(ih * ratio, 10, IMG_W * zoom * 2)
+    }
     const anchor = getSpriteAnchor(def.src, img)
-    const { dx, dy } = getSpriteDrawRectForTile(x, y, tw, th, iw, ih, anchor)
+    // Trees: tile center. Flowers: tile corners (max 4 per tile).
+    let footX = x + tw / 2
+    let footY = y + th / 2
+    if (def.kind === 'flower') {
+      const ci = cornerIndexForFlower(it, cellItems)
+      // Diamond corners: top, right, bottom, left (clockwise)
+      if (ci === 0) {
+        footX = x + tw / 2
+        footY = y + th * 0.12
+      } else if (ci === 1) {
+        footX = x + tw * 0.86
+        footY = y + th / 2
+      } else if (ci === 2) {
+        footX = x + tw / 2
+        footY = y + th * 0.88
+      } else {
+        footX = x + tw * 0.14
+        footY = y + th / 2
+      }
+    }
+    const dx = footX - iw * anchor.rx
+    const dy = footY - ih * anchor.ry
 
     if (def.tint) {
       ctx.drawImage(img, dx, dy, iw, ih)
@@ -242,8 +339,11 @@ export function createSceneBuilderCore(opts) {
     const img = getImage(def.src)
     if (!img || !img.complete) return
     const { x, y } = gridToScreen(col, row, offsetX, offsetY, zoom)
-    const drawW = IMG_W * zoom
+    // Keep aspect ratio for ground sprites too (some kits are square previews).
+    const nat = getNaturalSize(img)
+    const ratio = nat.w && nat.h ? nat.w / nat.h : IMG_W / IMG_H
     const drawH = IMG_H * zoom
+    const drawW = drawH * ratio
     const dx = x - drawW / 2
     const dy = y - drawH + TILE_H * zoom
     if (def.tint) {
@@ -263,41 +363,29 @@ export function createSceneBuilderCore(opts) {
     if (themeBgKey === 'glacier') {
       // sea-water / ice vibe
       return {
-        c1Even: '#1f6f86',
-        c2Even: '#164d60',
-        c1Odd: '#1c6277',
-        c2Odd: '#134454',
-        leftEven: '#0f3a49',
-        leftOdd: '#0c313d',
-        rightEven: '#12414f',
-        rightOdd: '#0f3744',
-        stroke: 'rgba(0,0,0,0.18)',
+        c1Even: '#2e8aa1',
+        c2Even: '#1e6b7d',
+        c1Odd: '#2a8096',
+        c2Odd: '#1a6273',
+        leftEven: '#184f5e',
+        leftOdd: '#144554',
+        rightEven: '#1d5e6f',
+        rightOdd: '#184f5e',
+        stroke: 'rgba(0,0,0,0.10)',
       }
     }
-    if (themeBgKey === 'city') {
-      return {
-        c1Even: '#3f5c4f',
-        c2Even: '#2e463c',
-        c1Odd: '#395447',
-        c2Odd: '#293e35',
-        leftEven: '#22332c',
-        leftOdd: '#1e2d27',
-        rightEven: '#2a3f35',
-        rightOdd: '#253a31',
-        stroke: 'rgba(0,0,0,0.22)',
-      }
-    }
+  
     // forest default
     return {
-      c1Even: '#2a5c2a',
-      c2Even: '#1e461e',
-      c1Odd: '#245224',
-      c2Odd: '#1a3e1a',
-      leftEven: '#1a3a1a',
-      leftOdd: '#162e16',
-      rightEven: '#1e421e',
-      rightOdd: '#1a361a',
-      stroke: 'rgba(0,0,0,0.20)',
+      c1Even: '#3f7a44',
+      c2Even: '#2f6338',
+      c1Odd: '#3a713f',
+      c2Odd: '#2a5b34',
+      leftEven: '#244b2c',
+      leftOdd: '#204227',
+      rightEven: '#2b5633',
+      rightOdd: '#254d2e',
+      stroke: 'rgba(0,0,0,0.10)',
     }
   }
 
@@ -309,6 +397,7 @@ export function createSceneBuilderCore(opts) {
     const c2 = even ? pal.c2Even : pal.c2Odd
 
     ctx.save()
+    const h = 4 * zoom
     ctx.beginPath()
     ctx.moveTo(x + tw / 2, y)
     ctx.lineTo(x + tw, y + th / 2)
@@ -376,7 +465,13 @@ export function createSceneBuilderCore(opts) {
       if (def?.src) {
         const img = getImage(def.src)
         if (img && img.complete) {
-          const s = Number.isFinite(def.scale) ? def.scale : def.kind === 'decor' ? 0.72 : 1
+
+
+
+
+
+
+          const s = Number.isFinite(def.scale) ? def.scale : baseScaleForKind(def.kind)
           const iw = IMG_W * zoom * s
           const ih = IMG_H * zoom * s
           const anchor = getSpriteAnchor(def.src, img)
@@ -391,16 +486,97 @@ export function createSceneBuilderCore(opts) {
     ctx.restore()
   }
 
+  function drawSkyBackground() {
+    // Bright, friendly sky (no image assets needed)
+    ctx.save()
+
+    const isGlacier = themeBgKey === 'glacier'
+    const top = isGlacier ? '#98d7ff' : '#8fd4ff'
+    const mid = isGlacier ? '#c7f1ff' : '#d7f5ff'
+    const bot = isGlacier ? '#f5fbff' : '#fff6d8'
+
+    // Sky gradient
+    const bg = ctx.createLinearGradient(0, 0, 0, H)
+    bg.addColorStop(0, top)
+    bg.addColorStop(0.62, mid)
+    bg.addColorStop(1, bot)
+    ctx.fillStyle = bg
+    ctx.fillRect(0, 0, W, H)
+
+    // Sun glow (top-right)
+    const sunX = W * 0.82
+    const sunY = H * 0.16
+    const sunR = Math.max(W, H) * 0.18
+    const sun = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR)
+    sun.addColorStop(0, 'rgba(255,255,255,0.95)')
+    sun.addColorStop(0.25, 'rgba(255,244,196,0.65)')
+    sun.addColorStop(1, 'rgba(255,244,196,0)')
+    ctx.fillStyle = sun
+    ctx.fillRect(0, 0, W, H)
+
+    // Soft clouds (a few translucent blobs)
+    function cloud(cx, cy, s, a) {
+      ctx.save()
+      ctx.globalAlpha = a
+      ctx.fillStyle = 'rgba(255,255,255,0.95)'
+      ctx.beginPath()
+      ctx.ellipse(cx, cy, 46 * s, 22 * s, 0, 0, Math.PI * 2)
+      ctx.ellipse(cx - 34 * s, cy + 2 * s, 30 * s, 18 * s, 0, 0, Math.PI * 2)
+      ctx.ellipse(cx + 34 * s, cy + 4 * s, 32 * s, 19 * s, 0, 0, Math.PI * 2)
+      ctx.ellipse(cx + 8 * s, cy - 10 * s, 28 * s, 18 * s, 0, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Slight shadow to ground the cloud
+      ctx.globalAlpha = a * 0.35
+      ctx.fillStyle = 'rgba(120,160,190,0.35)'
+      ctx.beginPath()
+      ctx.ellipse(cx + 6 * s, cy + 12 * s, 52 * s, 18 * s, 0, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
+    }
+
+    cloud(W * 0.22, H * 0.18, 0.95, 0.34)
+    cloud(W * 0.44, H * 0.12, 0.75, 0.28)
+    cloud(W * 0.62, H * 0.22, 1.05, 0.26)
+    if (W > 900) cloud(W * 0.36, H * 0.26, 1.2, 0.22)
+
+    ctx.restore()
+  }
+
+  function drawAtmosphereBlend() {
+    // Softens the sky/ground boundary and pushes distant tiles back.
+    ctx.save()
+
+    const isGlacier = themeBgKey === 'glacier'
+    const tint = isGlacier ? 'rgba(210, 245, 255, ' : 'rgba(255, 252, 230, '
+
+    // Haze over the top portion (distance fog)
+    const haze = ctx.createLinearGradient(0, 0, 0, H)
+    haze.addColorStop(0, `${tint}0.26)`)
+    haze.addColorStop(0.22, `${tint}0.18)`)
+    haze.addColorStop(0.45, `${tint}0.00)`)
+    ctx.fillStyle = haze
+    ctx.fillRect(0, 0, W, H)
+
+    // Horizon glow band around the first row of tiles
+    const horizonY = offsetY + (TILE_H * zoom) * 0.25
+    const band = ctx.createLinearGradient(0, horizonY - 80 * zoom, 0, horizonY + 140 * zoom)
+    band.addColorStop(0, `${tint}0.00)`)
+    band.addColorStop(0.35, `${tint}0.16)`)
+    band.addColorStop(0.7, `${tint}0.05)`)
+    band.addColorStop(1, `${tint}0.00)`)
+    ctx.fillStyle = band
+    ctx.fillRect(0, 0, W, H)
+
+    ctx.restore()
+  }
+
   function render() {
     raf = requestAnimationFrame(render)
 
-    // Background gradient (exactly like scene_builder.html)
+    // Background: sky + sunlight + clouds
     ctx.clearRect(0, 0, W, H)
-    const bg = ctx.createLinearGradient(0, 0, 0, H)
-    bg.addColorStop(0, '#0f1f0f')
-    bg.addColorStop(1, '#1a3a1a')
-    ctx.fillStyle = bg
-    ctx.fillRect(0, 0, W, H)
+    drawSkyBackground()
 
     const placements = getPlacements()
     const gridIndex = buildGridIndex(placements)
@@ -414,10 +590,13 @@ export function createSceneBuilderCore(opts) {
         drawIsoGround(x, y, tw, th, col, row)
         const k = keyFor(col, row)
         if (gridIndex[k]) {
-          for (const it of gridIndex[k]) drawObjectAt(col, row, it)
+          for (const it of gridIndex[k]) drawObjectAt(col, row, it, gridIndex[k])
         }
       }
     }
+
+    // Blend sky/ground transition (after tiles so it affects distance too)
+    drawAtmosphereBlend()
 
     // Hover highlight
     if (hoverCell && validCell(hoverCell.col, hoverCell.row)) drawHoverTile(hoverCell.col, hoverCell.row)

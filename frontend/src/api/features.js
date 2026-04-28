@@ -8,7 +8,7 @@
  *   GET  /api/tasks
  *   POST /api/tasks/:id/complete
  *   GET  /api/scene
- *   POST /api/scene/select        body: { type: 'forest'|'glacier'|'cityGreen' }
+ *   POST /api/scene/select        body: { type: 'forest'|'glacier' }
  *   GET  /api/quiz
  *   POST /api/quiz/submit          body: { idx, answer }
  *   GET  /api/progress

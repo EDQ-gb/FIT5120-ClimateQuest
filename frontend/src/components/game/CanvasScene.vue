@@ -16,7 +16,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getTheme, getItemById } from '../../game/assets/catalog.js'
 
 const props = defineProps({
-  themeType: { type: String, default: 'forest' }, // forest|glacier|cityGreen
+  themeType: { type: String, default: 'forest' }, // forest|glacier
   progress: { type: Number, default: 0 }, // 0..100
   trees: { type: Number, default: 0 }, // minimal v1
   flowers: { type: Number, default: 0 }, // minimal v1
@@ -87,7 +87,6 @@ const label = computed(
     ({
       forest: '🌲 Rainforest',
       glacier: '❄️ Polar Glacier',
-      cityGreen: '🏙️ City Green',
     })[props.themeType] || '🌍 Scene'
 )
 
@@ -127,12 +126,13 @@ function drawHUD(ctx, W, H, icon, p) {
 function drawForest(ctx, W, H, p, trees, flowers) {
   const pn = p / 100
   const skyG = ctx.createLinearGradient(0, 0, 0, H * 0.6)
-  skyG.addColorStop(0, lerpColor('#0a1a0a', '#1a4030', pn))
-  skyG.addColorStop(1, lerpColor('#1a2a10', '#4a8030', pn))
+  // Softer + brighter palette (eye-friendly)
+  skyG.addColorStop(0, lerpColor('#14201b', '#3b5c52', pn))
+  skyG.addColorStop(1, lerpColor('#1b2a20', '#5b845f', pn))
   ctx.fillStyle = skyG
   ctx.fillRect(0, 0, W, H)
 
-  ctx.fillStyle = lerpColor('#0a180a', '#2a5018', pn)
+  ctx.fillStyle = lerpColor('#16231c', '#3d6350', pn)
   ctx.beginPath()
   ctx.moveTo(0, H * 0.55)
   ctx.bezierCurveTo(W * 0.18, H * 0.38, W * 0.38, H * 0.44, W * 0.5, H * 0.46)
@@ -143,8 +143,8 @@ function drawForest(ctx, W, H, p, trees, flowers) {
   ctx.fill()
 
   const gG = ctx.createLinearGradient(0, H * 0.6, 0, H)
-  gG.addColorStop(0, lerpColor('#0e1e0a', '#38780e', pn))
-  gG.addColorStop(1, lerpColor('#080f06', '#1a380a', pn))
+  gG.addColorStop(0, lerpColor('#1a2a1d', '#67a26f', pn))
+  gG.addColorStop(1, lerpColor('#0f1712', '#35523a', pn))
   ctx.fillStyle = gG
   ctx.fillRect(0, H * 0.6, W, H * 0.4)
 
@@ -191,8 +191,8 @@ function drawTree(ctx, x, baseY, sz, pn) {
   ;[1.0, 0.76, 0.54].forEach((sc, i) => {
     const cy = -trunk - h * 0.28 * i
     const cg = ctx.createRadialGradient(0, cy - 8 * sc, 1, 0, cy, 30 * sz * sc)
-    cg.addColorStop(0, lerpColor('#0e220e', '#4a9022', pn))
-    cg.addColorStop(1, lerpColor('#0a1a0a', '#2a6010', pn))
+    cg.addColorStop(0, lerpColor('#143018', '#5d8f55', pn))
+    cg.addColorStop(1, lerpColor('#0f1d12', '#345a35', pn))
     ctx.fillStyle = cg
     ctx.beginPath()
     ctx.ellipse(0, cy, 28 * sz * sc, 28 * sz * sc, 0, 0, Math.PI * 2)
@@ -204,18 +204,18 @@ function drawTree(ctx, x, baseY, sz, pn) {
 function drawGlacier(ctx, W, H, p) {
   const pn = p / 100
   const sg = ctx.createLinearGradient(0, 0, 0, H * 0.5)
-  sg.addColorStop(0, lerpColor('#000510', '#020b1c', pn))
-  sg.addColorStop(1, lerpColor('#051020', '#0a2040', pn))
+  sg.addColorStop(0, lerpColor('#0e1220', '#1a2a42', pn))
+  sg.addColorStop(1, lerpColor('#0f1c2c', '#2f5b86', pn))
   ctx.fillStyle = sg
   ctx.fillRect(0, 0, W, H)
 
   const seaG = ctx.createLinearGradient(0, H * 0.45, 0, H)
-  seaG.addColorStop(0, lerpColor('#030d18', '#0a2044', pn))
-  seaG.addColorStop(1, lerpColor('#020810', '#061428', pn))
+  seaG.addColorStop(0, lerpColor('#0f2234', '#1d4e7b', pn))
+  seaG.addColorStop(1, lerpColor('#081321', '#0f2a44', pn))
   ctx.fillStyle = seaG
   ctx.fillRect(0, H * 0.45, W, H)
 
-  ctx.fillStyle = lerpColor('#0a1520', '#c0dcf0', pn)
+  ctx.fillStyle = lerpColor('#132433', '#d7ebf7', pn)
   ctx.beginPath()
   ctx.moveTo(0, H * 0.52)
   ctx.bezierCurveTo(W * 0.22, H * 0.44, W * 0.48, H * 0.5, W * 0.56, H * 0.47)
@@ -230,8 +230,8 @@ function drawGlacier(ctx, W, H, p) {
 function drawDesert(ctx, W, H, p) {
   const pn = p / 100
   const skyG = ctx.createLinearGradient(0, 0, 0, H * 0.55)
-  skyG.addColorStop(0, lerpColor('#100608', '#1c0a1c', pn))
-  skyG.addColorStop(1, lerpColor('#c05010', '#d07030', pn))
+  skyG.addColorStop(0, lerpColor('#211617', '#3a2830', pn))
+  skyG.addColorStop(1, lerpColor('#c08a62', '#e2b07a', pn))
   ctx.fillStyle = skyG
   ctx.fillRect(0, 0, W, H)
 
@@ -245,8 +245,8 @@ function drawDesert(ctx, W, H, p) {
   ctx.fill()
 
   const sandG = ctx.createLinearGradient(0, H * 0.5, 0, H)
-  sandG.addColorStop(0, lerpColor('#3a1a04', '#d4a055', pn))
-  sandG.addColorStop(1, lerpColor('#200e02', '#9a6828', pn))
+  sandG.addColorStop(0, lerpColor('#3b2a1a', '#e0c49a', pn))
+  sandG.addColorStop(1, lerpColor('#24170e', '#b38b5a', pn))
   ctx.fillStyle = sandG
   ctx.fillRect(0, H * 0.5, W, H * 0.5)
   drawHUD(ctx, W, H, '🌵', p)
@@ -268,10 +268,7 @@ function draw() {
   const H = ch
   const p = Math.max(0, Math.min(100, props.progress || 0))
   if (props.themeType === 'glacier') drawGlacier(ctx, W, H, p)
-  else if (props.themeType === 'cityGreen') {
-    // Reuse forest base for now, but cooler ground and fewer trees until purchases
-    drawForest(ctx, W, H, Math.max(10, p), Math.floor((props.trees || 0) * 0.6), props.flowers || 0)
-  } else drawForest(ctx, W, H, p, props.trees, props.flowers)
+  else drawForest(ctx, W, H, p, props.trees, props.flowers)
 
   // Draw placements as sprites (minimal overlay layer)
   const items = Array.isArray(props.placements?.items) ? props.placements.items : []

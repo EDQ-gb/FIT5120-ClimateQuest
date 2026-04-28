@@ -4,9 +4,9 @@
     <!-- Stat cards -->
     <div class="grid-4">
       <div class="glass-card">
-        <div class="stat-label">Coins</div>
+        <div class="stat-label">Climate Action Coins</div>
         <div class="stat-num" style="color:#00f2ff;">{{ (p.coins||0).toLocaleString() }}</div>
-        <div class="stat-sub">🪙 earned total</div>
+        <div class="stat-sub">🪙 Total earned</div>
       </div>
       <div class="glass-card">
         <div class="stat-label">Streak</div>

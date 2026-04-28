@@ -49,8 +49,8 @@
           <p class="sub-text">Questions are grounded in Australian climate data and policy — not generic trivia.</p>
         </div>
         <div class="glass-card mb12">
-          <div class="info-title cyan">🪙 Earn bonus coins</div>
-          <p class="sub-text">A correct answer awards 25 coins and boosts your eco-scene by 3%.</p>
+          <div class="info-title cyan">🪙 Earn Climate Action Coins</div>
+          <p class="sub-text">Answer correctly to earn 25 coins and boost your scene progress by +3%.</p>
         </div>
         <div class="glass-card">
           <div class="info-title gold">📅 Daily refresh</div>
