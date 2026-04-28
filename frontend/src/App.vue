@@ -29,7 +29,7 @@
     <SceneBuilderShell
       v-else-if="currentView === 'game'"
       :user="user"
-      :themeType="game.themeType"
+      :themeType="effectiveTheme"
       :coins="game.coins"
       :streak="game.streak"
       :placements="game.placements"
@@ -54,7 +54,7 @@
       v-else
       class="app-shell"
       :class="{ 'no-sidebar': !showSidebar }"
-      :data-theme="game.themeType"
+      :data-theme="effectiveTheme"
     >
       <AppSidebar v-if="showSidebar" :user="user" :currentView="currentView" @navigate="onNavigate" @logout="onLogout" />
 
@@ -231,7 +231,8 @@ import { getItemByIdAnyTheme } from './game/assets/catalog.js'
 const currentView = ref('home')
 
 const game = reactive({
-  themeType: 'forest',
+  // Empty means user hasn't chosen a theme yet (first-time register).
+  themeType: '',
   sceneProgress: 0,
   coins: 0,
   streak: 0,
@@ -241,13 +242,20 @@ const game = reactive({
   themeLocked: false,
 })
 
-const THEME_CACHE_KEY = 'cq_themeType'
-const THEME_LOCK_CACHE_KEY = 'cq_themeLocked'
+const effectiveTheme = computed(() => (game.themeType ? game.themeType : 'forest'))
 
-function loadThemeCache() {
+function themeKey(username, key) {
+  const u = String(username || '').trim()
+  return u ? `cq:${u}:${key}` : ''
+}
+
+function loadThemeCacheForUser(username) {
+  const kTheme = themeKey(username, 'themeType')
+  const kLocked = themeKey(username, 'themeLocked')
+  if (!kTheme || !kLocked) return
   try {
-    const t = localStorage.getItem(THEME_CACHE_KEY)
-    const locked = localStorage.getItem(THEME_LOCK_CACHE_KEY)
+    const t = localStorage.getItem(kTheme)
+    const locked = localStorage.getItem(kLocked)
     if (t) game.themeType = t === 'cityGreen' ? 'forest' : t
     if (locked === '1') game.themeLocked = true
   } catch {
@@ -255,13 +263,33 @@ function loadThemeCache() {
   }
 }
 
-function saveThemeCache() {
+function saveThemeCacheForUser(username) {
+  const kTheme = themeKey(username, 'themeType')
+  const kLocked = themeKey(username, 'themeLocked')
+  if (!kTheme || !kLocked) return
   try {
-    if (game.themeType) localStorage.setItem(THEME_CACHE_KEY, String(game.themeType))
-    localStorage.setItem(THEME_LOCK_CACHE_KEY, game.themeLocked ? '1' : '0')
+    if (game.themeType) localStorage.setItem(kTheme, String(game.themeType))
+    localStorage.setItem(kLocked, game.themeLocked ? '1' : '0')
   } catch {
     // ignore
   }
+}
+
+function clearThemeCacheForUser(username) {
+  const kTheme = themeKey(username, 'themeType')
+  const kLocked = themeKey(username, 'themeLocked')
+  if (!kTheme || !kLocked) return
+  try {
+    localStorage.removeItem(kTheme)
+    localStorage.removeItem(kLocked)
+  } catch {
+    // ignore
+  }
+}
+
+function resetThemeState() {
+  game.themeType = ''
+  game.themeLocked = false
 }
 
 const toast = reactive({ show: false, text: '', key: 0 })
@@ -369,7 +397,7 @@ async function onNavigate(view) {
     const prevThemeLocked = !!game.themeLocked
     // Enter scene with authoritative latest coins/streak/placements.
     await refreshGameState()
-    const resolvedThemeLocked = !!game.themeLocked || prevThemeLocked || !!game.themeType
+    const resolvedThemeLocked = !!game.themeLocked || prevThemeLocked
     currentView.value = resolvedThemeLocked ? 'game' : 'theme'
     syncShellFromGame()
     return
@@ -391,10 +419,10 @@ async function refreshGameState() {
     if (typeof gs?.trees === 'number') game.trees = gs.trees
     if (typeof gs?.flowers === 'number') game.flowers = gs.flowers
     game.placements = gs?.placements || null
-    // Some backends only persist themeType; treat an existing themeType as "locked"
-    // to avoid forcing returning users to re-pick on refresh.
-    game.themeLocked = !!gs?.themeLocked || !!gs?.themeType || !!game.themeType
-    saveThemeCache()
+    // Only treat as locked when backend explicitly says so.
+    // This ensures first-time users still see the Forest/Glacier selection.
+    game.themeLocked = !!gs?.themeLocked
+    saveThemeCacheForUser(user.value?.username)
 
     // Initialize tip milestones from existing placements so we don't spam tips
     // when users already have a built scene.
@@ -434,7 +462,7 @@ async function onResetGame() {
 async function onThemeSelected(type) {
   if (type) game.themeType = type
   game.themeLocked = true
-  saveThemeCache()
+  saveThemeCacheForUser(user.value?.username)
   // ensure theme_locked is reflected before entering game (prevents random bounces)
   await refreshGameState()
   onNavigate('game')
@@ -597,6 +625,8 @@ async function refreshMe() {
     const data = await api('/api/auth/me', { method: 'GET' })
     user.value = data.user
     if (data.user) {
+      resetThemeState()
+      loadThemeCacheForUser(data.user?.username)
       await refreshGameState()
       // Do not force users into scene on page refresh.
       // Scene should open only when users explicitly navigate to "My Scene".
@@ -639,7 +669,10 @@ async function submitRegister() {
     })
     user.value = data.user
     closeAuth()
+    resetThemeState()
+    clearThemeCacheForUser(data.user?.username)
     await refreshGameState()
+    // Force new accounts to pick a theme (Forest / Glacier)
     onNavigate(game.themeLocked ? 'game' : 'theme')
   } catch (e) {
     const msg = String(e?.message || 'Register failed')
@@ -664,6 +697,8 @@ async function submitSignin() {
     })
     user.value = data.user
     closeAuth()
+    resetThemeState()
+    loadThemeCacheForUser(data.user?.username)
     await refreshGameState()
     onNavigate(game.themeLocked ? 'game' : 'theme')
   } catch (e) {
@@ -688,6 +723,8 @@ async function onLogout() {
   } catch {
     // ignore
   } finally {
+    clearThemeCacheForUser(user.value?.username)
+    resetThemeState()
     user.value = null
     menuOpen.value = false
     onNavigate('home')
@@ -752,7 +789,6 @@ function onKeydown(e) {
 }
 
 onMounted(async () => {
-  loadThemeCache()
   await refreshMe()
   window.addEventListener('keydown', onKeydown)
 })
