@@ -33,7 +33,7 @@
 
       <div class="landing2-bottom land-in-1">
         <div class="landing2-sub">Play · Learn · Make Real Impact</div>
-        <button type="button" class="btn-start" @click="$emit('start')">Start Your Trail →</button>
+        <button type="button" class="btn-start" @click="$emit('start')">Start Your Quest →</button>
       </div>
     </div>
   </div>
