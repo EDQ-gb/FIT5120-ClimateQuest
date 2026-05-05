@@ -1,0 +1,24 @@
+node_modules
+dist
+dist-ssr
+.git
+.DS_Store
+*.log
+
+# Large source asset packs that are not needed by the current frontend.
+public/assets/kenney/Models/
+public/assets/kenney/Side/
+public/assets/kenney_kits/platformer/
+public/assets/kenney_kits/holiday/
+public/assets/kenney_kits/nature/
+public/assets/kenney_kits/train/
+
+# Keep only the preview PNGs referenced by src/game/assets/catalog.js.
+public/assets/kenney_kits/holiday_v2/**
+!public/assets/kenney_kits/holiday_v2/
+!public/assets/kenney_kits/holiday_v2/Previews/
+!public/assets/kenney_kits/holiday_v2/Previews/**
+public/assets/kenney_kits/cube-pets/**
+!public/assets/kenney_kits/cube-pets/
+!public/assets/kenney_kits/cube-pets/Previews/
+!public/assets/kenney_kits/cube-pets/Previews/**
