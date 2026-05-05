@@ -367,7 +367,8 @@ body {
 .shell-main {
   --shell-topbar-h: 80px;
   margin-left: 220px;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
@@ -443,9 +444,26 @@ body {
 }
 
 .shell-content {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: calc(100vh - var(--shell-topbar-h));
   padding: calc(24px + var(--shell-topbar-h)) 24px 28px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.shell-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.shell-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.shell-content::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(0, 242, 255, 0.28);
 }
 
 .app-shell.no-sidebar .shell-main {

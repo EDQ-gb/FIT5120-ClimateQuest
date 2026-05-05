@@ -46,7 +46,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { getTasks, completeTask } from '../api/features.js'
 // We emit the *resulting* totals so the shell can update immediately
 // without waiting for a separate refresh roundtrip.
@@ -80,9 +80,22 @@ async function complete(id) {
   } finally { completing.value = null }
 }
 
-onMounted(async () => {
-  tasks.value = (await getTasks()) || []
-  loading.value = false
+async function loadTasks() {
+  loading.value = true
+  try {
+    tasks.value = (await getTasks()) || []
+  } catch {
+    tasks.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadTasks)
+
+watch(() => props.user?.id || props.user?.username || null, () => {
+  tasks.value = []
+  loadTasks()
 })
 </script>
 

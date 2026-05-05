@@ -15,7 +15,6 @@
       @login="onLogin"
       @start="onCta"
     />
-    <HomeActivityStrip v-if="currentView === 'home' && user" @updated="onHomeActivityUpdated" />
 
     <SceneBuilderShell
       v-else-if="currentView === 'game'"
@@ -225,7 +224,6 @@ import AppScene from './components/AppScene.vue'
 import AppQuiz from './components/AppQuiz.vue'
 import AppLeaderboard from './components/AppLeaderboard.vue'
 import AppLandingV2 from './components/AppLandingV2.vue'
-import HomeActivityStrip from './components/HomeActivityStrip.vue'
 import SceneBuilderShell from './components/game/SceneBuilderShell.vue'
 import { getProgress } from './api/features.js'
 import { getItemByIdAnyTheme, TREE_COINS_COST } from './game/assets/catalog.js'
@@ -377,10 +375,6 @@ const shellStreak = ref(0)
 function syncShellFromGame() {
   shellCoins.value = game.coins || 0
   shellStreak.value = game.streak || 0
-}
-
-function onHomeActivityUpdated() {
-  refreshShellStats()
 }
 
 async function onProfileVisibilityChange() {

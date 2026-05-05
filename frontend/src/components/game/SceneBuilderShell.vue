@@ -479,16 +479,15 @@ watch(
   flex-direction: column;
   flex: 1;
   overflow: hidden;
-  padding-top: var(--sb-topbar-h);
+  padding-top: 0;
 }
 
 /* Float over the canvas so the map keeps the full viewport height (same as before the guide bar). */
 .scene-guide-banner {
   position: absolute;
-  /* .main already has padding-top for the fixed topbar — avoid double offset */
-  top: 8px;
+  top: calc(var(--sb-topbar-h) + 10px);
   left: 12px;
-  right: 12px;
+  right: max(12px, calc(220px + 10px));
   z-index: 40;
   display: flex;
   flex-wrap: wrap;
@@ -550,6 +549,7 @@ watch(
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  padding-top: var(--sb-topbar-h);
 }
 
 .palette-mini-hint {
@@ -863,6 +863,10 @@ canvas {
     max-width: min(320px, calc(100vw - 20px));
     gap: 6px;
     padding: 8px 10px;
+  }
+  .scene-guide-banner {
+    top: calc(var(--sb-topbar-h) + 8px);
+    right: 10px;
   }
   .scene-stats-label {
     font-size: 0.68rem;
