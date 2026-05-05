@@ -226,6 +226,33 @@ body {
   font-size: 0.9rem;
 }
 
+.menu-privacy {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.menu-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+}
+
+.menu-check input {
+  margin-top: 3px;
+  accent-color: #00f2ff;
+}
+
+.menu-hint {
+  margin: 8px 0 0 26px;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.35;
+}
+
 .menu-actions {
   display: grid;
   gap: 10px;

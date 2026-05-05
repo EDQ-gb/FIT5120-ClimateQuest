@@ -21,7 +21,11 @@
       <div class="glass-card">
         <div class="stat-label">Streak</div>
         <div class="stat-num" style="color:#f4c430;">{{ p.streak||0 }}</div>
-        <div class="stat-sub">🔥 day win streak</div>
+        <div class="stat-sub">🔥 days in a row</div>
+        <div v-if="p.streakMilestones" class="mi-inline">
+          <span class="mi-pill" :class="{ on: p.streakMilestones.sevenDay }">7-day</span>
+          <span class="mi-pill" :class="{ on: p.streakMilestones.thirtyDay }">30-day</span>
+        </div>
       </div>
       <div class="glass-card">
         <div class="stat-label">CO₂ Saved</div>
@@ -49,7 +53,7 @@
         <div class="card-title mt16">Today's Tasks</div>
         <div class="prog-row">
           <div class="prog-track" style="flex:1"><div class="prog-fill" :style="{ width: taskPct+'%' }"></div></div>
-          <span class="prog-label green">{{ p.todayDone||0 }} / {{ p.totalTasks||6 }}</span>
+          <span class="prog-label green">{{ p.todayDone||0 }} / {{ p.totalTasks||9 }}</span>
         </div>
 
         <div class="card-title mt16">Scene comeback</div>
@@ -65,7 +69,7 @@
         <div class="week-chart">
           <div v-for="d in (p.week||[])" :key="d.date" class="week-col">
             <div class="week-bar" :class="{ active: d.count > 0 }"
-                 :style="{ height: Math.max(4, (d.count/6)*52) + 'px' }"></div>
+                 :style="{ height: Math.max(4, (d.count / maxWeekBar) * 52) + 'px' }"></div>
             <div class="week-label">{{ d.label }}</div>
           </div>
         </div>
@@ -77,6 +81,45 @@
           <span style="color:rgba(255,255,255,0.3)">·</span>
           <span style="color:#00f2ff;" class="fw7">{{ ((p.co2Saved||0)/1000).toFixed(2) }} kg CO₂</span>
         </div>
+      </div>
+    </div>
+
+    <div v-if="p.weekSummaries && p.weekSummaries.length" class="glass-card">
+      <div class="card-title">Weekly task totals (last 8 weeks)</div>
+      <div class="week-sum-grid">
+        <div v-for="ws in p.weekSummaries" :key="ws.weekStart" class="week-sum-cell">
+          <div class="ws-range">{{ ws.weekStart }} → {{ ws.weekEnd }}</div>
+          <div class="ws-val">{{ ws.taskCompletions }} tasks</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-card">
+      <div class="row-between mb12">
+        <div class="card-title">Reward history</div>
+        <button type="button" class="link-btn" :disabled="historyLoading" @click="loadHistory">Refresh</button>
+      </div>
+      <p class="sub-text mb12">One-click quick logs (each action once per day).</p>
+      <div v-if="quickCat.length" class="quick-row">
+        <button
+          v-for="q in quickCat"
+          :key="q.key"
+          type="button"
+          class="quick-mini"
+          :disabled="quickBusy === q.key"
+          @click="doQuick(q.key)"
+        >
+          {{ q.label }} (+{{ q.coins }})
+        </button>
+      </div>
+      <div v-if="historyLoading" class="center-pad"><div class="spin"></div></div>
+      <div v-else class="history-list">
+        <div v-for="(h, i) in history" :key="i" class="hist-row">
+          <span class="hist-date">{{ h.date }}</span>
+          <span class="hist-label">{{ h.label }}</span>
+          <span class="hist-coins" :class="{ neg: h.coins < 0 }">{{ h.coins > 0 ? '+' : '' }}{{ h.coins }}</span>
+        </div>
+        <div v-if="!history.length" class="sub-text">No transactions yet.</div>
       </div>
     </div>
 
@@ -113,7 +156,15 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getProgress, getTasks, completeTask, getScene } from '../api/features.js'
+import {
+  getProgress,
+  getTasks,
+  completeTask,
+  getScene,
+  getRewardHistory,
+  getQuickActionsCatalog,
+  logQuickAction,
+} from '../api/features.js'
 
 const props = defineProps({ user: Object })
 const emit  = defineEmits(['navigate', 'coins-updated'])
@@ -123,10 +174,24 @@ const tasks       = ref([])
 const scene       = ref({ progress: 0 })
 const taskLoading = ref(true)
 const completing  = ref(null)
+const history = ref([])
+const historyLoading = ref(false)
+const quickCat = ref([])
+const quickBusy = ref(null)
 
 const xpPct   = computed(() => Math.round(((p.value.xpInLevel||0)/200)*100))
-const taskPct = computed(() => { const d=p.value.todayDone||0, t=p.value.totalTasks||6; return Math.round(d/t*100) })
+const taskPct = computed(() => {
+  const d = p.value.todayDone || 0
+  const t = p.value.totalTasks || 9
+  return Math.round((d / t) * 100)
+})
 const scenePct = computed(() => scene.value.progress||0)
+const maxWeekBar = computed(() => {
+  const w = p.value.week || []
+  const counts = w.map((d) => d.count || 0)
+  const cap = p.value.totalTasks || 9
+  return Math.max(1, cap, ...counts)
+})
 
 async function load() {
   taskLoading.value = true
@@ -153,10 +218,55 @@ async function complete(id) {
       streak: res.streak,
       sceneProgress: res.sceneProgress,
     })
+    if (res?.weeklyChallengeBonus?.coins) {
+      window.alert(`Weekly challenge complete! +${res.weeklyChallengeBonus.coins} bonus coins.`)
+    }
+    await load()
+    await loadHistory()
   } finally { completing.value = null }
 }
 
-onMounted(load)
+async function loadHistory() {
+  historyLoading.value = true
+  try {
+    history.value = await getRewardHistory(80)
+  } catch {
+    history.value = []
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+async function loadQuick() {
+  try {
+    quickCat.value = await getQuickActionsCatalog()
+  } catch {
+    quickCat.value = []
+  }
+}
+
+async function doQuick(key) {
+  if (quickBusy.value) return
+  quickBusy.value = key
+  try {
+    await logQuickAction(key)
+    await load()
+    await loadHistory()
+    emit('coins-updated')
+  } catch (e) {
+    if (String(e?.message || '') === 'ALREADY_LOGGED_TODAY') {
+      window.alert('You already logged this action today.')
+    }
+  } finally {
+    quickBusy.value = null
+  }
+}
+
+onMounted(async () => {
+  await load()
+  await loadHistory()
+  await loadQuick()
+})
 </script>
 
 <style scoped>
@@ -238,6 +348,22 @@ onMounted(load)
 .act-btn:disabled { opacity:.5;cursor:not-allowed; }
 .link-btn    { background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);padding:6px 14px;border-radius:8px;cursor:pointer;font-size:.82rem;transition:all .2s; }
 .link-btn:hover { color:#fff;border-color:rgba(255,255,255,0.45); }
+.mi-inline { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+.mi-pill { font-size:.62rem; font-weight:700; padding:4px 10px; border-radius:99px; background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.35); }
+.mi-pill.on { background:rgba(244,196,48,0.2); color:#f4c430; }
+.week-sum-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap:10px; margin-top:8px; }
+.week-sum-cell { padding:10px 12px; border-radius:12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); }
+.ws-range { font-size:.65rem; color:rgba(255,255,255,0.4); margin-bottom:4px; }
+.ws-val { font-size:.9rem; font-weight:700; color:#52d496; }
+.quick-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+.quick-mini { padding:8px 12px; border-radius:10px; border:1px solid rgba(0,242,255,0.25); background:rgba(0,242,255,0.08); color:#00f2ff; font-size:.75rem; font-weight:700; cursor:pointer; }
+.quick-mini:disabled { opacity:.45; cursor:not-allowed; }
+.history-list { display:flex; flex-direction:column; gap:6px; max-height:280px; overflow:auto; margin-top:8px; }
+.hist-row { display:grid; grid-template-columns: 92px 1fr 56px; gap:8px; align-items:center; font-size:.78rem; padding:8px 10px; border-radius:10px; background:rgba(255,255,255,0.04); }
+.hist-date { color:rgba(255,255,255,0.4); font-size:.72rem; }
+.hist-label { color:rgba(255,255,255,0.88); }
+.hist-coins { text-align:right; font-weight:800; color:#f4c430; }
+.hist-coins.neg { color:#ff8a8a; }
 .center-pad  { text-align:center;padding:24px; }
 .spin        { width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,0.1);border-top-color:#00f2ff;animation:spin .7s linear infinite;margin:auto; }
 .spin.sm     { width:14px;height:14px;border-width:2px; }

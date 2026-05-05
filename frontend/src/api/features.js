@@ -22,12 +22,15 @@
 // ── Static mock data ──────────────────────────────────────────────────────────
 
 export const TASKS = [
-  { id:1, title:'Walk or cycle a trip',      desc:'Replace at least one car trip with walking or cycling today.',   coins:30, co2:340, cat:'transport', icon:'🚶' },
-  { id:2, title:'Use public transport',       desc:'Take a bus, tram or train instead of driving.',                  coins:25, co2:280, cat:'transport', icon:'🚌' },
-  { id:3, title:'Bring a reusable cup',       desc:'Use your own cup for coffee or drinks — no single-use today.',  coins:20, co2:80,  cat:'habit',     icon:'☕' },
-  { id:4, title:'Turn off standby devices',  desc:'Switch off devices fully instead of leaving them on standby.',   coins:20, co2:120, cat:'energy',    icon:'🔌' },
-  { id:5, title:'Plant-based meal',           desc:'Have at least one fully plant-based meal today.',                coins:25, co2:500, cat:'food',      icon:'🥗' },
-  { id:6, title:'Daily check-in',             desc:'Log in and review your climate impact for today.',               coins:10, co2:0,   cat:'habit',     icon:'✅' },
+  { id: 1, title: 'Walk or cycle a trip', desc: 'Replace at least one car trip with walking or cycling today.', coins: 30, co2: 340, cat: 'transport', icon: '🚶' },
+  { id: 2, title: 'Use public transport', desc: 'Take a bus, tram or train instead of driving.', coins: 25, co2: 280, cat: 'transport', icon: '🚌' },
+  { id: 3, title: 'Bring a reusable cup', desc: 'Use your own cup for coffee or drinks — no single-use today.', coins: 20, co2: 80, cat: 'habit', icon: '☕' },
+  { id: 4, title: 'Turn off standby devices', desc: 'Switch off devices fully instead of leaving them on standby.', coins: 20, co2: 120, cat: 'energy', icon: '🔌' },
+  { id: 5, title: 'Plant-based meal', desc: 'Have at least one fully plant-based meal today.', coins: 25, co2: 500, cat: 'food', icon: '🥗' },
+  { id: 6, title: 'Read a short climate article', desc: 'Spend three minutes reading any trusted climate or sustainability article.', coins: 12, co2: 0, cat: 'learning', icon: '📰' },
+  { id: 7, title: 'Recycle sorted materials', desc: 'Sort and place recyclables in the correct bin today.', coins: 18, co2: 150, cat: 'lifestyle', icon: '♻️' },
+  { id: 8, title: 'Choose local or seasonal food', desc: 'Prepare one meal using local or seasonal ingredients.', coins: 22, co2: 320, cat: 'food', icon: '🥕' },
+  { id: 9, title: 'Learn one energy-saving tip', desc: 'Watch or read one practical tip to reduce home energy use.', coins: 14, co2: 0, cat: 'learning', icon: '💡' },
 ]
 
 export const QUIZ_BANK = [
@@ -185,7 +188,20 @@ export async function getProgress() {
       const k = d.toISOString().split('T')[0]
       week.push({ date: k, label: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()], count: (completions[k]||[]).length })
     }
-    return { coins, xp, level: Math.floor(xp/200)+1, xpInLevel: xp%200, streak: calcStreak(completions), todayDone: done, totalTasks: TASKS.length, allTimeTasks: tasks, co2Saved: co2, week }
+    return {
+      coins,
+      xp,
+      level: Math.floor(xp / 200) + 1,
+      xpInLevel: xp % 200,
+      streak: calcStreak(completions),
+      streakMilestones: { sevenDay: calcStreak(completions) >= 7, thirtyDay: calcStreak(completions) >= 30 },
+      todayDone: done,
+      totalTasks: TASKS.length,
+      allTimeTasks: tasks,
+      co2Saved: co2,
+      week,
+      weekSummaries: [],
+    }
   }
 }
 
@@ -232,4 +248,34 @@ export async function getLeaderboard() {
     if (String(e?.message || '') !== 'NOT_FOUND') throw e
     return [] // No mock for leaderboard — needs real backend data
   }
+}
+
+export async function getHomeSummary() {
+  return await req('/api/home/summary')
+}
+
+export async function postCheckIn() {
+  return await req('/api/check-in', { method: 'POST', body: JSON.stringify({}) })
+}
+
+export async function patchProfile({ profilePublic }) {
+  return await req('/api/auth/profile', {
+    method: 'PATCH',
+    body: JSON.stringify({ profilePublic }),
+  })
+}
+
+export async function getRewardHistory(limit = 80) {
+  return await req(`/api/rewards/history?limit=${encodeURIComponent(limit)}`)
+}
+
+export async function getQuickActionsCatalog() {
+  return await req('/api/quick-actions/catalog')
+}
+
+export async function logQuickAction(actionKey) {
+  return await req('/api/quick-actions/log', {
+    method: 'POST',
+    body: JSON.stringify({ actionKey }),
+  })
 }

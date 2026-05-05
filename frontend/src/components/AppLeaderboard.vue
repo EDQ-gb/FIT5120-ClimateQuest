@@ -5,6 +5,11 @@
       <span class="sub-text">Ranked by Climate Action Coins</span>
     </div>
 
+    <div v-if="user && user.profilePublic === false" class="privacy-banner">
+      Your profile is private, so you are not shown on this leaderboard. Turn visibility on from the account menu to
+      participate publicly.
+    </div>
+
     <div v-if="loading" class="center-pad">
       <div class="spin"></div>
     </div>
@@ -47,8 +52,8 @@
     <div class="info-card mt20">
       <div class="info-title gold">🏆 How to climb the board</div>
       <p class="sub-text">
-        Stack coins from bite-sized eco tasks (+10–30 stash each), snag the quiz bonus (+25 on a crisp answer), and
-        guard that flame streak. More ways to duel friends land in a future season — for now flex on the main ladder.
+        Complete daily tasks, check in from the home strip, finish the weekly sprint, and answer the quiz for bonus
+        coins. Only members who opt in to a public profile are listed here.
       </p>
     </div>
   </div>
@@ -57,6 +62,10 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { getLeaderboard } from '../api/features.js'
+
+defineProps({
+  user: { type: Object, default: null },
+})
 
 const board = ref([])
 const loading = ref(true)
@@ -110,6 +119,17 @@ onMounted(async () => {
 
 .mb20 {
   margin-bottom: 20px;
+}
+
+.privacy-banner {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(0, 242, 255, 0.08);
+  border: 1px solid rgba(0, 242, 255, 0.22);
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.45;
 }
 
 .mt8 {
