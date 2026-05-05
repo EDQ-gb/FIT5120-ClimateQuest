@@ -470,7 +470,7 @@ async function onNavigate(view) {
     return
   }
   currentView.value = view
-  if (view !== 'home') refreshShellStats()
+  if (view !== 'home') await refreshShellStats()
 }
 
 async function refreshGameState(options = {}) {
@@ -909,12 +909,56 @@ function onKeydown(e) {
   if (authOpen.value) return closeAuth()
 }
 
+let liveSyncTimer = 0
+
+function stopLiveSync() {
+  if (liveSyncTimer) {
+    clearInterval(liveSyncTimer)
+    liveSyncTimer = 0
+  }
+}
+
+function runLiveSyncNow() {
+  if (!user.value) return
+  if (currentView.value === 'home') return
+  if (currentView.value === 'game') {
+    refreshGameState({ skipForestEnsure: true })
+    return
+  }
+  refreshShellStats()
+}
+
+function startLiveSync() {
+  stopLiveSync()
+  if (!user.value) return
+  if (currentView.value === 'home') return
+  liveSyncTimer = window.setInterval(() => {
+    if (document.hidden) return
+    runLiveSyncNow()
+  }, 8000)
+}
+
+function onVisibilityChange() {
+  if (!document.hidden) runLiveSyncNow()
+}
+
+watch(
+  () => [user.value?.id || user.value?.username || null, currentView.value],
+  () => {
+    startLiveSync()
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
   await refreshMe()
   window.addEventListener('keydown', onKeydown)
+  document.addEventListener('visibilitychange', onVisibilityChange)
 })
 
 onUnmounted(() => {
+  stopLiveSync()
   window.removeEventListener('keydown', onKeydown)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 </script>

@@ -25,19 +25,35 @@
 
     <aside class="scene-stats-card" aria-label="Your scene">
       <div class="scene-stats-row">
-        <span class="scene-stats-label">Climate Coins</span>
+        <span class="scene-stats-label">🪙 Climate Coins</span>
         <b class="scene-stats-value">{{ coins.toLocaleString() }}</b>
       </div>
       <div class="scene-stats-row">
-        <span class="scene-stats-label">Hot streak</span>
+        <span class="scene-stats-label">🔥 Hot streak</span>
         <b class="scene-stats-value">{{ streak }} d</b>
       </div>
       <div class="scene-stats-row">
-        <span class="scene-stats-label">On your map</span>
+        <span class="scene-stats-label">🗺️ On your map</span>
         <b class="scene-stats-value">{{ objectCount }}</b>
+      </div>
+      <div class="scene-stats-row">
+        <span class="scene-stats-label">🌳 Trees affordable</span>
+        <b class="scene-stats-value">{{ affordableTreeCount }}</b>
+      </div>
+      <div class="scene-stats-chips">
+        <span class="scene-chip">🌱 Live</span>
+        <span class="scene-chip">⏱️ Synced</span>
       </div>
       <div v-if="decayReminder" class="scene-hint scene-hint--decay">{{ decayReminder }}</div>
       <div v-if="lowCoinsReminder" class="scene-hint scene-hint--coins">{{ lowCoinsReminder }}</div>
+      <button
+        v-if="!showSceneGuide"
+        type="button"
+        class="scene-guide-banner__dismiss scene-guide-banner__dismiss--ghost"
+        @click="reopenSceneGuide"
+      >
+        Show tips again
+      </button>
     </aside>
 
     <!-- MAIN -->
@@ -174,18 +190,41 @@ const avatarBg = computed(() => {
   return `hsla(${h}, 85%, 45%, 0.85)`
 })
 
-const SCENE_GUIDE_KEY = 'cq_hideSceneTips'
+function sceneGuideKeyForUser(username) {
+  const u = String(username || '').trim().toLowerCase() || 'guest'
+  return `cq_hideSceneTips:${u}`
+}
 
 const gameCanvas = ref(null)
 const minimapCanvas = ref(null)
 let core = null
 
-const showSceneGuide = ref(typeof localStorage !== 'undefined' ? localStorage.getItem(SCENE_GUIDE_KEY) !== '1' : true)
+const showSceneGuide = ref(true)
+
+function readSceneGuidePref() {
+  try {
+    const k = sceneGuideKeyForUser(props.user?.username)
+    showSceneGuide.value = localStorage.getItem(k) !== '1'
+  } catch (_) {
+    showSceneGuide.value = true
+  }
+}
 
 function dismissSceneGuide() {
   showSceneGuide.value = false
   try {
-    localStorage.setItem(SCENE_GUIDE_KEY, '1')
+    const k = sceneGuideKeyForUser(props.user?.username)
+    localStorage.setItem(k, '1')
+  } catch (_) {
+    // ignore quota / privacy mode
+  }
+}
+
+function reopenSceneGuide() {
+  showSceneGuide.value = true
+  try {
+    const k = sceneGuideKeyForUser(props.user?.username)
+    localStorage.removeItem(k)
   } catch (_) {
     // ignore quota / privacy mode
   }
@@ -250,6 +289,12 @@ const lowCoinsReminder = computed(() => {
   return `Trees need ${TREE_PRICE} coins each right now. Go bag more from Tasks or Quiz, then come back and flex that wallet.`
 })
 
+const affordableTreeCount = computed(() => {
+  const coins = Number(props.coins || 0)
+  if (coins <= 0) return 0
+  return Math.floor(coins / TREE_PRICE)
+})
+
 function setMode(m) {
   mode.value = m
 }
@@ -275,6 +320,7 @@ function resizeCanvas() {
 }
 
 onMounted(async () => {
+  readSceneGuidePref()
   if (!selectedItemId.value) {
     const first = theme.value.items?.[0]
     if (first?.id) selectedItemId.value = first.id
@@ -335,6 +381,14 @@ watch(
     // When placements arrive async from API, force a resize to avoid “blank until click”.
     core?.forceResize?.()
   }
+)
+
+watch(
+  () => props.user?.username || '',
+  () => {
+    readSceneGuidePref()
+  },
+  { immediate: true }
 )
 </script>
 
@@ -471,6 +525,20 @@ watch(
   color: rgba(255, 214, 150, 0.95);
   border-top-color: rgba(255, 200, 120, 0.2);
 }
+.scene-stats-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.scene-chip {
+  font-size: 0.64rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 3px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(235, 255, 245, 0.9);
+}
 
 /* ── MAIN LAYOUT ── */
 .main {
@@ -486,9 +554,9 @@ watch(
 .scene-guide-banner {
   position: absolute;
   top: calc(var(--sb-topbar-h) + 10px);
-  left: 12px;
+  left: 212px;
   right: auto;
-  width: min(760px, calc(100vw - 250px));
+  width: min(760px, calc(100vw - 560px));
   z-index: 40;
   display: flex;
   flex-wrap: wrap;
@@ -543,6 +611,16 @@ watch(
 }
 .scene-guide-banner__dismiss:hover {
   background: rgba(82, 212, 150, 0.22);
+}
+.scene-guide-banner__dismiss--ghost {
+  width: 100%;
+  margin-top: 4px;
+  background: rgba(0, 242, 255, 0.12);
+  border-color: rgba(0, 242, 255, 0.32);
+  color: rgba(205, 252, 255, 0.95);
+}
+.scene-guide-banner__dismiss--ghost:hover {
+  background: rgba(0, 242, 255, 0.2);
 }
 
 .main-inner {
@@ -867,8 +945,8 @@ canvas {
   }
   .scene-guide-banner {
     top: calc(var(--sb-topbar-h) + 8px);
-    left: 8px;
-    width: calc(100vw - 16px);
+    left: 164px;
+    width: calc(100vw - 172px);
     max-height: 108px;
     overflow: auto;
   }
