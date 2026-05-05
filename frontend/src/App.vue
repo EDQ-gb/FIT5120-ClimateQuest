@@ -394,6 +394,11 @@ function syncShellFromGame() {
   shellStreak.value = game.streak || 0
 }
 
+function toFiniteNumberOrNull(v) {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
 async function onProfileVisibilityChange() {
   if (!user.value) return
   const prev = user.value.profilePublic !== false
@@ -410,18 +415,21 @@ async function onProfileVisibilityChange() {
 
 async function refreshShellStats(payload = null) {
   /** Task/quiz responses already include the new balance; do not let a same-tick /game/state read overwrite with stale data. */
-  const trustPayloadCoins = !!(payload && typeof payload.totalCoins === 'number')
+  const payloadCoins = toFiniteNumberOrNull(payload?.totalCoins)
+  const payloadStreak = toFiniteNumberOrNull(payload?.streak)
+  const payloadSceneProgress = toFiniteNumberOrNull(payload?.sceneProgress)
+  const trustPayloadCoins = payloadCoins != null
 
   if (trustPayloadCoins) {
-    shellCoins.value = payload.totalCoins
-    game.coins = payload.totalCoins
+    shellCoins.value = payloadCoins
+    game.coins = payloadCoins
   }
-  if (payload && typeof payload.streak === 'number') {
-    shellStreak.value = payload.streak
-    game.streak = payload.streak
+  if (payloadStreak != null) {
+    shellStreak.value = payloadStreak
+    game.streak = payloadStreak
   }
-  if (payload && typeof payload.sceneProgress === 'number') {
-    game.sceneProgress = payload.sceneProgress
+  if (payloadSceneProgress != null) {
+    game.sceneProgress = payloadSceneProgress
   }
 
   /** True when `/api/game/state` returned usable coin balance for this refresh. */
@@ -431,27 +439,31 @@ async function refreshShellStats(payload = null) {
     if (user.value) {
       try {
         const gs = await api('/api/game/state', { method: 'GET' })
-        if (typeof gs?.coins === 'number' && !trustPayloadCoins) {
-          game.coins = gs.coins
-          shellCoins.value = gs.coins
+        const gsCoins = toFiniteNumberOrNull(gs?.coins)
+        const gsSceneProgress = toFiniteNumberOrNull(gs?.sceneProgress)
+        if (gsCoins != null && !trustPayloadCoins) {
+          game.coins = gsCoins
+          shellCoins.value = gsCoins
           coinsSyncedFromGameState = true
         }
-        if (typeof gs?.sceneProgress === 'number') game.sceneProgress = gs.sceneProgress
+        if (gsSceneProgress != null) game.sceneProgress = gsSceneProgress
       } catch {
         // keep optimistic / payload totals; avoids localStorage mock zeroing logged-in balances
       }
     }
 
     const p = await getProgress()
-    if (p && typeof p.streak === 'number') {
-      shellStreak.value = p.streak
-      game.streak = p.streak
+    const pStreak = toFiniteNumberOrNull(p?.streak)
+    if (pStreak != null) {
+      shellStreak.value = pStreak
+      game.streak = pStreak
     }
 
     /** Only merge mock/offline `/api/progress` coins when we did not sync from the server wallet. */
-    if (p && typeof p.coins === 'number' && !coinsSyncedFromGameState && !trustPayloadCoins) {
-      game.coins = p.coins
-      shellCoins.value = p.coins
+    const pCoins = toFiniteNumberOrNull(p?.coins)
+    if (pCoins != null && !coinsSyncedFromGameState && !trustPayloadCoins) {
+      game.coins = pCoins
+      shellCoins.value = pCoins
     }
   } catch {
     // ignore — never overwrite with bogus zeros here
@@ -477,8 +489,10 @@ async function refreshGameState(options = {}) {
   try {
     const gs = await api('/api/game/state', { method: 'GET' })
     game.themeType = 'forest'
-    if (typeof gs?.sceneProgress === 'number') game.sceneProgress = gs.sceneProgress
-    if (typeof gs?.coins === 'number') game.coins = gs.coins
+    const gsSceneProgress = toFiniteNumberOrNull(gs?.sceneProgress)
+    const gsCoins = toFiniteNumberOrNull(gs?.coins)
+    if (gsSceneProgress != null) game.sceneProgress = gsSceneProgress
+    if (gsCoins != null) game.coins = gsCoins
     game.lastActiveAt = typeof gs?.lastActiveAt === 'string' ? gs.lastActiveAt : ''
     if (typeof gs?.trees === 'number') game.trees = gs.trees
     if (typeof gs?.flowers === 'number') game.flowers = gs.flowers
@@ -511,9 +525,12 @@ async function refreshGameState(options = {}) {
 
 function onActivity(payload) {
   // Keep the topbar feeling responsive; refresh will reconcile any mismatch.
-  if (payload && typeof payload.totalCoins === 'number') game.coins = payload.totalCoins
-  if (payload && typeof payload.streak === 'number') game.streak = payload.streak
-  if (payload && typeof payload.sceneProgress === 'number') game.sceneProgress = payload.sceneProgress
+  const payloadCoins = toFiniteNumberOrNull(payload?.totalCoins)
+  const payloadStreak = toFiniteNumberOrNull(payload?.streak)
+  const payloadSceneProgress = toFiniteNumberOrNull(payload?.sceneProgress)
+  if (payloadCoins != null) game.coins = payloadCoins
+  if (payloadStreak != null) game.streak = payloadStreak
+  if (payloadSceneProgress != null) game.sceneProgress = payloadSceneProgress
   syncShellFromGame()
 }
 
@@ -624,8 +641,9 @@ async function onPlace(p) {
         body: JSON.stringify({ item: type, qty: 1, itemId }),
       }).then((r) => r.json())
       if (buyRes?.error) throw new Error(buyRes.error)
-      if (typeof buyRes?.coins === 'number') {
-        game.coins = buyRes.coins
+      const buyCoins = toFiniteNumberOrNull(buyRes?.coins)
+      if (buyCoins != null) {
+        game.coins = buyCoins
         syncShellFromGame()
       }
       const placed = await applyPlacementApi('/api/scene/place', p)
