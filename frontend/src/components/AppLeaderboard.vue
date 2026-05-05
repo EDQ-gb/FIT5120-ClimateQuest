@@ -107,18 +107,31 @@ function jumpToCurrentUserPage() {
 }
 
 onMounted(async () => {
-  board.value = (await getLeaderboard()) || []
-  jumpToCurrentUserPage()
-  loading.value = false
+  loading.value = true
+  try {
+    board.value = (await getLeaderboard()) || []
+    jumpToCurrentUserPage()
+  } catch {
+    board.value = []
+    page.value = 1
+  } finally {
+    loading.value = false
+  }
 })
 
 watch(
   () => props.user?.id || props.user?.username || null,
   async () => {
     loading.value = true
-    board.value = (await getLeaderboard()) || []
-    jumpToCurrentUserPage()
-    loading.value = false
+    try {
+      board.value = (await getLeaderboard()) || []
+      jumpToCurrentUserPage()
+    } catch {
+      board.value = []
+      page.value = 1
+    } finally {
+      loading.value = false
+    }
   }
 )
 </script>

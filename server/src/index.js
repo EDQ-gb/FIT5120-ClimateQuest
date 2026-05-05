@@ -538,6 +538,41 @@ async function getStreakForUserId(userId) {
   return streakFromActiveSet(set);
 }
 
+async function getStreakMapForUserIds(userIds) {
+  const ids = Array.from(new Set((userIds || []).map((x) => Number(x)).filter((x) => Number.isFinite(x))));
+  if (!ids.length) return new Map();
+  const placeholders = ids.map(() => "?").join(",");
+  const rows = await query(
+    `select user_id, d from (
+       select user_id, completed_on as d
+       from task_logs
+       where user_id in (${placeholders})
+         and completed_on >= date_sub(curdate(), interval 365 day)
+       union all
+       select user_id, completed_on as d
+       from quiz_results
+       where user_id in (${placeholders})
+         and completed_on >= date_sub(curdate(), interval 365 day)
+       union all
+       select user_id, checked_on as d
+       from check_ins
+       where user_id in (${placeholders})
+         and checked_on >= date_sub(curdate(), interval 365 day)
+     ) x`,
+    [...ids, ...ids, ...ids]
+  );
+  const byUser = new Map();
+  for (const r of rows.rows || []) {
+    const uid = Number(r.user_id);
+    if (!Number.isFinite(uid)) continue;
+    if (!byUser.has(uid)) byUser.set(uid, new Set());
+    byUser.get(uid).add(ymdLocal(new Date(r.d)));
+  }
+  const out = new Map();
+  for (const uid of ids) out.set(uid, streakFromActiveSet(byUser.get(uid) || new Set()));
+  return out;
+}
+
 function adminSecretMatches(provided) {
   const secret = process.env.ADMIN_SECRET;
   if (!secret || typeof provided !== "string") return false;
@@ -1564,12 +1599,13 @@ app.get("/api/leaderboard", async (req, res, next) => {
     );
 
     const rows = r.rows || [];
+    const streakMap = await getStreakMapForUserIds(rows.map((x) => x.id));
     const board = [];
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const xp = Number(row.xp || 0);
       const uid = row.id;
-      const streak = await getStreakForUserId(uid);
+      const streak = Number(streakMap.get(uid) || 0);
       board.push({
         rank: i + 1,
         username: row.username,
