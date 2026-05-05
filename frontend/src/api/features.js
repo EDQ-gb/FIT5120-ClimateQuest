@@ -82,11 +82,38 @@ const K = {
   xp:          'cq_xp',           // number
 }
 
+function currentMockScope() {
+  try {
+    const raw = localStorage.getItem('cq_user_scope')
+    const v = String(raw || 'guest').trim().toLowerCase()
+    return v || 'guest'
+  } catch {
+    return 'guest'
+  }
+}
+
+function scopedKey(baseKey) {
+  return `${baseKey}::${currentMockScope()}`
+}
+
 function get(key, def) {
-  try { return JSON.parse(localStorage.getItem(key) ?? 'null') ?? def }
+  const sk = scopedKey(key)
+  try {
+    // First read scoped key; if missing, fall back to legacy unscoped key.
+    // This keeps backward compatibility for existing local mock data.
+    const raw = localStorage.getItem(sk)
+    if (raw != null) return JSON.parse(raw) ?? def
+    return JSON.parse(localStorage.getItem(key) ?? 'null') ?? def
+  }
   catch { return def }
 }
-function set(key, val) { localStorage.setItem(key, JSON.stringify(val)) }
+function set(key, val) {
+  try {
+    localStorage.setItem(scopedKey(key), JSON.stringify(val))
+  } catch {
+    // ignore storage quota/privacy mode issues in mock fallback
+  }
+}
 
 function getCompletions() { return get(K.completions, {}) }
 function getSceneState()  { return get(K.scene, { type: 'forest', progress: 0 }) }

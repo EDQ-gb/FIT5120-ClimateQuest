@@ -156,8 +156,8 @@ async function ensureUserState(userId) {
   // and the frontend mistakenly forces users back to ThemeSelect on relogin.
   await ensureUserStateSchema();
   await query(
-    `insert into user_state (user_id)
-     values (?)
+    `insert into user_state (user_id, coins)
+     values (?, 120)
      on duplicate key update user_id = user_id`,
     [userId]
   );

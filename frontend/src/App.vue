@@ -252,6 +252,15 @@ function themeKey(username, key) {
   return u ? `cq:${u}:${key}` : ''
 }
 
+function setMockUserScope(username) {
+  const scope = String(username || '').trim().toLowerCase() || 'guest'
+  try {
+    localStorage.setItem('cq_user_scope', scope)
+  } catch {
+    // ignore
+  }
+}
+
 function loadThemeCacheForUser(username) {
   game.themeType = 'forest'
   const kLocked = themeKey(username, 'themeLocked')
@@ -726,6 +735,7 @@ async function refreshMe() {
   try {
     const data = await api('/api/auth/me', { method: 'GET' })
     user.value = data.user
+    setMockUserScope(data?.user?.username || 'guest')
     const nextIdentity = user.value?.id || user.value?.username || null
     if (prevIdentity !== nextIdentity) bumpUserViewNonce()
     if (data.user) {
@@ -741,6 +751,7 @@ async function refreshMe() {
     }
   } catch {
     user.value = null
+    setMockUserScope('guest')
     if (prevIdentity !== null) bumpUserViewNonce()
     currentView.value = 'home'
   }
@@ -773,6 +784,7 @@ async function submitRegister() {
       body: JSON.stringify({ username: form.username, displayName: form.displayName }),
     })
     user.value = data.user
+    setMockUserScope(data?.user?.username || 'guest')
     bumpUserViewNonce()
     closeAuth()
     resetThemeState()
@@ -801,6 +813,7 @@ async function submitSignin() {
       body: JSON.stringify({ username: form.username }),
     })
     user.value = data.user
+    setMockUserScope(data?.user?.username || 'guest')
     bumpUserViewNonce()
     closeAuth()
     resetThemeState()
@@ -832,6 +845,7 @@ async function onLogout() {
     clearThemeCacheForUser(user.value?.username)
     resetThemeState()
     user.value = null
+    setMockUserScope('guest')
     bumpUserViewNonce()
     menuOpen.value = false
     onNavigate('home')
