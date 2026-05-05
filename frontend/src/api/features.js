@@ -79,11 +79,34 @@ const K = {
   xp:          'cq_xp',           // number
 }
 
+let activeStorageUser = ''
+
+function storageScope() {
+  const u = String(activeStorageUser || '').trim().toLowerCase()
+  return u ? `cq:${u}:features` : 'cq:guest:features'
+}
+
+function scopedKey(key) {
+  return `${storageScope()}:${key}`
+}
+
+export function setFeatureStorageUser(username) {
+  activeStorageUser = String(username || '').trim().toLowerCase()
+}
+
+export function clearLegacyFeatureStorage() {
+  try {
+    Object.values(K).forEach((key) => localStorage.removeItem(key))
+  } catch {
+    // ignore
+  }
+}
+
 function get(key, def) {
-  try { return JSON.parse(localStorage.getItem(key) ?? 'null') ?? def }
+  try { return JSON.parse(localStorage.getItem(scopedKey(key)) ?? 'null') ?? def }
   catch { return def }
 }
-function set(key, val) { localStorage.setItem(key, JSON.stringify(val)) }
+function set(key, val) { localStorage.setItem(scopedKey(key), JSON.stringify(val)) }
 
 function getCompletions() { return get(K.completions, {}) }
 function getSceneState()  { return get(K.scene, { type: 'forest', progress: 0 }) }

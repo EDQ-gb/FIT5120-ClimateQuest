@@ -217,7 +217,7 @@ import AppQuiz from './components/AppQuiz.vue'
 import AppLeaderboard from './components/AppLeaderboard.vue'
 import AppLandingV2 from './components/AppLandingV2.vue'
 import SceneBuilderShell from './components/game/SceneBuilderShell.vue'
-import { getProgress } from './api/features.js'
+import { clearLegacyFeatureStorage, getProgress, setFeatureStorageUser } from './api/features.js'
 import { getItemByIdAnyTheme, TREE_COINS_COST } from './game/assets/catalog.js'
 
 const currentView = ref('home')
@@ -686,6 +686,8 @@ async function refreshMe() {
     const data = await api('/api/auth/me', { method: 'GET' })
     user.value = data.user
     if (data.user) {
+      setFeatureStorageUser(data.user?.username)
+      clearLegacyFeatureStorage()
       resetThemeState()
       loadThemeCacheForUser(data.user?.username)
       await refreshGameState()
@@ -694,9 +696,11 @@ async function refreshMe() {
       currentView.value = 'home'
       refreshShellStats()
     } else {
+      setFeatureStorageUser('')
       currentView.value = 'home'
     }
   } catch {
+    setFeatureStorageUser('')
     user.value = null
     currentView.value = 'home'
   }
@@ -729,6 +733,8 @@ async function submitRegister() {
       body: JSON.stringify({ username: form.username, displayName: form.displayName }),
     })
     user.value = data.user
+    setFeatureStorageUser(data.user?.username)
+    clearLegacyFeatureStorage()
     closeAuth()
     resetThemeState()
     clearThemeCacheForUser(data.user?.username)
@@ -756,6 +762,8 @@ async function submitSignin() {
       body: JSON.stringify({ username: form.username }),
     })
     user.value = data.user
+    setFeatureStorageUser(data.user?.username)
+    clearLegacyFeatureStorage()
     closeAuth()
     resetThemeState()
     loadThemeCacheForUser(data.user?.username)
@@ -784,6 +792,7 @@ async function onLogout() {
     // ignore
   } finally {
     clearThemeCacheForUser(user.value?.username)
+    setFeatureStorageUser('')
     resetThemeState()
     user.value = null
     menuOpen.value = false
