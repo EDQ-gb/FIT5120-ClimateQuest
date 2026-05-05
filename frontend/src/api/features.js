@@ -99,11 +99,8 @@ function scopedKey(baseKey) {
 function get(key, def) {
   const sk = scopedKey(key)
   try {
-    // First read scoped key; if missing, fall back to legacy unscoped key.
-    // This keeps backward compatibility for existing local mock data.
     const raw = localStorage.getItem(sk)
-    if (raw != null) return JSON.parse(raw) ?? def
-    return JSON.parse(localStorage.getItem(key) ?? 'null') ?? def
+    return JSON.parse(raw ?? 'null') ?? def
   }
   catch { return def }
 }
@@ -118,7 +115,7 @@ function set(key, val) {
 function getCompletions() { return get(K.completions, {}) }
 function getSceneState()  { return get(K.scene, { type: 'forest', progress: 0 }) }
 function getQuizLog()     { return get(K.quizLog, {}) }
-function getCoins()       { return get(K.coins, 0) }
+function getCoins()       { return get(K.coins, 120) }
 function getXp()          { return get(K.xp, 0) }
 
 function calcStreak(completions) {
