@@ -63,7 +63,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { getLeaderboard } from '../api/features.js'
 
-defineProps({
+const props = defineProps({
   user: { type: Object, default: null },
 })
 
@@ -97,11 +97,30 @@ watch(board, () => {
   if (page.value < 1) page.value = 1
 })
 
+function jumpToCurrentUserPage() {
+  const meIdx = board.value.findIndex((u) => !!u?.isYou)
+  if (meIdx < 0) {
+    page.value = 1
+    return
+  }
+  page.value = Math.floor(meIdx / pageSize) + 1
+}
+
 onMounted(async () => {
   board.value = (await getLeaderboard()) || []
-  page.value = 1
+  jumpToCurrentUserPage()
   loading.value = false
 })
+
+watch(
+  () => props.user?.id || props.user?.username || null,
+  async () => {
+    loading.value = true
+    board.value = (await getLeaderboard()) || []
+    jumpToCurrentUserPage()
+    loading.value = false
+  }
+)
 </script>
 
 <style scoped>

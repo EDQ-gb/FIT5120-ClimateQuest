@@ -1560,9 +1560,7 @@ app.get("/api/leaderboard", async (req, res, next) => {
       `select u.id, u.username, u.display_name, s.coins, s.xp
        from user_state s
        join users u on u.id = s.user_id
-       where coalesce(u.profile_public, 1) = 1
-       order by s.coins desc, s.xp desc, u.created_at asc
-       limit 20`
+       order by s.coins desc, s.xp desc, u.created_at asc`
     );
 
     const rows = r.rows || [];
