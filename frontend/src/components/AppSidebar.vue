@@ -18,6 +18,14 @@
       </button>
     </nav>
 
+    <div class="sidebar-tip" role="note" aria-label="Navigation tips">
+      <div class="sidebar-tip-head">Play smarter</div>
+      <p class="sidebar-tip-text">
+        Farm shiny coins in <strong>Daily Tasks</strong> and the <strong>Quiz</strong>, then drop them in <strong>My Scene</strong> — snag a prop, tap the soil, done.
+      </p>
+      <p class="sidebar-tip-text sidebar-tip-muted">Leaderboard = bragging rights with your crew.</p>
+    </div>
+
     <div class="sidebar-user">
       <div class="sidebar-avatar" :style="{ background: avatarBg }">{{ avatarText }}</div>
       <div class="sidebar-user-info">
@@ -82,7 +90,38 @@ const avatarBg = computed(() => {
 .sidebar-logo-icon { font-size: 1.4rem; }
 .sidebar-logo-text { font-size: 1rem; font-weight: 800; color: #fff; letter-spacing: -0.3px; }
 
-.sidebar-nav { padding: 14px 10px; flex: 1; }
+.sidebar-nav { padding: 14px 10px 10px; flex: 1; }
+
+.sidebar-tip {
+  margin: 0 10px 12px;
+  padding: 10px 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(82, 212, 150, 0.22);
+  background: rgba(82, 212, 150, 0.06);
+}
+.sidebar-tip-head {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(148, 240, 200, 0.9);
+  margin-bottom: 6px;
+}
+.sidebar-tip-text {
+  margin: 0 0 6px;
+  font-size: 0.74rem;
+  line-height: 1.42;
+  color: rgba(255, 255, 255, 0.72);
+}
+.sidebar-tip-text strong {
+  color: rgba(200, 255, 236, 0.92);
+}
+.sidebar-tip-muted {
+  margin-bottom: 0;
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
 .sidebar-item {
   display: flex;
   align-items: center;

@@ -82,10 +82,11 @@ export function createSceneBuilderCore(opts) {
     onRemove,
     onMove,
     setGridPos,
-    setTooltip,
     themeBg = 'forest',
     getDefaultGroundItemId, // kept for now (not used once we match HTML ground)
     minimapCanvas = null,
+    /** Optional palette image URLs — triggers early decoding so placements feel instant. */
+    getPreloadSrcs = null,
   } = opts
   let themeBgKey = themeBg
 
@@ -117,11 +118,21 @@ export function createSceneBuilderCore(opts) {
     img.decoding = 'async'
     img.src = src
     img.onload = () => {
-      // trigger redraw on load
-      // no-op here; render loop is running
+      try {
+        if (typeof img.decode === 'function') img.decode().catch(() => {})
+      } catch (_) {
+        // ignore decode edge cases — decode() not supported everywhere
+      }
     }
     imageCache.set(src, img)
     return img
+  }
+
+  /** Prime cache/decoding for catalogue sprites before first click-place. */
+  function warmupPlacementSprites() {
+    if (typeof getPreloadSrcs !== 'function') return
+    const urls = [...new Set(getPreloadSrcs().filter(Boolean))]
+    for (const src of urls) getImage(src)
   }
 
   function getSpriteAnchor(src, img) {
@@ -258,16 +269,61 @@ export function createSceneBuilderCore(opts) {
     ctx.restore()
   }
 
+  /** Placement “foot” on the iso diamond (trees = center; flowers = quadrant). */
+  function objectFootOnTile(it, cellItems, def, x, y, tw, th) {
+    let footX = x + tw / 2
+    let footY = y + th / 2
+    if (def.kind === 'flower') {
+      const ci = cornerIndexForFlower(it, cellItems)
+      if (ci === 0) {
+        footX = x + tw / 2
+        footY = y + th * 0.12
+      } else if (ci === 1) {
+        footX = x + tw * 0.86
+        footY = y + th / 2
+      } else if (ci === 2) {
+        footX = x + tw / 2
+        footY = y + th * 0.88
+      } else {
+        footX = x + tw * 0.14
+        footY = y + th / 2
+      }
+    }
+    return { footX, footY }
+  }
+
+  function drawPlaceholderObject(def, footX, footY, yTilesBottom) {
+    const r = Math.max(10, 14 * zoom)
+    ctx.save()
+    ctx.fillStyle =
+      def.kind === 'flower'
+        ? 'rgba(214, 138, 216, 0.88)'
+        : def.kind === 'ground'
+          ? 'rgba(120, 150, 120, 0.75)'
+          : 'rgba(54, 150, 86, 0.92)'
+    ctx.beginPath()
+    ctx.arc(footX, Math.min(footY, yTilesBottom), r, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  }
+
   function drawObjectAt(col, row, it, cellItems = null) {
     const def = it?.itemId ? getItemDefById(it.itemId) : null
     if (!def?.src) return
     const img = getImage(def.src)
-    if (!img || !img.complete) return
 
     const { x, y } = gridToScreen(col, row, offsetX, offsetY, zoom)
     // Match scene_builder.html positioning
     const tw = TILE_W * zoom
     const th = TILE_H * zoom
+    const { footX, footY } = objectFootOnTile(it, cellItems, def, x, y, tw, th)
+    const yBottom = y + th * 0.92
+
+    if (!img || !img.complete) {
+      drawPlaceholderObject(def, footX, footY, yBottom)
+      return
+    }
+
     // Keep original aspect ratio; size controlled by baseScaleForKind().
     const s = Number.isFinite(def.scale) ? def.scale : baseScaleForKind(def.kind)
     const nat = getNaturalSize(img)
@@ -295,26 +351,6 @@ export function createSceneBuilderCore(opts) {
       iw = clamp(ih * ratio, 10, IMG_W * zoom * 2)
     }
     const anchor = getSpriteAnchor(def.src, img)
-    // Trees: tile center. Flowers: tile corners (max 4 per tile).
-    let footX = x + tw / 2
-    let footY = y + th / 2
-    if (def.kind === 'flower') {
-      const ci = cornerIndexForFlower(it, cellItems)
-      // Diamond corners: top, right, bottom, left (clockwise)
-      if (ci === 0) {
-        footX = x + tw / 2
-        footY = y + th * 0.12
-      } else if (ci === 1) {
-        footX = x + tw * 0.86
-        footY = y + th / 2
-      } else if (ci === 2) {
-        footX = x + tw / 2
-        footY = y + th * 0.88
-      } else {
-        footX = x + tw * 0.14
-        footY = y + th / 2
-      }
-    }
     const dx = footX - iw * anchor.rx
     const dy = footY - ih * anchor.ry
 
@@ -360,22 +396,6 @@ export function createSceneBuilderCore(opts) {
   }
 
   function groundPalette() {
-    if (themeBgKey === 'glacier') {
-      // sea-water / ice vibe
-      return {
-        c1Even: '#2e8aa1',
-        c2Even: '#1e6b7d',
-        c1Odd: '#2a8096',
-        c2Odd: '#1a6273',
-        leftEven: '#184f5e',
-        leftOdd: '#144554',
-        rightEven: '#1d5e6f',
-        rightOdd: '#184f5e',
-        stroke: 'rgba(0,0,0,0.10)',
-      }
-    }
-  
-    // forest default
     return {
       c1Even: '#3f7a44',
       c2Even: '#2f6338',
@@ -464,9 +484,16 @@ export function createSceneBuilderCore(opts) {
       const def = sel ? getItemDefById(sel) : null
       if (def?.src) {
         const img = getImage(def.src)
+        const placements = getPlacements()
+        const gi = buildGridIndex(placements)
+        const kk = keyFor(col, row)
+        const cellItems = gi[kk] || null
+        const syntheticIt = sel ? { itemId: sel } : null
+        const { footX, footY } = syntheticIt
+          ? objectFootOnTile(syntheticIt, cellItems, def, x, y, tw, th)
+          : { footX: x + tw / 2, footY: y + th / 2 }
+
         if (img && img.complete) {
-
-
 
 
 
@@ -479,6 +506,11 @@ export function createSceneBuilderCore(opts) {
           ctx.globalAlpha = 0.6
           ctx.drawImage(img, dx, dy, iw, ih)
           ctx.globalAlpha = 1
+        } else {
+          ctx.save()
+          ctx.globalAlpha = 0.55
+          drawPlaceholderObject(def, footX, footY, y + th * 0.92)
+          ctx.restore()
         }
       }
     }
@@ -490,10 +522,9 @@ export function createSceneBuilderCore(opts) {
     // Bright, friendly sky (no image assets needed)
     ctx.save()
 
-    const isGlacier = themeBgKey === 'glacier'
-    const top = isGlacier ? '#98d7ff' : '#8fd4ff'
-    const mid = isGlacier ? '#c7f1ff' : '#d7f5ff'
-    const bot = isGlacier ? '#f5fbff' : '#fff6d8'
+    const top = '#7ec8ff'
+    const mid = '#d7f5ff'
+    const bot = '#fff6d8'
 
     // Sky gradient
     const bg = ctx.createLinearGradient(0, 0, 0, H)
@@ -547,8 +578,7 @@ export function createSceneBuilderCore(opts) {
     // Softens the sky/ground boundary and pushes distant tiles back.
     ctx.save()
 
-    const isGlacier = themeBgKey === 'glacier'
-    const tint = isGlacier ? 'rgba(210, 245, 255, ' : 'rgba(255, 252, 230, '
+    const tint = 'rgba(255, 252, 230, '
 
     // Haze over the top portion (distance fog)
     const haze = ctx.createLinearGradient(0, 0, 0, H)
@@ -641,7 +671,6 @@ export function createSceneBuilderCore(opts) {
       offsetY += dy
       panLastX = e.clientX
       panLastY = e.clientY
-      setTooltip?.({ show: false, x: 0, y: 0, text: '' })
       return
     }
 
@@ -653,19 +682,6 @@ export function createSceneBuilderCore(opts) {
     else setGridPos?.(null, null)
 
     // move mode removed (no panning by drag)
-
-    // tooltip: show contents at cell
-    const placements = getPlacements()
-    const gridIndex = buildGridIndex(placements)
-    const k = keyFor(col, row)
-    if (validCell(col, row) && gridIndex[k] && gridIndex[k].length > 0) {
-      const names = gridIndex[k]
-        .map((it) => (it.itemId ? it.itemId : it.type || 'item'))
-        .join(', ')
-      setTooltip?.({ show: true, x: h.x + 12, y: h.y + 12, text: names })
-    } else {
-      setTooltip?.({ show: false, x: 0, y: 0, text: '' })
-    }
   }
 
   function onMouseDown(e) {
@@ -674,17 +690,17 @@ export function createSceneBuilderCore(opts) {
       isPanning = true
       panLastX = e.clientX
       panLastY = e.clientY
-      setTooltip?.({ show: false, x: 0, y: 0, text: '' })
       return
     }
 
     if (e.button !== 0) return
 
-    // Strict WYSIWYG: only place/remove on the currently highlighted preview
-    // tile so click result always matches what the user sees.
-    if (!hoverCell) return
-    const col = hoverCell.col
-    const row = hoverCell.row
+    // Target cell from pointer — matches first tap without a prior mousemove/touchmove
+    // and avoids stale hover after pan/zoom.
+    const h = hitCellFromEvent(e)
+    const col = h.col
+    const row = h.row
+    hoverCell = { col, row }
     if (!validCell(col, row)) return
 
     const placements = getPlacements()
@@ -748,14 +764,16 @@ export function createSceneBuilderCore(opts) {
 
     // Do not force-update hoverCell on wheel: placement should stay bound to
     // the visible preview tile until the next mouse move updates it naturally.
-    setTooltip?.({ show: false, x: 0, y: 0, text: '' })
   }
 
   let raf = 0
   function start() {
     resize()
     // One more resize after mount/layout, fixes “blank until click” on some browsers.
-    setTimeout(resize, 0)
+    setTimeout(() => {
+      warmupPlacementSprites()
+      resize()
+    }, 0)
     window.addEventListener('resize', resize)
     canvas.addEventListener('mousemove', onMouseMove)
     canvas.addEventListener('mousedown', onMouseDown)

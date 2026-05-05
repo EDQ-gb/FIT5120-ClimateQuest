@@ -25,14 +25,33 @@
 
     <div class="landing2-inner">
       <div class="landing2-top land-in-0">
-        <div class="landing2-title" aria-label="ClimateQuest">
-          <span class="word-climate">CLIMATE</span>
-          <span class="word-quest">QUEST</span>
+        <div class="landing2-hero-grid">
+          <div class="landing2-hero-left">
+            <div class="landing2-eyebrow">Monash FIT5120 · for planet heroes</div>
+            <div class="landing2-title" aria-label="ClimateQuest">
+              <span class="word-climate">CLIMATE</span>
+              <span class="word-quest">QUEST</span>
+            </div>
+          </div>
+
+          <div class="landing2-hero-right">
+            <p class="landing2-lead land-in-lead">
+              Do tiny green wins in real life, pocket shiny Climate Coins, and watch your own patch of rainforest burst to life. Smart daily quiz + tasks show how much CO₂ you have helped keep out of the sky.
+            </p>
+            <ul class="landing2-pills land-in-pills" aria-label="Highlights">
+              <li>Quest-style daily eco challenges</li>
+              <li>Boss-level quiz = coin jackpot</li>
+              <li>Earn every tree, flower &amp; cute critter</li>
+            </ul>
+          </div>
         </div>
       </div>
 
       <div class="landing2-bottom land-in-1">
         <div class="landing2-sub">Play · Learn · Make Real Impact</div>
+        <p class="landing2-micro">
+          Hop in, tick off a feel-good action (or crush the quiz), then hit <strong>My Scene</strong> to drop goodies on the map. Peek in often — your jungle loves the attention.
+        </p>
         <button type="button" class="btn-start" @click="$emit('start')">Start Your Quest →</button>
       </div>
     </div>
@@ -634,12 +653,80 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   /* More bottom padding so the Start button isn't glued to the bottom edge */
-  padding: calc(clamp(18px, 3vh, 44px) + var(--landing2-nav-h)) 0 clamp(18px, 4vh, 44px);
+  padding: calc(clamp(18px, 3vh, 44px) + var(--landing2-nav-h)) clamp(16px, 4vw, 36px) clamp(18px, 4vh, 44px);
   pointer-events: none;
 }
 
 .landing2-top {
   margin-top: 0;
+  max-width: min(520px, 100%);
+  text-align: center;
+}
+
+.landing2-hero-grid {
+  width: 100%;
+}
+
+.landing2-hero-left,
+.landing2-hero-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.landing2-lead {
+  font-family: 'Fredoka', Nunito, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-size: clamp(13px, 1.45vw, 16px);
+  font-weight: 500;
+  line-height: 1.72;
+  color: rgba(210, 228, 218, 0.82);
+  margin: clamp(14px, 2.4vh, 22px) auto 0;
+  max-width: 52ch;
+  pointer-events: auto;
+}
+
+.landing2-pills {
+  list-style: none;
+  margin: clamp(14px, 2.2vh, 22px) auto 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  pointer-events: auto;
+}
+.landing2-pills li {
+  font-family: 'Fredoka', Nunito, system-ui, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: rgba(78, 207, 140, 0.95);
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(78, 207, 140, 0.35);
+  background: rgba(0, 28, 18, 0.35);
+}
+
+.landing2-micro {
+  font-family: 'Fredoka', Nunito, system-ui, sans-serif;
+  font-size: clamp(11px, 1.2vw, 13px);
+  line-height: 1.5;
+  color: rgba(185, 212, 198, 0.55);
+  max-width: min(400px, 100%);
+  margin: 0 auto 16px;
+  text-align: center;
+  pointer-events: auto;
+}
+.landing2-micro strong {
+  color: rgba(148, 236, 190, 0.88);
+  font-weight: 700;
+}
+
+.land-in-lead {
+  animation: landFly 0.9s 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.land-in-pills {
+  animation: landFly 0.9s 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .landing2-bottom {
@@ -656,7 +743,7 @@ onMounted(() => {
 }
 
 .landing2-eyebrow {
-  font-family: 'DM Sans', Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-family: 'Fredoka', Nunito, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   font-size: clamp(10px, 1vw, 12px);
   font-weight: 300;
   letter-spacing: 10px;
@@ -665,8 +752,13 @@ onMounted(() => {
   margin-bottom: 4px;
 }
 
+.landing2-top .landing2-eyebrow {
+  margin-bottom: 8px;
+  pointer-events: auto;
+}
+
 .landing2-title {
-  font-family: Anton, Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-family: Anton, Nunito, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   font-size: clamp(38px, 7.0vw, 88px);
   font-weight: 400;
   line-height: 0.82;
@@ -690,11 +782,11 @@ onMounted(() => {
 }
 
 .landing2-sub {
-  font-family: 'DM Sans', Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-family: 'Fredoka', Nunito, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   font-size: clamp(14px, 1.6vw, 18px);
   font-weight: 700;
   color: rgba(210, 232, 222, 0.66);
-  letter-spacing: 5px;
+  letter-spacing: 3px;
   text-transform: uppercase;
   text-align: center;
   margin-bottom: 18px;
@@ -706,7 +798,7 @@ onMounted(() => {
   border: 1px solid rgba(78, 207, 140, 0.4);
   background: rgba(78, 207, 140, 0.06);
   color: rgba(78, 207, 140, 0.9);
-  font-family: 'DM Sans', Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-family: 'Fredoka', Nunito, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   font-size: 0.78rem;
   font-weight: 400;
   cursor: pointer;
@@ -755,6 +847,38 @@ onMounted(() => {
   .landing2-login {
     right: 10px;
     padding: 6px 10px;
+  }
+  .landing2-pills {
+    flex-direction: column;
+    align-items: stretch;
+    max-width: 280px;
+  }
+  .landing2-bottom {
+    margin-bottom: clamp(42px, 8vh, 100px);
+  }
+}
+
+@media (min-width: 980px) {
+  .landing2-top {
+    max-width: min(1100px, 100%);
+    text-align: left;
+  }
+  .landing2-hero-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(22px, 4vw, 52px);
+    align-items: center;
+  }
+  .landing2-hero-left,
+  .landing2-hero-right {
+    align-items: flex-start;
+  }
+  .landing2-lead {
+    margin-top: 0;
+    max-width: 56ch;
+  }
+  .landing2-pills {
+    justify-content: flex-start;
   }
 }
 </style>

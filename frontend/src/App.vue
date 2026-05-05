@@ -16,24 +16,16 @@
       @start="onCta"
     />
 
-    <!-- ════════════════════════════════════════════════════
-         THEME SELECT (after landing CTA)
-    ════════════════════════════════════════════════════ -->
-    <AppThemeSelect
-      v-else-if="currentView === 'theme'"
-      @selected="onThemeSelected"
-      @skip="onThemeSkipped"
-      @back-home="onNavigate('home')"
-    />
-
     <SceneBuilderShell
       v-else-if="currentView === 'game'"
       :user="user"
       :themeType="effectiveTheme"
       :coins="game.coins"
       :streak="game.streak"
+      :lastActiveAt="game.lastActiveAt || ''"
       :placements="game.placements"
       :toastShow="toast.show"
+      :toastTitle="toast.title"
       :toastText="toast.text"
       @back="onNavigate('home')"
       @navigate="onNavClick"
@@ -45,6 +37,7 @@
       @move="onMove"
       @activity="onActivity"
       @refresh="refreshGameState"
+      @toast-dismiss="dismissToast"
     />
 
     <!-- ════════════════════════════════════════════════════
@@ -115,7 +108,7 @@
         <Transition name="pop">
           <div class="modal" role="dialog" aria-modal="true" @click.stop>
             <div class="modal-header">
-              <div class="modal-title">Register / Sign in (passwordless)</div>
+              <div class="modal-title">Join the quest</div>
             </div>
 
             <div class="form">
@@ -151,7 +144,7 @@
               </div>
 
               <div class="hint" v-if="!errorMsg">
-                Register creates a new account. Sign in uses an existing username.
+                New here? Hit Register. Returning hero? Sign in with the username you picked last time — no password to forget.
               </div>
               <div class="error" v-else>{{ errorMsg }}</div>
             </div>
@@ -194,7 +187,7 @@
             <div class="form">
               <div class="field">
                 <label>New username</label>
-                <input v-model="newUsername" placeholder="3-32 chars: a-z 0-9 _" autocomplete="username" />
+                <input v-model="newUsername" placeholder="Letters, numbers, underscores (3–32)" autocomplete="username" />
               </div>
 
               <div class="form-actions">
@@ -214,7 +207,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 
 import AppSidebar from './components/AppSidebar.vue'
 import AppDashboard from './components/AppDashboard.vue'
@@ -222,17 +215,15 @@ import AppTasks from './components/AppTasks.vue'
 import AppScene from './components/AppScene.vue'
 import AppQuiz from './components/AppQuiz.vue'
 import AppLeaderboard from './components/AppLeaderboard.vue'
-import AppThemeSelect from './components/AppThemeSelect.vue'
 import AppLandingV2 from './components/AppLandingV2.vue'
 import SceneBuilderShell from './components/game/SceneBuilderShell.vue'
 import { getProgress } from './api/features.js'
-import { getItemByIdAnyTheme } from './game/assets/catalog.js'
+import { getItemByIdAnyTheme, TREE_COINS_COST } from './game/assets/catalog.js'
 
 const currentView = ref('home')
 
 const game = reactive({
-  // Empty means user hasn't chosen a theme yet (first-time register).
-  themeType: '',
+  themeType: 'forest',
   sceneProgress: 0,
   coins: 0,
   streak: 0,
@@ -240,9 +231,10 @@ const game = reactive({
   flowers: 0,
   placements: null,
   themeLocked: false,
+  lastActiveAt: '',
 })
 
-const effectiveTheme = computed(() => (game.themeType ? game.themeType : 'forest'))
+const effectiveTheme = computed(() => 'forest')
 
 function themeKey(username, key) {
   const u = String(username || '').trim()
@@ -250,14 +242,11 @@ function themeKey(username, key) {
 }
 
 function loadThemeCacheForUser(username) {
-  const kTheme = themeKey(username, 'themeType')
+  game.themeType = 'forest'
   const kLocked = themeKey(username, 'themeLocked')
-  if (!kTheme || !kLocked) return
+  if (!kLocked) return
   try {
-    const t = localStorage.getItem(kTheme)
-    const locked = localStorage.getItem(kLocked)
-    if (t) game.themeType = t === 'cityGreen' ? 'forest' : t
-    if (locked === '1') game.themeLocked = true
+    if (localStorage.getItem(kLocked) === '1') game.themeLocked = true
   } catch {
     // ignore
   }
@@ -268,7 +257,7 @@ function saveThemeCacheForUser(username) {
   const kLocked = themeKey(username, 'themeLocked')
   if (!kTheme || !kLocked) return
   try {
-    if (game.themeType) localStorage.setItem(kTheme, String(game.themeType))
+    localStorage.setItem(kTheme, 'forest')
     localStorage.setItem(kLocked, game.themeLocked ? '1' : '0')
   } catch {
     // ignore
@@ -288,20 +277,28 @@ function clearThemeCacheForUser(username) {
 }
 
 function resetThemeState() {
-  game.themeType = ''
+  game.themeType = 'forest'
   game.themeLocked = false
 }
 
-const toast = reactive({ show: false, text: '', key: 0 })
+const toast = reactive({ show: false, title: '', text: '', key: 0 })
 let toastTimer = 0
-function showToast(text) {
+function dismissToast() {
+  clearTimeout(toastTimer)
+  toast.show = false
+  toast.title = ''
+}
+
+function showToast(text, title = '', durationMs = 4200) {
   clearTimeout(toastTimer)
   toast.text = String(text || '')
+  toast.title = typeof title === 'string' ? title : ''
   toast.show = true
   toast.key += 1
+  const ms = typeof durationMs === 'number' && durationMs >= 1200 ? durationMs : 4200
   toastTimer = setTimeout(() => {
-    toast.show = false
-  }, 3200)
+    dismissToast()
+  }, ms)
 }
 
 const tipState = reactive({
@@ -331,23 +328,24 @@ function maybeEmitPlacementTips(prevPlacements, nextPlacements, lastPlacedItem) 
   const treeMilestone = Math.floor(nextTree / 3) * 3
   if (treeMilestone >= 3 && treeMilestone !== tipState.lastTreeMilestone && treeMilestone > prevTree) {
     tipState.lastTreeMilestone = treeMilestone
-    const o2kgPerDay = Math.max(0.5, (treeMilestone * 0.35)).toFixed(1)
+    const co2RoughYr = Math.round(treeMilestone * 18)
     showToast(
-      `🌳 You’ve planted ${treeMilestone} trees — estimated oxygen output: ~${o2kgPerDay} kg/day. Climate Action Coins represent real low‑carbon actions.`
+      `Mega — ${treeMilestone} trees standing tall on your map!\nFun fact: roughly ~${co2RoughYr} kg CO₂ sucked in per year (ballpark vibes, not an audit).`,
+      'Forest level up'
     )
     return
   }
 
   // No ground. Keep animal/life tips.
   if (lastPlacedItem && isLifePlacement(lastPlacedItem)) {
-    showToast('🐾 You saved a life — a kinder habitat is taking shape.')
+    showToast('Look at that — your patch just got louder with life!', 'Wild friend added')
   }
 }
 
 function getItemCostForPlacement(itemId, kind) {
   const def = itemId ? getItemByIdAnyTheme(String(itemId)) : null
   if (def && Number.isFinite(def.cost)) return def.cost
-  if (kind === 'tree') return 40
+  if (kind === 'tree') return TREE_COINS_COST
   if (kind === 'flower') return 12
   if (kind === 'decor') return 30
   return 0
@@ -356,7 +354,6 @@ function getItemCostForPlacement(itemId, kind) {
 // Debug helpers removed (kept app flow clean)
 
 const pageTitles = {
-  theme: 'Choose Theme',
   dashboard: 'Dashboard',
   tasks: 'Daily Tasks',
   scene: 'My Scene',
@@ -373,7 +370,10 @@ function syncShellFromGame() {
 }
 
 async function refreshShellStats(payload = null) {
-  if (payload && typeof payload.totalCoins === 'number') {
+  /** Task/quiz responses already include the new balance; do not let a same-tick /game/state read overwrite with stale data. */
+  const trustPayloadCoins = !!(payload && typeof payload.totalCoins === 'number')
+
+  if (trustPayloadCoins) {
     shellCoins.value = payload.totalCoins
     game.coins = payload.totalCoins
   }
@@ -385,29 +385,48 @@ async function refreshShellStats(payload = null) {
     game.sceneProgress = payload.sceneProgress
   }
 
-  // Keep one authoritative refresh in background for consistency.
+  /** True when `/api/game/state` returned usable coin balance for this refresh. */
+  let coinsSyncedFromGameState = false
+
   try {
+    if (user.value) {
+      try {
+        const gs = await api('/api/game/state', { method: 'GET' })
+        if (typeof gs?.coins === 'number' && !trustPayloadCoins) {
+          game.coins = gs.coins
+          shellCoins.value = gs.coins
+          coinsSyncedFromGameState = true
+        }
+        if (typeof gs?.sceneProgress === 'number') game.sceneProgress = gs.sceneProgress
+      } catch {
+        // keep optimistic / payload totals; avoids localStorage mock zeroing logged-in balances
+      }
+    }
+
     const p = await getProgress()
-    if (p) {
-      shellCoins.value = p.coins || 0
-      shellStreak.value = p.streak || 0
-      game.coins = p.coins || 0
-      game.streak = p.streak || 0
+    if (p && typeof p.streak === 'number') {
+      shellStreak.value = p.streak
+      game.streak = p.streak
+    }
+
+    /** Only merge mock/offline `/api/progress` coins when we did not sync from the server wallet. */
+    if (p && typeof p.coins === 'number' && !coinsSyncedFromGameState && !trustPayloadCoins) {
+      game.coins = p.coins
+      shellCoins.value = p.coins
     }
   } catch {
-    // ignore
+    // ignore — never overwrite with bogus zeros here
   }
+
+  syncShellFromGame()
 }
 
 async function onNavigate(view) {
-  // "My Scene" always enters the interactive scene builder flow.
-  if (view === 'scene') {
+  // Scene builder ("My Scene" from nav or landing CTA as `game`): single forest biome only.
+  if (view === 'scene' || view === 'game') {
     if (!user.value) return openAuth()
-    const prevThemeLocked = !!game.themeLocked
-    // Enter scene with authoritative latest coins/streak/placements.
     await refreshGameState()
-    const resolvedThemeLocked = !!game.themeLocked || prevThemeLocked
-    currentView.value = resolvedThemeLocked ? 'game' : 'theme'
+    currentView.value = 'game'
     syncShellFromGame()
     return
   }
@@ -415,38 +434,38 @@ async function onNavigate(view) {
   if (view !== 'home') refreshShellStats()
 }
 
-async function refreshGameState() {
+async function refreshGameState(options = {}) {
   try {
-    // Use the shared API helper so auth/session failures don't get silently treated as "no theme locked".
     const gs = await api('/api/game/state', { method: 'GET' })
-    if (gs?.themeType) {
-      // City theme removed from frontend; fall back safely for existing accounts.
-      game.themeType = gs.themeType === 'cityGreen' ? 'forest' : gs.themeType
-    }
+    game.themeType = 'forest'
     if (typeof gs?.sceneProgress === 'number') game.sceneProgress = gs.sceneProgress
     if (typeof gs?.coins === 'number') game.coins = gs.coins
+    game.lastActiveAt = typeof gs?.lastActiveAt === 'string' ? gs.lastActiveAt : ''
     if (typeof gs?.trees === 'number') game.trees = gs.trees
     if (typeof gs?.flowers === 'number') game.flowers = gs.flowers
     game.placements = gs?.placements || null
-    // Only treat as locked when backend explicitly says so.
-    // This ensures first-time users still see the Forest/Glacier selection.
     game.themeLocked = !!gs?.themeLocked
+
+    if (!options.skipForestEnsure && user.value?.username && !game.themeLocked) {
+      try {
+        await api('/api/scene/select', { method: 'POST', body: JSON.stringify({ type: 'forest' }) })
+      } catch {
+        // ignore — user may retry; avoids blocking gameplay
+      }
+      return refreshGameState({ skipForestEnsure: true })
+    }
+
     saveThemeCacheForUser(user.value?.username)
 
-    // Initialize tip milestones from existing placements so we don't spam tips
-    // when users already have a built scene.
     const items = Array.isArray(game.placements?.items) ? game.placements.items : []
     const treeCount = items.filter((x) => kindFromPlacementItem(x) === 'tree').length
     tipState.lastTreeMilestone = Math.floor(treeCount / 3) * 3
     tipState.lastGroundMilestone = 0
 
-    // Keep using existing progress endpoint for streak/level display
     const prog = await getProgress()
     if (prog) game.streak = prog.streak || 0
     syncShellFromGame()
-  } catch (e) {
-    // If this fails right after sign-in, we'd otherwise show ThemeSelect by mistake.
-    // Keep previous themeLocked instead of forcing it false.
+  } catch {
     return null
   }
 }
@@ -465,21 +484,7 @@ async function onResetGame() {
   } catch {
     // ignore
   }
-  onNavigate('theme')
-}
-
-async function onThemeSelected(type) {
-  if (type) game.themeType = type
-  game.themeLocked = true
-  saveThemeCacheForUser(user.value?.username)
-  // ensure theme_locked is reflected before entering game (prevents random bounces)
-  await refreshGameState()
-  onNavigate('game')
-}
-
-function onThemeSkipped() {
-  onNavigate('game')
-  refreshGameState()
+  onNavigate('home')
 }
 
 async function applyPlacementApi(url, body) {
@@ -503,7 +508,6 @@ async function onPlace(p) {
   // Optimistic UX: show placement immediately, then reconcile with backend.
   let rollback = null
   try {
-    const prevPlacements = game.placements
     const itemId = String(p?.itemId || '')
     const type = String(p?.type || '')
     if (!itemId || !type) return
@@ -516,7 +520,7 @@ async function onPlace(p) {
       if (col != null && row != null) {
         const inCell = items.filter((it) => it && it.col === col && it.row === row && kindFromPlacementItem(it) === 'flower')
         if (inCell.length >= 4) {
-          showToast('🌸 This tile’s corners are full (max 4 flora per tile).')
+          showToast('Whoops — that patch is blooming to the brim (four flowers max). Try the next tile over.')
           return
         }
       }
@@ -530,7 +534,7 @@ async function onPlace(p) {
       if (col != null && row != null) {
         const treesInCell = items.filter((it) => it && it.col === col && it.row === row && kindFromPlacementItem(it) === 'tree')
         if (treesInCell.length >= 1) {
-          showToast('🌳 This tile already has a tree (max 1 tree per tile).')
+          showToast('Spot taken — only one centerpiece tree fits here. Shuffle to a fresh diamond.')
           return
         }
       }
@@ -548,6 +552,14 @@ async function onPlace(p) {
 
     const prevCoins = Number(game.coins || 0)
     const prevItemsSnapshot = Array.isArray(game.placements.items) ? [...game.placements.items] : []
+    if (optimisticCost > 0 && prevCoins < optimisticCost) {
+      showToast(
+        'Coin pouch too light for that splurge — swing by Daily Tasks or the Quiz for a refill, then plant away.',
+        'Need more coins',
+        6200
+      )
+      return
+    }
     rollback = () => {
       if (game.placements && Array.isArray(game.placements.items)) {
         game.placements.items = game.placements.items.filter((it) => it?._optimistic !== optimisticId)
@@ -561,28 +573,39 @@ async function onPlace(p) {
       game.coins = Math.max(0, prevCoins - optimisticCost)
       syncShellFromGame()
     }
-    const buyRes = await fetch('/api/shop/buy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ item: type, qty: 1, itemId }),
-    }).then((r) => r.json())
-    if (buyRes?.error) throw new Error(buyRes.error)
-    // reflect coins immediately
-    if (typeof buyRes?.coins === 'number') {
-      game.coins = buyRes.coins
-      syncShellFromGame()
+    await nextTick()
+
+    if (optimisticCost > 0) {
+      // Keep compatibility with the original backend:
+      // 1) buy from shop, 2) place into scene.
+      const buyRes = await fetch('/api/shop/buy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ item: type, qty: 1, itemId }),
+      }).then((r) => r.json())
+      if (buyRes?.error) throw new Error(buyRes.error)
+      if (typeof buyRes?.coins === 'number') {
+        game.coins = buyRes.coins
+        syncShellFromGame()
+      }
+      const placed = await applyPlacementApi('/api/scene/place', p)
+      if (!placed) throw new Error('PLACE_FAILED')
+    } else {
+      const placed = await applyPlacementApi('/api/scene/place', p)
+      if (!placed) throw new Error('PLACE_FAILED')
     }
-    const placed = await applyPlacementApi('/api/scene/place', p)
-    if (!placed) throw new Error('PLACE_FAILED')
-    // Tips: based on placement deltas (trees/ground/life)
-    maybeEmitPlacementTips(prevPlacements, game.placements, p)
+    // Tips: compare snapshots — game.placements is mutated in place during optimistic UX,
+    // so use prevItemsSnapshot (items before this place) vs authoritative server placements.
+    maybeEmitPlacementTips({ items: prevItemsSnapshot }, game.placements, p)
   } catch (e) {
     rollback?.()
     const msg = String(e?.message || '')
-    if (msg === 'INSUFFICIENT_COINS')
-      alert('Not enough Climate Action Coins. Complete Daily Tasks or the Daily Quiz to earn more, then place again.')
-    else alert(`Place failed: ${msg || 'unknown'}`)
+    if (msg === 'INSUFFICIENT_COINS') {
+      showToast('Still short on coins — bag a few from Tasks or the Quiz, then swing back.', 'Need more coins', 6200)
+    } else {
+      showToast(String(msg || 'That plant did not stick — quick retry?'), 'Heads-up')
+    }
   }
 }
 
@@ -608,7 +631,7 @@ const showSidebar = computed(() => !viewsWithoutSidebar.has(currentView.value))
 
 const titleLines = ['The Climate is Changing', 'So Can You']
 const subtitle =
-  'Turn Your Daily Choices into a Force of Nature. Restore Glaciers. Regrow Forests. Reclaim the Earth - One Green Action at a Time.'
+  'Turn Your Daily Choices into a Force of Nature. Regrow Forests and Protect Wildlife. Reclaim the Earth — One Green Action at a Time.'
 const ctaText = 'Start Your Quest'
 
 const user = ref(null)
@@ -710,8 +733,7 @@ async function submitRegister() {
     resetThemeState()
     clearThemeCacheForUser(data.user?.username)
     await refreshGameState()
-    // Force new accounts to pick a theme (Forest / Glacier)
-    onNavigate(game.themeLocked ? 'game' : 'theme')
+    onNavigate('dashboard')
   } catch (e) {
     const msg = String(e?.message || 'Register failed')
     // English UX requirement:
@@ -738,7 +760,7 @@ async function submitSignin() {
     resetThemeState()
     loadThemeCacheForUser(data.user?.username)
     await refreshGameState()
-    onNavigate(game.themeLocked ? 'game' : 'theme')
+    onNavigate('dashboard')
   } catch (e) {
     const msg = String(e?.message || 'Login failed')
     // UX requirement:
@@ -815,7 +837,7 @@ async function submitUsername() {
 
 function onCta() {
   errorMsg.value = ''
-  if (user.value) onNavigate(game.themeLocked ? 'game' : 'theme')
+  if (user.value) onNavigate('dashboard')
   else authOpen.value = true
 }
 

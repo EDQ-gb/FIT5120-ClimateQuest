@@ -8,7 +8,7 @@
  *   GET  /api/tasks
  *   POST /api/tasks/:id/complete
  *   GET  /api/scene
- *   POST /api/scene/select        body: { type: 'forest'|'glacier' }
+ *   POST /api/scene/select        body: { type: 'forest' }
  *   GET  /api/quiz
  *   POST /api/quiz/submit          body: { idx, answer }
  *   GET  /api/progress
@@ -159,14 +159,6 @@ export async function completeTask(id) {
 export async function getScene() {
   try { return await req('/api/scene') }
   catch { return getSceneState() }
-}
-
-export async function selectScene(type) {
-  try {
-    return await req('/api/scene/select', { method: 'POST', body: JSON.stringify({ type }) })
-  } catch {
-    const scene = getSceneState(); scene.type = type; set(K.scene, scene); return scene
-  }
 }
 
 export async function getProgress() {

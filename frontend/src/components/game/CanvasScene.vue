@@ -16,7 +16,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getTheme, getItemById } from '../../game/assets/catalog.js'
 
 const props = defineProps({
-  themeType: { type: String, default: 'forest' }, // forest|glacier
+  themeType: { type: String, default: 'forest' },
   progress: { type: Number, default: 0 }, // 0..100
   trees: { type: Number, default: 0 }, // minimal v1
   flowers: { type: Number, default: 0 }, // minimal v1
@@ -82,13 +82,7 @@ function drawTinted(ctx, img, x, y, w, h, tint) {
   ctx.globalCompositeOperation = 'source-over'
 }
 
-const label = computed(
-  () =>
-    ({
-      forest: '🌲 Rainforest',
-      glacier: '❄️ Polar Glacier',
-    })[props.themeType] || '🌍 Scene'
-)
+const label = computed(() => '🌲 Rainforest Quest')
 
 function lerp(a, b, t) {
   return a + (b - a) * t
@@ -132,6 +126,22 @@ function drawForest(ctx, W, H, p, trees, flowers) {
   ctx.fillStyle = skyG
   ctx.fillRect(0, 0, W, H)
 
+  if (p > 15) {
+    const b = Math.min(1, (p - 15) / 50)
+    const sg = ctx.createRadialGradient(W * 0.72, H * 0.12, 0, W * 0.72, H * 0.12, 70)
+    sg.addColorStop(0, `rgba(255,238,170,${0.16 + b * 0.28})`)
+    sg.addColorStop(0.4, `rgba(255,216,132,${0.1 + b * 0.14})`)
+    sg.addColorStop(1, 'rgba(255,200,120,0)')
+    ctx.fillStyle = sg
+    ctx.beginPath()
+    ctx.arc(W * 0.72, H * 0.12, 70, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = `rgba(255,246,214,${0.45 + b * 0.18})`
+    ctx.beginPath()
+    ctx.arc(W * 0.72, H * 0.12, 13, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
   ctx.fillStyle = lerpColor('#16231c', '#3d6350', pn)
   ctx.beginPath()
   ctx.moveTo(0, H * 0.55)
@@ -172,6 +182,15 @@ function drawForest(ctx, W, H, p, trees, flowers) {
     }
   }
 
+  if (p < 40) {
+    const mg = ctx.createLinearGradient(0, H * 0.55, 0, H * 0.75)
+    mg.addColorStop(0, 'rgba(20,30,20,0)')
+    mg.addColorStop(0.5, `rgba(8,18,8,${0.35 * (1 - p / 40)})`)
+    mg.addColorStop(1, 'rgba(4,10,4,0)')
+    ctx.fillStyle = mg
+    ctx.fillRect(0, H * 0.55, W, H * 0.2)
+  }
+
   drawHUD(ctx, W, H, '🌲', p)
 }
 
@@ -201,57 +220,6 @@ function drawTree(ctx, x, baseY, sz, pn) {
   ctx.restore()
 }
 
-function drawGlacier(ctx, W, H, p) {
-  const pn = p / 100
-  const sg = ctx.createLinearGradient(0, 0, 0, H * 0.5)
-  sg.addColorStop(0, lerpColor('#0e1220', '#1a2a42', pn))
-  sg.addColorStop(1, lerpColor('#0f1c2c', '#2f5b86', pn))
-  ctx.fillStyle = sg
-  ctx.fillRect(0, 0, W, H)
-
-  const seaG = ctx.createLinearGradient(0, H * 0.45, 0, H)
-  seaG.addColorStop(0, lerpColor('#0f2234', '#1d4e7b', pn))
-  seaG.addColorStop(1, lerpColor('#081321', '#0f2a44', pn))
-  ctx.fillStyle = seaG
-  ctx.fillRect(0, H * 0.45, W, H)
-
-  ctx.fillStyle = lerpColor('#132433', '#d7ebf7', pn)
-  ctx.beginPath()
-  ctx.moveTo(0, H * 0.52)
-  ctx.bezierCurveTo(W * 0.22, H * 0.44, W * 0.48, H * 0.5, W * 0.56, H * 0.47)
-  ctx.bezierCurveTo(W * 0.72, H * 0.43, W * 0.88, H * 0.5, W, H * 0.48)
-  ctx.lineTo(W, H)
-  ctx.lineTo(0, H)
-  ctx.closePath()
-  ctx.fill()
-  drawHUD(ctx, W, H, '❄️', p)
-}
-
-function drawDesert(ctx, W, H, p) {
-  const pn = p / 100
-  const skyG = ctx.createLinearGradient(0, 0, 0, H * 0.55)
-  skyG.addColorStop(0, lerpColor('#211617', '#3a2830', pn))
-  skyG.addColorStop(1, lerpColor('#c08a62', '#e2b07a', pn))
-  ctx.fillStyle = skyG
-  ctx.fillRect(0, 0, W, H)
-
-  const sunG = ctx.createRadialGradient(W * 0.68, H * 0.14, 0, W * 0.68, H * 0.14, 70)
-  sunG.addColorStop(0, `rgba(255,200,60,${0.3 + pn * 0.5})`)
-  sunG.addColorStop(0.5, `rgba(255,140,10,${0.15 + pn * 0.25})`)
-  sunG.addColorStop(1, 'rgba(255,80,0,0)')
-  ctx.fillStyle = sunG
-  ctx.beginPath()
-  ctx.arc(W * 0.68, H * 0.14, 70, 0, Math.PI * 2)
-  ctx.fill()
-
-  const sandG = ctx.createLinearGradient(0, H * 0.5, 0, H)
-  sandG.addColorStop(0, lerpColor('#3b2a1a', '#e0c49a', pn))
-  sandG.addColorStop(1, lerpColor('#24170e', '#b38b5a', pn))
-  ctx.fillStyle = sandG
-  ctx.fillRect(0, H * 0.5, W, H * 0.5)
-  drawHUD(ctx, W, H, '🌵', p)
-}
-
 function draw() {
   const canvas = cvs.value
   if (!canvas) return
@@ -267,8 +235,7 @@ function draw() {
   const W = cw
   const H = ch
   const p = Math.max(0, Math.min(100, props.progress || 0))
-  if (props.themeType === 'glacier') drawGlacier(ctx, W, H, p)
-  else drawForest(ctx, W, H, p, props.trees, props.flowers)
+  drawForest(ctx, W, H, p, props.trees, props.flowers)
 
   // Draw placements as sprites (minimal overlay layer)
   const items = Array.isArray(props.placements?.items) ? props.placements.items : []
@@ -280,7 +247,7 @@ function draw() {
     if (!img || !img.complete) continue
     const seed = placementSeed(it)
     const pos = stablePos(i, W, H, seed)
-    const size = def.kind === 'ground' ? 72 : def.kind === 'ice' ? 84 : 96
+    const size = def.kind === 'ground' ? 72 : 96
     const x = pos.x - size / 2
     const y = pos.y - size * 0.85
     drawTinted(ctx, img, x, y, size, size, def.tint)

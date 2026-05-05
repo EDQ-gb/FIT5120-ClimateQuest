@@ -3,13 +3,15 @@
   --glass-bg: rgba(255, 255, 255, 0.1);
   --glass-border: rgba(255, 255, 255, 0.2);
   --text-color: #ffffff;
+  /* Rounded, playful UI type — reads well at small sizes */
+  --font-game: "Fredoka", "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-family: var(--font-game);
 }
 
 html,
@@ -313,7 +315,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 50;
+  /* Above SceneBuilderShell top bar (z-index 100) so Login / menus stay clickable */
+  z-index: 5000;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -332,10 +335,6 @@ body {
 .app-shell[data-theme='forest'] {
   --app-bg: #0f1713;
   --primary-accent: #7fd6c9;
-}
-.app-shell[data-theme='glacier'] {
-  --app-bg: #0d1520;
-  --primary-accent: #a8d8ff;
 }
 
 .shell-main {

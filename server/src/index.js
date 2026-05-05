@@ -337,6 +337,31 @@ function dayIdx() {
   return new Date().getDate() % QUIZ_BANK.length;
 }
 
+/** Single source for shop pricing (used by /api/shop/buy). */
+const SHOP_PRICE_BY_ITEM_ID = {
+  forest_tree_a: 20,
+  forest_tree_b: 20,
+  forest_flower_a: 12,
+  forest_flower_b: 12,
+  forest_grass_a: 8,
+  forest_grass_b: 10,
+  city_pave_a: 10,
+  city_pave_b: 10,
+  city_tree_a: 45,
+  city_tree_b: 40,
+  city_flower_a: 12,
+  city_flower_b: 12,
+};
+const SHOP_KIND_DEFAULT_PRICE = { tree: 20, flower: 12, ground: 8, decor: 15 };
+
+function shopUnitPurchasePrice(itemKind, itemIdStr) {
+  const id = itemIdStr ? String(itemIdStr) : "";
+  if (id && Object.prototype.hasOwnProperty.call(SHOP_PRICE_BY_ITEM_ID, id)) {
+    return Number(SHOP_PRICE_BY_ITEM_ID[id]);
+  }
+  return Number(SHOP_KIND_DEFAULT_PRICE[itemKind] ?? 15);
+}
+
 function adminSecretMatches(provided) {
   const secret = process.env.ADMIN_SECRET;
   if (!secret || typeof provided !== "string") return false;
@@ -591,6 +616,7 @@ app.post("/api/tasks/:id/complete", async (req, res, next) => {
        where user_id = ?`,
       [task.coins, task.coins, userId]
     );
+    await touchActive(userId);
 
     const st = await query(
       `select coins, xp, scene_progress from user_state where user_id = ?`,
@@ -654,7 +680,7 @@ app.post("/api/scene/select", async (req, res, next) => {
     if (!userId) return;
     await ensureUserState(userId);
     const type = String(req.body?.type || "").trim();
-    if (!["forest", "glacier", "cityGreen"].includes(type)) {
+    if (type !== "forest") {
       return res.status(400).json({ error: "INVALID_SCENE_TYPE" });
     }
     const cur = await query(
@@ -727,7 +753,7 @@ function placementsByThemeFromJson(raw, fallbackTheme) {
   if (v && typeof v === "object" && Array.isArray(v.items)) {
     return { [fallbackTheme]: { items: v.items } };
   }
-  // modern: { forest: {items:[]}, glacier: {...}, ... }
+  // keyed by theme name, e.g. { forest: { items: [...] } }
   return v && typeof v === "object" ? v : {};
 }
 
@@ -737,12 +763,36 @@ function getThemePlacements(byTheme, theme) {
   return byTheme[theme];
 }
 
+/** Forest-only client: merge placements from legacy scene_type buckets into `forest`. */
+async function migrateForestOnlyProfile(userId, st) {
+  const sceneType = String(st.scene_type || "forest").trim();
+  if (sceneType === "forest") return false;
+  const byTheme = placementsByThemeFromJson(st.placements_json, sceneType);
+  const mergedForest = getThemePlacements(byTheme, "forest");
+  const legacyBuckets = ["glacier", "cityGreen"];
+  const keys = new Set([...legacyBuckets, sceneType]);
+  keys.delete("forest");
+  for (const key of keys) {
+    const b = getThemePlacements(byTheme, key);
+    if (Array.isArray(b.items) && b.items.length) mergedForest.items.push(...b.items);
+    if (key !== "forest") delete byTheme[key];
+  }
+  await query(
+    `update user_state set scene_type = 'forest', placements_json = ? where user_id = ?`,
+    [JSON.stringify(byTheme), userId]
+  );
+  st.scene_type = "forest";
+  st.placements_json = JSON.stringify(byTheme);
+  return true;
+}
+
 function clampGrid(n, size) {
   const v = Number.isFinite(n) ? Math.trunc(n) : parseInt(n, 10);
   if (!Number.isFinite(v)) return null;
   return Math.max(0, Math.min(size - 1, v));
 }
 
+/** Charge + persist placement in one request (fewer RTTs vs shop/buy + scene/place). */
 app.post("/api/scene/place", async (req, res, next) => {
   try {
     const userId = requireAuth(req, res);
@@ -954,6 +1004,7 @@ app.post("/api/quiz/submit", async (req, res, next) => {
         [25, 25, userId]
       );
     }
+    await touchActive(userId);
 
     const st = await query(
       `select coins, scene_progress
@@ -1154,6 +1205,7 @@ app.get("/api/game/state", async (req, res, next) => {
       [userId]
     );
     const s = r.rows?.[0] || {};
+    await migrateForestOnlyProfile(userId, s);
 
     const decay = computeDecayDelta(s.last_active_at);
     if (decay.decayed) {
@@ -1219,33 +1271,12 @@ app.post("/api/shop/buy", async (req, res, next) => {
     const item = String(req.body?.item || "").trim();
     const itemId = req.body?.itemId ? String(req.body.itemId).trim() : "";
     const qty = clampInt(req.body?.qty, 1, 50);
-    if (!["tree", "flower", "ground", "ice", "decor"].includes(item)) {
+    if (!["tree", "flower", "ground", "decor"].includes(item)) {
       return res.status(400).json({ error: "INVALID_ITEM" });
     }
 
-    const PRICES_BY_ITEM_ID = {
-      forest_tree_a: 40,
-      forest_tree_b: 45,
-      forest_flower_a: 12,
-      forest_flower_b: 12,
-      forest_grass_a: 8,
-      forest_grass_b: 10,
-      glacier_ice_a: 35,
-      glacier_ice_b: 40,
-      glacier_snow_a: 10,
-      glacier_snow_b: 10,
-      city_pave_a: 10,
-      city_pave_b: 10,
-      city_tree_a: 45,
-      city_tree_b: 40,
-      city_flower_a: 12,
-      city_flower_b: 12,
-    };
-    const DEFAULT_KIND_PRICE = { tree: 40, flower: 12, ground: 8, ice: 35, decor: 15 };
-    // Allow new decorative itemIds without server redeploy:
-    // if itemId is unknown, fall back to kind-based price.
-    const price = itemId && itemId in PRICES_BY_ITEM_ID ? PRICES_BY_ITEM_ID[itemId] : DEFAULT_KIND_PRICE[item];
-    const cost = Number(price) * qty;
+    const unit = shopUnitPurchasePrice(item, itemId);
+    const cost = Number(unit) * qty;
 
     const r = await query(
       `select coins, trees, flowers

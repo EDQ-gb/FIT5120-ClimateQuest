@@ -2,7 +2,7 @@
   <div class="panel">
     <div class="row">
       <div class="hint">Spend Climate Action Coins to improve your environment.</div>
-      <div class="coins">🪙 {{ coins.toLocaleString() }}</div>
+      <div class="coins">{{ coins.toLocaleString() }} coins</div>
     </div>
 
     <div class="grid">
@@ -21,7 +21,7 @@
           <div class="name">{{ it.label }}</div>
           <div class="sub">
             <span class="badge">+{{ it.kind }}</span>
-            <span class="badge gold">🪙 {{ it.cost }}</span>
+            <span class="badge gold">{{ it.cost }} coins</span>
           </div>
         </div>
       </button>
