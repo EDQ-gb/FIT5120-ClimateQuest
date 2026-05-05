@@ -12,8 +12,7 @@
     <div v-else-if="board.length === 0" class="glass-card center-pad">
       <div style="font-size:2.2rem;margin-bottom:12px;">🌱</div>
       <div class="fw7 white">Be the first on the board!</div>
-      <div class="sub-text mt8">Complete tasks to earn coins and appear here.<br>The leaderboard requires the backend to
-        be connected.</div>
+      <div class="sub-text mt8">Rack up coins from tasks and quizzes to light this board up.<br>If it stays quiet, double-check your connection — the scoreboard loves good Wi-Fi.</div>
     </div>
 
     <template v-else>
@@ -48,8 +47,8 @@
     <div class="info-card mt20">
       <div class="info-title gold">🏆 How to climb the board</div>
       <p class="sub-text">
-        Complete daily tasks (+10–30 coins), answer the quiz correctly (+25 coins), and keep your streak going. Social
-        features and friend challenges expand in Iteration 2.
+        Stack coins from bite-sized eco tasks (+10–30 stash each), snag the quiz bonus (+25 on a crisp answer), and
+        guard that flame streak. More ways to duel friends land in a future season — for now flex on the main ladder.
       </p>
     </div>
   </div>

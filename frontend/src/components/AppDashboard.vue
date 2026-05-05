@@ -1,22 +1,32 @@
 <template>
   <div class="page">
 
+    <section class="guide-card" aria-label="Getting started">
+      <div class="guide-card__title">Your adventure path</div>
+      <ol class="guide-card__steps">
+        <li><strong>Quests &amp; brain battle</strong> — Tick off feel-good daily missions or nail the quiz to stack coins and juice your XP meter.</li>
+        <li><strong>My Scene</strong> — Splash those coins on trees, petals, and pals; every tap grows the wild corner you call yours.</li>
+        <li><strong>Dashboard HQ</strong> — Flex your streak, loot, CO₂ you have kept out of the air, and how lush your comeback is looking.</li>
+        <li><strong>Keep showing up</strong> — Ghost the app for too long and your forest might get a haircut; a quick visit brings the magic back.</li>
+      </ol>
+    </section>
+
     <!-- Stat cards -->
     <div class="grid-4">
       <div class="glass-card">
-        <div class="stat-label">Climate Action Coins</div>
+        <div class="stat-label">Climate Coins</div>
         <div class="stat-num" style="color:#00f2ff;">{{ (p.coins||0).toLocaleString() }}</div>
-        <div class="stat-sub">🪙 Total earned</div>
+        <div class="stat-sub">🪙 Your stash</div>
       </div>
       <div class="glass-card">
         <div class="stat-label">Streak</div>
         <div class="stat-num" style="color:#f4c430;">{{ p.streak||0 }}</div>
-        <div class="stat-sub">🔥 days in a row</div>
+        <div class="stat-sub">🔥 day win streak</div>
       </div>
       <div class="glass-card">
         <div class="stat-label">CO₂ Saved</div>
         <div class="stat-num" style="color:#52d496;">{{ ((p.co2Saved||0)/1000).toFixed(1) }}</div>
-        <div class="stat-sub">kg CO₂ reduced</div>
+        <div class="stat-sub">kg CO₂ you shifted</div>
       </div>
       <div class="glass-card">
         <div class="stat-label">Level</div>
@@ -34,7 +44,7 @@
           <div class="prog-track"><div class="prog-fill" :style="{ width: xpPct+'%', background:'linear-gradient(90deg,#7c3aed,#c084fc)' }"></div></div>
           <span class="prog-label" style="color:#c084fc;">Lv {{ (p.level||1)+1 }}</span>
         </div>
-        <div class="sub-text">{{ p.xpInLevel||0 }} / 200 XP to next level</div>
+        <div class="sub-text">{{ p.xpInLevel||0 }} / 200 XP to rank up</div>
 
         <div class="card-title mt16">Today's Tasks</div>
         <div class="prog-row">
@@ -42,7 +52,7 @@
           <span class="prog-label green">{{ p.todayDone||0 }} / {{ p.totalTasks||6 }}</span>
         </div>
 
-        <div class="card-title mt16">Scene Restore</div>
+        <div class="card-title mt16">Scene comeback</div>
         <div class="prog-row">
           <div class="prog-track" style="flex:1"><div class="prog-fill" :style="{ width: scenePct+'%', background:'linear-gradient(90deg,#0080aa,#00f2ff)' }"></div></div>
           <span class="prog-label" style="color:#00f2ff;">{{ scenePct }}%</span>
@@ -51,7 +61,7 @@
 
       <!-- Week chart -->
       <div class="glass-card">
-        <div class="card-title">Activity — Last 7 Days</div>
+        <div class="card-title">Last 7 days vibe</div>
         <div class="week-chart">
           <div v-for="d in (p.week||[])" :key="d.date" class="week-col">
             <div class="week-bar" :class="{ active: d.count > 0 }"
@@ -59,7 +69,7 @@
             <div class="week-label">{{ d.label }}</div>
           </div>
         </div>
-        <div class="sub-text">Bar height = tasks completed that day</div>
+        <div class="sub-text">Taller bar = more tasks crushed that day</div>
 
         <div class="card-title mt16">All-Time</div>
         <div style="display:flex;gap:16px;margin-top:4px;">
@@ -138,7 +148,11 @@ async function complete(id) {
     p.value.streak    = res.streak
     p.value.todayDone = (p.value.todayDone||0) + 1
     scene.value.progress = res.sceneProgress
-    emit('coins-updated')
+    emit('coins-updated', {
+      totalCoins: res.totalCoins,
+      streak: res.streak,
+      sceneProgress: res.sceneProgress,
+    })
   } finally { completing.value = null }
 }
 
@@ -147,6 +161,39 @@ onMounted(load)
 
 <style scoped>
 .page { display: flex; flex-direction: column; gap: 16px; }
+
+.guide-card {
+  background: rgba(0, 242, 255, 0.04);
+  border: 1px solid rgba(0, 242, 255, 0.22);
+  border-radius: 16px;
+  padding: 18px 20px;
+}
+.guide-card__title {
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(148, 240, 200, 0.95);
+  margin-bottom: 12px;
+}
+.guide-card__steps {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 0.8rem;
+  line-height: 1.58;
+  color: rgba(255, 255, 255, 0.82);
+}
+.guide-card__steps li {
+  margin-bottom: 8px;
+}
+.guide-card__steps li:last-child {
+  margin-bottom: 0;
+}
+.guide-card__steps strong {
+  color: rgba(148, 240, 200, 0.98);
+  font-weight: 700;
+}
+
 .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .glass-card {

@@ -23,36 +23,55 @@
       </div>
     </div>
 
-    <aside class="scene-stats-card" aria-label="Scene stats">
+    <aside class="scene-stats-card" aria-label="Your scene">
       <div class="scene-stats-row">
-        <span class="scene-stats-label">Climate Action Coins</span>
-        <b class="scene-stats-value">🪙 {{ coins.toLocaleString() }}</b>
+        <span class="scene-stats-label">Climate Coins</span>
+        <b class="scene-stats-value">{{ coins.toLocaleString() }}</b>
       </div>
       <div class="scene-stats-row">
-        <span class="scene-stats-label">Streak</span>
-        <b class="scene-stats-value">🔥 {{ streak }}d</b>
+        <span class="scene-stats-label">Hot streak</span>
+        <b class="scene-stats-value">{{ streak }} d</b>
       </div>
       <div class="scene-stats-row">
-        <span class="scene-stats-label">Placed</span>
+        <span class="scene-stats-label">On your map</span>
         <b class="scene-stats-value">{{ objectCount }}</b>
       </div>
+      <div v-if="decayReminder" class="scene-hint scene-hint--decay">{{ decayReminder }}</div>
+      <div v-if="lowCoinsReminder" class="scene-hint scene-hint--coins">{{ lowCoinsReminder }}</div>
     </aside>
 
     <!-- MAIN -->
     <div class="main">
+      <div v-if="showSceneGuide" class="scene-guide-banner" role="region" aria-label="Quick tips">
+        <div class="scene-guide-banner__body">
+          <div class="scene-guide-banner__title">Your rainforest toolkit</div>
+          <ol class="scene-guide-banner__steps">
+            <li>Stay on <strong>Place</strong>, tap a buddy in the left drawer, then <strong>tap the ground</strong> where you want them.</li>
+            <li>Fancy a new tree? Price tags sit on each row — short on coins? Quest through <strong>Tasks</strong> or <strong>Quiz</strong> up top.</li>
+            <li>Switch to <strong>Del</strong> and boop a tile to clear what is sitting on top there.</li>
+            <li><strong>Scroll</strong> to zoom in tight or out wide; <strong>right-drag</strong> scoots the whole world.</li>
+          </ol>
+        </div>
+        <button type="button" class="scene-guide-banner__dismiss" @click="dismissSceneGuide">Cool, hide this</button>
+      </div>
+
+      <div class="main-inner">
       <!-- LEFT PALETTE -->
       <div class="palette">
         <div class="mode-row">
-          <div class="mode-btn" :class="{ active: mode === 'place' }" @click="setMode('place')">✏️ Place</div>
-          <div class="mode-btn del" :class="{ active: mode === 'delete' }" @click="setMode('delete')">✕ Del</div>
+          <div class="mode-btn" :class="{ active: mode === 'place' }" @click="setMode('place')">Plant</div>
+          <div class="mode-btn del" :class="{ active: mode === 'delete' }" @click="setMode('delete')">Remove</div>
+        </div>
+        <div class="palette-mini-hint">
+          Glide over the map — green glow means “this spot is yours.” Tap to plant or tidy up.
         </div>
 
-        <div class="palette-header">Objects · Click to Select</div>
+        <div class="palette-header">Loot · pick your piece</div>
         <div class="palette-scroll">
           <div v-for="cat in paletteCats" :key="cat.key">
             <div class="category-label">
               <div>{{ cat.label }}</div>
-              <div class="category-cost">🪙 {{ kindCost(cat.key) }}</div>
+              <div class="category-cost">{{ kindCost(cat.key) }} coins</div>
             </div>
             <div class="tile-grid">
               <button
@@ -61,9 +80,10 @@
                 class="tile-btn"
                 type="button"
                 :class="{ selected: selectedItemId === it.id }"
+                :aria-label="it.label"
                 @click="selectItem(it.id)"
               >
-                <img :src="it.src" :alt="it.label" />
+                <img :src="it.src" alt="" decoding="async" draggable="false" />
                 <div class="tile-name">{{ it.label }}</div>
               </button>
             </div>
@@ -73,28 +93,48 @@
 
       <!-- CANVAS -->
       <div class="canvas-area">
-        <canvas ref="gameCanvas"></canvas>
+        <canvas
+          ref="gameCanvas"
+          class="cq-scene-canvas"
+          title=""
+          aria-label="Rainforest map"
+          role="img"
+        ></canvas>
         <!-- minimap removed (too big/noisy); can be re-added later -->
-        <div class="tooltip" :class="{ show: tooltip.show }" :style="tooltipStyle">{{ tooltip.text }}</div>
-        <div v-if="toastShow && toastText" class="toast" role="status" aria-live="polite">
-          {{ toastText }}
-        </div>
+        <transition name="toast-fade">
+          <div
+            v-if="toastShow && toastText"
+            class="toast-overlay"
+            role="dialog"
+            aria-modal="true"
+            :aria-labelledby="toastTitle ? 'cq-toast-title' : undefined"
+            aria-describedby="cq-toast-body"
+            @click.self="$emit('toast-dismiss')"
+          >
+            <div class="toast-card">
+              <div v-if="toastTitle" id="cq-toast-title" class="toast-title">{{ toastTitle }}</div>
+              <div id="cq-toast-body" class="toast-body" :class="{ 'toast-body--solo': !toastTitle }">{{ toastText }}</div>
+              <button type="button" class="toast-dismiss" @click="$emit('toast-dismiss')">Got it</button>
+            </div>
+          </div>
+        </transition>
+      </div>
       </div>
     </div>
 
     <!-- STATUS BAR -->
     <div class="statusbar">
-      <span>Mode: <b>{{ modeLabel }}</b></span>
-      <span>Selected: <b>{{ selectedLabel }}</b></span>
-      <span>Objects: <b>{{ objectCount }}</b></span>
-      <span>Grid: <b>{{ gridPosLabel }}</b></span>
+      <span>Tool: <b>{{ modeLabel }}</b></span>
+      <span>Holding: <b>{{ selectedLabel }}</b></span>
+      <span>Placed: <b>{{ objectCount }}</b></span>
+      <span>Tile: <b>{{ gridPosLabel }}</b></span>
     </div>
   </div>
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
-import { getTheme, getItemById, getItemByIdAnyTheme } from '../../game/assets/catalog.js'
+import { getTheme, getItemById, getItemByIdAnyTheme, TREE_COINS_COST } from '../../game/assets/catalog.js'
 import { createSceneBuilderCore } from '../../game/iso/sceneBuilderCore.js'
 
 const props = defineProps({
@@ -102,12 +142,15 @@ const props = defineProps({
   themeType: { type: String, default: 'forest' },
   coins: { type: Number, default: 0 },
   streak: { type: Number, default: 0 },
+  /** ISO time from `/api/game/state`; used for idle decay countdown. */
+  lastActiveAt: { type: String, default: '' },
   placements: { type: Object, default: null }, // { items: [...] }
   toastShow: { type: Boolean, default: false },
+  toastTitle: { type: String, default: '' },
   toastText: { type: String, default: '' },
 })
 
-const emit = defineEmits(['back', 'reset', 'logout', 'login', 'navigate', 'place', 'move', 'remove', 'refresh', 'activity'])
+const emit = defineEmits(['back', 'reset', 'logout', 'login', 'navigate', 'place', 'move', 'remove', 'refresh', 'activity', 'toast-dismiss'])
 
 const topNavItems = [
   { key: 'home', label: 'Home' },
@@ -131,36 +174,81 @@ const avatarBg = computed(() => {
   return `hsla(${h}, 85%, 45%, 0.85)`
 })
 
+const SCENE_GUIDE_KEY = 'cq_hideSceneTips'
+
 const gameCanvas = ref(null)
 const minimapCanvas = ref(null)
 let core = null
 
+const showSceneGuide = ref(typeof localStorage !== 'undefined' ? localStorage.getItem(SCENE_GUIDE_KEY) !== '1' : true)
+
+function dismissSceneGuide() {
+  showSceneGuide.value = false
+  try {
+    localStorage.setItem(SCENE_GUIDE_KEY, '1')
+  } catch (_) {
+    // ignore quota / privacy mode
+  }
+}
+
 const mode = ref('place') // place|delete
 const selectedItemId = ref('')
 const gridPos = reactive({ col: null, row: null })
-
-const tooltip = reactive({ show: false, x: 0, y: 0, text: '' })
-const tooltipStyle = computed(() => ({ left: `${tooltip.x}px`, top: `${tooltip.y}px` }))
 
 const theme = computed(() => getTheme(props.themeType))
 
 const paletteCats = computed(() => {
   const items = theme.value.items || []
   const groups = [
-    { key: 'tree', label: '🌳 Trees' },
-    { key: 'flower', label: '🌸 Flora' },
-    { key: 'decor', label: '🐾 Pets' },
+    { key: 'tree', label: 'Trees' },
+    { key: 'flower', label: 'Flowers' },
+    { key: 'decor', label: 'Decor & critters' },
   ]
   return groups
     .map((g) => ({ ...g, items: items.filter((x) => x.kind === g.key) }))
     .filter((g) => g.items.length > 0)
 })
 
+const TREE_PRICE = TREE_COINS_COST
+
 function kindCost(kind) {
-  if (kind === 'tree') return 40
+  if (kind === 'tree') return TREE_PRICE
   if (kind === 'flower') return 12
+  if (kind === 'decor') return 30
   return 0
 }
+
+/** Idle ≥3 days triggers decay; first tick can remove up to 3 trees (server `treesDelta`). */
+const IDLE_HOURS_BEFORE_DECAY = 72
+
+function formatRoughDaysEn(hoursLeft) {
+  if (hoursLeft <= 0) return null
+  if (hoursLeft < 24) return 'less than 1 day'
+  const days = Math.ceil(hoursLeft / 24)
+  return `${days} day${days === 1 ? '' : 's'}`
+}
+
+const decayReminder = computed(() => {
+  const raw = props.lastActiveAt
+  if (!raw) {
+    return 'Heads-up: go three days without playing (tasks or quiz) and nature might nibble your scene — up to a few trees could vanish on the first shake-up. Pop in today to keep the canopy happy.'
+  }
+  const last = new Date(raw).getTime()
+  if (!Number.isFinite(last)) return ''
+  const hoursIdle = Math.max(0, (Date.now() - last) / (3600 * 1000))
+  if (hoursIdle >= IDLE_HOURS_BEFORE_DECAY) {
+    return 'It has been a quiet while! Your jungle might be slimming down — say hi with a Task or Quiz round to wake things up again.'
+  }
+  const hoursLeft = IDLE_HOURS_BEFORE_DECAY - hoursIdle
+  const rough = formatRoughDaysEn(hoursLeft)
+  if (!rough) return ''
+  return `Roughly ${rough} before that “three sleepy days” timer — after that, storms can roll in and trim a few trees once. Quick Task or Quiz keeps the sunshine on your map.`
+})
+
+const lowCoinsReminder = computed(() => {
+  if (props.coins >= TREE_PRICE) return ''
+  return `Trees need ${TREE_PRICE} coins each right now. Go bag more from Tasks or Quiz, then come back and flex that wallet.`
+})
 
 function setMode(m) {
   mode.value = m
@@ -172,9 +260,9 @@ function selectItem(id) {
 
 const selectedLabel = computed(() => {
   const it = selectedItemId.value ? getItemById(props.themeType, selectedItemId.value) : null
-  return it?.id ? it.id : 'none'
+  return it?.label || it?.id || '— pick one!'
 })
-const modeLabel = computed(() => (mode.value === 'delete' ? 'Delete' : mode.value === 'move' ? 'Move' : 'Place'))
+const modeLabel = computed(() => (mode.value === 'delete' ? 'Remove' : mode.value === 'move' ? 'Move' : 'Plant'))
 
 const objectCount = computed(() => (Array.isArray(props.placements?.items) ? props.placements.items.length : 0))
 const gridPosLabel = computed(() => (gridPos.col == null ? '-' : `${gridPos.col},${gridPos.row}`))
@@ -203,16 +291,11 @@ onMounted(async () => {
     getSelectedItem: () => selectedItemId.value,
     getItemDefById: (id) => getItemById(props.themeType, id) || getItemByIdAnyTheme(id),
     getDefaultGroundItemId: () => null,
+    getPreloadSrcs: () => (theme.value.items || []).map((x) => x.src).filter(Boolean),
     getPlacements: () => props.placements || { items: [] },
     setGridPos: (col, row) => {
       gridPos.col = col
       gridPos.row = row
-    },
-    setTooltip: ({ show, x, y, text }) => {
-      tooltip.show = !!show
-      tooltip.x = x || 0
-      tooltip.y = y || 0
-      tooltip.text = text || ''
     },
     onPlace: ({ itemId, col, row }) => {
       const def = getItemById(props.themeType, itemId)
@@ -266,7 +349,7 @@ watch(
   flex-direction: column;
   overflow: hidden;
   color: #e8f5ee;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-family: 'Fredoka', 'Nunito', system-ui, sans-serif;
   background: #16261b;
 }
 
@@ -348,7 +431,8 @@ watch(
   top: calc(var(--sb-topbar-h) + 10px);
   right: 14px;
   z-index: 95;
-  min-width: 170px;
+  min-width: 200px;
+  max-width: min(320px, calc(100vw - 28px));
   display: grid;
   gap: 8px;
   padding: 10px 12px;
@@ -374,13 +458,106 @@ watch(
   font-size: 0.82rem;
   color: rgba(255, 255, 255, 0.95);
 }
+.scene-hint {
+  grid-column: 1 / -1;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.78);
+  padding: 8px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 2px;
+}
+.scene-hint--coins {
+  color: rgba(255, 214, 150, 0.95);
+  border-top-color: rgba(255, 200, 120, 0.2);
+}
 
 /* ── MAIN LAYOUT ── */
 .main {
+  position: relative;
   display: flex;
+  flex-direction: column;
   flex: 1;
   overflow: hidden;
   padding-top: var(--sb-topbar-h);
+}
+
+/* Float over the canvas so the map keeps the full viewport height (same as before the guide bar). */
+.scene-guide-banner {
+  position: absolute;
+  /* .main already has padding-top for the fixed topbar — avoid double offset */
+  top: 8px;
+  left: 12px;
+  right: 12px;
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(82, 212, 150, 0.35);
+  background: rgba(8, 22, 16, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+.scene-guide-banner__title {
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: rgba(148, 240, 200, 0.98);
+  margin-bottom: 6px;
+}
+.scene-guide-banner__steps {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.74rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.82);
+  max-width: min(920px, 100%);
+}
+.scene-guide-banner__steps li {
+  margin-bottom: 4px;
+}
+.scene-guide-banner__steps strong {
+  color: #7fe8bc;
+  font-weight: 700;
+}
+.scene-guide-banner__dismiss {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(82, 212, 150, 0.12);
+  color: rgba(200, 255, 224, 0.95);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease;
+  pointer-events: auto;
+}
+.scene-guide-banner__dismiss:hover {
+  background: rgba(82, 212, 150, 0.22);
+}
+
+.main-inner {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.palette-mini-hint {
+  padding: 6px 10px 8px;
+  font-size: 0.62rem;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.42);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 /* ── LEFT PALETTE ── */
@@ -538,38 +715,90 @@ canvas {
   cursor: crosshair;
 }
 
-/* ── TOOLTIP ── */
-.tooltip {
-  position: fixed;
-  background: rgba(0, 0, 0, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: 0.75rem;
-  pointer-events: none;
-  z-index: 85;
-  display: none;
-}
-.tooltip.show {
-  display: block;
+.toast-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(6, 12, 10, 0.42);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
 }
 
-.toast {
-  position: absolute;
-  left: 14px;
-  bottom: 14px;
-  max-width: min(560px, calc(100% - 28px));
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: rgba(255, 255, 255, 0.92);
-  font-size: 0.86rem;
-  line-height: 1.35;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
-  pointer-events: none;
+.toast-card {
+  width: min(420px, 100%);
+  padding: 20px 22px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(82, 212, 150, 0.35);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow:
+    0 0 0 1px rgba(82, 212, 150, 0.08),
+    0 20px 50px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.toast-title {
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: rgba(148, 240, 200, 0.98);
+  margin-bottom: 10px;
+}
+
+.toast-body {
+  font-size: 0.82rem;
+  line-height: 1.52;
+  color: rgba(255, 255, 255, 0.76);
+  white-space: pre-line;
+  max-height: min(52vh, 340px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.toast-body--solo {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.toast-dismiss {
+  margin-top: 16px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(82, 212, 150, 0.45);
+  background: rgba(82, 212, 150, 0.12);
+  color: rgba(148, 240, 200, 0.98);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.toast-dismiss:hover {
+  background: rgba(82, 212, 150, 0.22);
+  transform: translateY(-1px);
+}
+
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+  transition: opacity 0.22s ease;
+}
+.toast-fade-enter-active .toast-card,
+.toast-fade-leave-active .toast-card {
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.toast-fade-enter-from,
+.toast-fade-leave-to {
+  opacity: 0;
+}
+.toast-fade-enter-from .toast-card,
+.toast-fade-leave-to .toast-card {
+  transform: translateY(10px) scale(0.98);
 }
 
 /* ── STATUS BAR ── */
@@ -602,19 +831,6 @@ canvas {
 .theme-forest {
   background: radial-gradient(ellipse at center bottom, rgba(68, 150, 92, 0.55) 0%, rgba(18, 40, 24, 0.94) 72%);
 }
-.theme-glacier {
-  background: radial-gradient(ellipse at center bottom, rgba(88, 170, 210, 0.50) 0%, rgba(12, 22, 34, 0.95) 72%);
-}
-
-.theme-glacier .palette {
-  background: rgba(0, 0, 0, 0.42);
-  border-right-color: rgba(180, 240, 255, 0.14);
-}
-.theme-glacier .mode-btn.active {
-  border-color: rgba(127, 233, 255, 0.9);
-  color: rgba(127, 233, 255, 0.95);
-  background: rgba(127, 233, 255, 0.14);
-}
 
 @media (max-width: 860px) {
   .sb-root {
@@ -643,7 +859,8 @@ canvas {
   .scene-stats-card {
     top: calc(var(--sb-topbar-h) + 8px);
     right: 10px;
-    min-width: 150px;
+    min-width: min(200px, calc(100vw - 92px));
+    max-width: min(320px, calc(100vw - 20px));
     gap: 6px;
     padding: 8px 10px;
   }

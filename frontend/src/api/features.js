@@ -8,7 +8,7 @@
  *   GET  /api/tasks
  *   POST /api/tasks/:id/complete
  *   GET  /api/scene
- *   POST /api/scene/select        body: { type: 'forest'|'glacier' }
+ *   POST /api/scene/select        body: { type: 'forest' }
  *   GET  /api/quiz
  *   POST /api/quiz/submit          body: { idx, answer }
  *   GET  /api/progress
@@ -129,7 +129,11 @@ function calcTotals(completions) {
 export async function getTasks() {
   try {
     return await req('/api/tasks')
-  } catch {
+  } catch (e) {
+    // Only fall back when the backend route truly doesn't exist.
+    // For auth/network/server errors we should surface the failure so users don't
+    // "earn" coins that never reach the database.
+    if (String(e?.message || '') !== 'NOT_FOUND') throw e
     const done = (getCompletions()[today()] || [])
     return TASKS.map(t => ({ ...t, completed: done.includes(t.id) }))
   }
@@ -138,7 +142,8 @@ export async function getTasks() {
 export async function completeTask(id) {
   try {
     return await req(`/api/tasks/${id}/complete`, { method: 'POST' })
-  } catch {
+  } catch (e) {
+    if (String(e?.message || '') !== 'NOT_FOUND') throw e
     const task = TASKS.find(t => t.id === id)
     if (!task) return { error: 'Task not found' }
     const completions = getCompletions()
@@ -158,21 +163,17 @@ export async function completeTask(id) {
 
 export async function getScene() {
   try { return await req('/api/scene') }
-  catch { return getSceneState() }
-}
-
-export async function selectScene(type) {
-  try {
-    return await req('/api/scene/select', { method: 'POST', body: JSON.stringify({ type }) })
-  } catch {
-    const scene = getSceneState(); scene.type = type; set(K.scene, scene); return scene
+  catch (e) {
+    if (String(e?.message || '') !== 'NOT_FOUND') throw e
+    return getSceneState()
   }
 }
 
 export async function getProgress() {
   try {
     return await req('/api/progress')
-  } catch {
+  } catch (e) {
+    if (String(e?.message || '') !== 'NOT_FOUND') throw e
     const completions = getCompletions()
     const done  = (completions[today()] || []).length
     const xp    = getXp()
@@ -190,7 +191,8 @@ export async function getProgress() {
 
 export async function getQuiz() {
   try { return await req('/api/quiz') }
-  catch {
+  catch (e) {
+    if (String(e?.message || '') !== 'NOT_FOUND') throw e
     const idx = dayIdx()
     const q = { ...QUIZ_BANK[idx] }; delete q.ans; delete q.exp
     return { question: q, completed: !!getQuizLog()[today()], idx }
@@ -200,7 +202,8 @@ export async function getQuiz() {
 export async function submitQuiz(idx, answer) {
   try {
     return await req('/api/quiz/submit', { method: 'POST', body: JSON.stringify({ idx, answer }) })
-  } catch {
+  } catch (e) {
+    if (String(e?.message || '') !== 'NOT_FOUND') throw e
     const log = getQuizLog()
     if (log[today()]) return { error: 'Already completed today' }
     log[today()] = true; set(K.quizLog, log)
@@ -225,5 +228,8 @@ export async function submitQuiz(idx, answer) {
 
 export async function getLeaderboard() {
   try { return await req('/api/leaderboard') }
-  catch { return [] } // No mock for leaderboard — needs real backend data
+  catch (e) {
+    if (String(e?.message || '') !== 'NOT_FOUND') throw e
+    return [] // No mock for leaderboard — needs real backend data
+  }
 }

@@ -9,6 +9,12 @@
     </div>
     <div class="prog-track mb16"><div class="prog-fill" :style="{ width: pct+'%' }"></div></div>
 
+    <div class="tasks-guide" role="note">
+      <strong>Real science, real loot:</strong>
+      each win uses official Aussie carbon math, so your totals mean something — not just made-up points.
+      Give a task a minute now, then sprint to My Scene while the win still feels warm.
+    </div>
+
     <div v-if="loading" class="center-pad"><div class="spin"></div></div>
 
     <template v-else>
@@ -34,7 +40,7 @@
 
     <div class="info-card">
       <div class="info-title">💡 About these tasks</div>
-      <p class="info-body">Each task links to real CO₂ savings using the Australian Government's NGA Emission Factors. "Walk or cycle a trip" saves ~340g CO₂ — a scientifically grounded figure, not a gamification estimate.</p>
+      <p class="info-body">Every mission is hooked to real-world CO₂ vibes (think walk-instead-of-drive ≈ 340 g saved). Numbers come from Australia’s official emission recipe book — not fluff. Need tree money? Knock out a few tasks, spin the quiz if it is open, then spoil your map.</p>
     </div>
   </div>
 </template>
@@ -99,6 +105,24 @@ onMounted(async () => {
 }
 .prog-track { background:rgba(255,255,255,0.1);border-radius:99px;height:7px;overflow:hidden; }
 .prog-fill  { height:100%;border-radius:99px;transition:width .6s;background:linear-gradient(90deg,#2d6a4f,#52d496); }
+.tasks-guide {
+  font-size: .8rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.58);
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(82, 212, 150, 0.2);
+  background: rgba(82, 212, 150, 0.06);
+  margin-bottom: 4px;
+}
+.tasks-guide strong {
+  display: block;
+  font-size: 0.78rem;
+  color: rgba(148, 240, 200, 0.95);
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+
 .task-card  { display:flex;align-items:center;gap:14px;padding:16px 18px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:14px;transition:opacity .3s; }
 .task-card.done { opacity:.5;border-color:rgba(255,255,255,0.05); }
 .task-icon  { width:44px;height:44px;border-radius:10px;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0; }

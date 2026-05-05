@@ -101,13 +101,7 @@ const navItems = [
   { key: 'leaderboard', icon: '🏆', label: 'Leaderboard' },
 ]
 
-const title = computed(
-  () =>
-    ({
-      forest: 'Rainforest Quest',
-      glacier: 'Glacier Quest',
-    })[props.themeType] || 'ClimateQuest'
-)
+const title = computed(() => 'Rainforest Quest')
 
 const drawerTitle = computed(() => {
   const m = {

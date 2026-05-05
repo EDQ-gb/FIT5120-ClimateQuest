@@ -26,7 +26,7 @@
           </div>
           <button class="submit-btn" :disabled="selected===null||submitting" @click="submit">
             <div v-if="submitting" class="spin sm"></div>
-            <span v-else>Submit Answer</span>
+            <span v-else>Lock in my pick</span>
           </button>
           <div v-if="result" class="quiz-result" :class="result.correct?'correct':'wrong'">
             <strong>{{ result.correct ? '✓ Correct! +25 coins' : '✗ Not quite' }}</strong><br><br>
@@ -43,18 +43,21 @@
 
       <!-- Info panel -->
       <div>
-        <h3 class="page-h3 mb16">Why Quiz?</h3>
+        <p class="quiz-intro-callout mb16">
+          One juicy question stands between you and bonus coins + a greener scene today. Peek at each choice — winners walk away smarter for school and Saturday alike.
+        </p>
+        <h3 class="page-h3 mb16">Why play?</h3>
         <div class="glass-card mb12">
-          <div class="info-title green">🧠 Real climate literacy</div>
-          <p class="sub-text">Questions are grounded in Australian climate data and policy — not generic trivia.</p>
+          <div class="info-title green">🧠 Power-up your know-how</div>
+          <p class="sub-text">Scenarios sip real Australian climate juice, not random pub-quiz filler.</p>
         </div>
         <div class="glass-card mb12">
-          <div class="info-title cyan">🪙 Earn Climate Action Coins</div>
-          <p class="sub-text">Answer correctly to earn 25 coins and boost your scene progress by +3%.</p>
+          <div class="info-title cyan">🪙 Coin shower</div>
+          <p class="sub-text">Nail it for +25 coins and a sweet +3% bump toward your scene’s comeback bar.</p>
         </div>
         <div class="glass-card">
-          <div class="info-title gold">📅 Daily refresh</div>
-          <p class="sub-text">A new question every day from our climate knowledge bank of 7 questions.</p>
+          <div class="info-title gold">📅 Fresh daily</div>
+          <p class="sub-text">Seven rotating boss questions — tomorrow always brings a new one.</p>
         </div>
       </div>
     </div>
@@ -113,6 +116,16 @@ onMounted(async () => {
 .page { display:flex;flex-direction:column;gap:16px; }
 .page-top { display:flex;justify-content:flex-end; }
 .grid-2 { display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start; }
+.quiz-intro-callout {
+  font-size: .84rem;
+  line-height: 1.52;
+  color: rgba(255, 255, 255, 0.72);
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 242, 255, 0.2);
+  background: rgba(0, 242, 255, 0.05);
+}
 .page-h3 { font-size:1rem;font-weight:700;color:#fff; }
 .coins-pill {
   padding: 4px 10px;
