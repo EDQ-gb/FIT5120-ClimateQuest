@@ -15,6 +15,7 @@
       @login="onLogin"
       @start="onCta"
     />
+    <HomeActivityStrip v-if="currentView === 'home' && user" @updated="onHomeActivityUpdated" />
 
     <!-- ════════════════════════════════════════════════════
          THEME SELECT (after landing CTA)
@@ -173,6 +174,14 @@
               </div>
             </div>
 
+            <div class="menu-privacy">
+              <label class="menu-check">
+                <input v-model="profilePublicLocal" type="checkbox" @change="onProfileVisibilityChange" />
+                <span>Appear on the public leaderboard</span>
+              </label>
+              <p class="menu-hint">When off, your profile is hidden from the Top Champions list.</p>
+            </div>
+
             <div class="menu-actions">
               <button type="button" class="menu-btn" @click="openUsernameModal">Edit username</button>
               <button type="button" class="menu-btn menu-btn-danger" @click="onLogout">Sign out</button>
@@ -214,7 +223,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 
 import AppSidebar from './components/AppSidebar.vue'
 import AppDashboard from './components/AppDashboard.vue'
@@ -224,6 +233,7 @@ import AppQuiz from './components/AppQuiz.vue'
 import AppLeaderboard from './components/AppLeaderboard.vue'
 import AppThemeSelect from './components/AppThemeSelect.vue'
 import AppLandingV2 from './components/AppLandingV2.vue'
+import HomeActivityStrip from './components/HomeActivityStrip.vue'
 import SceneBuilderShell from './components/game/SceneBuilderShell.vue'
 import { getProgress } from './api/features.js'
 import { getItemByIdAnyTheme } from './game/assets/catalog.js'
@@ -370,6 +380,24 @@ const shellStreak = ref(0)
 function syncShellFromGame() {
   shellCoins.value = game.coins || 0
   shellStreak.value = game.streak || 0
+}
+
+function onHomeActivityUpdated() {
+  refreshShellStats()
+}
+
+async function onProfileVisibilityChange() {
+  if (!user.value) return
+  const prev = user.value.profilePublic !== false
+  try {
+    const data = await api('/api/auth/profile', {
+      method: 'PATCH',
+      body: JSON.stringify({ profilePublic: profilePublicLocal.value }),
+    })
+    user.value = data.user
+  } catch {
+    profilePublicLocal.value = prev
+  }
 }
 
 async function refreshShellStats(payload = null) {
@@ -619,6 +647,16 @@ const menuOpen = ref(false)
 const usernameOpen = ref(false)
 const newUsername = ref('')
 const usernameError = ref('')
+const profilePublicLocal = ref(true)
+
+watch(
+  () => user.value,
+  (u) => {
+    if (u && typeof u.profilePublic === 'boolean') profilePublicLocal.value = u.profilePublic
+    else if (!u) profilePublicLocal.value = true
+  },
+  { immediate: true }
+)
 
 const form = reactive({ username: '', displayName: '' })
 
