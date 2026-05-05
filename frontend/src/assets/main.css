@@ -21,6 +21,7 @@ body,
   height: 100%;
 }
 
+
 body {
   overflow: hidden;
 }
@@ -356,6 +357,7 @@ body {
   width: 100%;
   background-image: none;
   background-color: var(--app-bg, #101416);
+  font-size: 1.08rem;
 }
 
 /* Theme-matched solid backgrounds (no images) */

@@ -1,14 +1,42 @@
 <template>
   <div class="page">
 
-    <section class="guide-card" aria-label="Getting started">
-      <div class="guide-card__title">Your adventure path</div>
+    <section v-if="showGuide" class="guide-card" aria-label="Getting started">
+      <div class="row-between mb12">
+        <div class="guide-card__title">Quick guide</div>
+        <button type="button" class="guide-close" @click="dismissGuide">Hide</button>
+      </div>
       <ol class="guide-card__steps">
-        <li><strong>Quests &amp; brain battle</strong> — Tick off feel-good daily missions or nail the quiz to stack coins and juice your XP meter.</li>
-        <li><strong>My Scene</strong> — Splash those coins on trees, petals, and pals; every tap grows the wild corner you call yours.</li>
-        <li><strong>Dashboard HQ</strong> — Flex your streak, loot, CO₂ you have kept out of the air, and how lush your comeback is looking.</li>
-        <li><strong>Keep showing up</strong> — Ghost the app for too long and your forest might get a haircut; a quick visit brings the magic back.</li>
+        <li><strong>Earn coins</strong> in <b>Daily Tasks</b> and <b>Daily Quiz</b>.</li>
+        <li><strong>Use coins</strong> in <b>My Scene</b> to build your eco world.</li>
+        <li><strong>Track impact</strong> with streak, CO₂ saved, and level progress.</li>
+        <li><strong>Compare contribution</strong> in <b>Leaderboard</b>.</li>
       </ol>
+    </section>
+
+    <section class="glass-card quick-nav-card" aria-label="Smart shortcuts">
+      <div class="quick-nav-title">Smart shortcuts</div>
+      <div class="quick-nav-grid">
+        <div class="quick-nav-group">
+          <div class="quick-nav-group-title">How to earn more coins?</div>
+          <div class="quick-nav-btns">
+            <button type="button" class="quick-nav-btn" @click="$emit('navigate', 'tasks')">Daily Tasks</button>
+            <button type="button" class="quick-nav-btn" @click="$emit('navigate', 'quiz')">Daily Quiz</button>
+          </div>
+        </div>
+        <div class="quick-nav-group">
+          <div class="quick-nav-group-title">Decorate my scene</div>
+          <div class="quick-nav-btns">
+            <button type="button" class="quick-nav-btn" @click="$emit('navigate', 'scene')">My Scene</button>
+          </div>
+        </div>
+        <div class="quick-nav-group">
+          <div class="quick-nav-group-title">Climate knowledge</div>
+          <div class="quick-nav-btns">
+            <button type="button" class="quick-nav-btn" @click="$emit('navigate', 'education')">Education Page</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- Stat cards -->
@@ -178,6 +206,7 @@ const history = ref([])
 const historyLoading = ref(false)
 const quickCat = ref([])
 const quickBusy = ref(null)
+const showGuide = ref(true)
 
 const xpPct   = computed(() => Math.round(((p.value.xpInLevel||0)/200)*100))
 const taskPct = computed(() => {
@@ -262,7 +291,21 @@ async function doQuick(key) {
   }
 }
 
+function dismissGuide() {
+  showGuide.value = false
+  try {
+    localStorage.setItem('cq_dashboard_guide_hidden', '1')
+  } catch {
+    // ignore
+  }
+}
+
 onMounted(async () => {
+  try {
+    showGuide.value = localStorage.getItem('cq_dashboard_guide_hidden') !== '1'
+  } catch {
+    showGuide.value = true
+  }
   await load()
   await loadHistory()
   await loadQuick()
@@ -286,6 +329,15 @@ onMounted(async () => {
   color: rgba(148, 240, 200, 0.95);
   margin-bottom: 12px;
 }
+.guide-close {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
 .guide-card__steps {
   margin: 0;
   padding-left: 20px;
@@ -302,6 +354,50 @@ onMounted(async () => {
 .guide-card__steps strong {
   color: rgba(148, 240, 200, 0.98);
   font-weight: 700;
+}
+
+.quick-nav-card {
+  padding: 16px 18px;
+}
+.quick-nav-title {
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(148, 240, 200, 0.94);
+  margin-bottom: 12px;
+}
+.quick-nav-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.quick-nav-group {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 12px;
+}
+.quick-nav-group-title {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 10px;
+}
+.quick-nav-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.quick-nav-btn {
+  border: 1px solid rgba(0, 242, 255, 0.3);
+  background: rgba(0, 242, 255, 0.1);
+  color: #b7f8ff;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
@@ -369,5 +465,6 @@ onMounted(async () => {
 .spin.sm     { width:14px;height:14px;border-width:2px; }
 @keyframes spin { to { transform:rotate(360deg); } }
 @media(max-width:900px){ .grid-4{grid-template-columns:1fr 1fr;} .grid-2{grid-template-columns:1fr;} }
+@media(max-width:900px){ .quick-nav-grid{grid-template-columns:1fr;} }
 @media(max-width:480px){ .grid-4{grid-template-columns:1fr 1fr;} }
 </style>

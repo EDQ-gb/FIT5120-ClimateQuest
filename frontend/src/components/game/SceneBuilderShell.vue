@@ -130,6 +130,17 @@
             <div class="toast-card">
               <div v-if="toastTitle" id="cq-toast-title" class="toast-title">{{ toastTitle }}</div>
               <div id="cq-toast-body" class="toast-body" :class="{ 'toast-body--solo': !toastTitle }">{{ toastText }}</div>
+              <div v-if="toastActions.length" class="toast-actions">
+                <button
+                  v-for="a in toastActions"
+                  :key="a.key"
+                  type="button"
+                  class="toast-action"
+                  @click="$emit('toast-action', a.key)"
+                >
+                  {{ a.label }}
+                </button>
+              </div>
               <button type="button" class="toast-dismiss" @click="$emit('toast-dismiss')">Got it</button>
             </div>
           </div>
@@ -164,9 +175,10 @@ const props = defineProps({
   toastShow: { type: Boolean, default: false },
   toastTitle: { type: String, default: '' },
   toastText: { type: String, default: '' },
+  toastActions: { type: Array, default: () => [] },
 })
 
-const emit = defineEmits(['back', 'reset', 'logout', 'login', 'navigate', 'place', 'move', 'remove', 'refresh', 'activity', 'toast-dismiss'])
+const emit = defineEmits(['back', 'reset', 'logout', 'login', 'navigate', 'place', 'move', 'remove', 'refresh', 'activity', 'toast-dismiss', 'toast-action'])
 
 const topNavItems = [
   { key: 'home', label: 'Home' },
@@ -174,6 +186,7 @@ const topNavItems = [
   { key: 'scene', label: 'My Scene' },
   { key: 'tasks', label: 'Tasks' },
   { key: 'quiz', label: 'Quiz' },
+  { key: 'education', label: 'Education' },
   { key: 'leaderboard', label: 'Leaderboard' },
 ]
 
@@ -402,6 +415,7 @@ watch(
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  font-size: 1.08rem;
   color: #e8f5ee;
   font-family: 'Fredoka', 'Nunito', system-ui, sans-serif;
   background: #16261b;
@@ -840,6 +854,22 @@ canvas {
 
 .toast-body--solo {
   color: rgba(255, 255, 255, 0.85);
+}
+.toast-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.toast-action {
+  border-radius: 999px;
+  border: 1px solid rgba(0, 242, 255, 0.32);
+  background: rgba(0, 242, 255, 0.12);
+  color: rgba(208, 251, 255, 0.95);
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 7px 12px;
+  cursor: pointer;
 }
 
 .toast-dismiss {

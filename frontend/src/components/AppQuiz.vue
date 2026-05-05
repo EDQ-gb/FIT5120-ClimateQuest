@@ -18,13 +18,14 @@
           <div class="quiz-q">{{ quiz.question?.q }}</div>
           <div class="quiz-opts">
             <button v-for="(opt, i) in quiz.question?.opts" :key="i"
+                    type="button"
                     class="quiz-opt" :class="optClass(i)"
-                    @click="select(i)">
+                    @click.prevent.stop="select(i)">
               <span class="opt-letter">{{ ['A','B','C','D'][i] }}</span>
               {{ opt }}
             </button>
           </div>
-          <button class="submit-btn" :disabled="selected===null||submitting" @click="submit">
+          <button type="button" class="submit-btn" :disabled="selected===null||submitting" @click.prevent.stop="submit">
             <div v-if="submitting" class="spin sm"></div>
             <span v-else>Lock in my pick</span>
           </button>
@@ -38,6 +39,13 @@
           <div style="font-size:2.4rem;margin-bottom:12px;">✅</div>
           <div class="fw7 green">Today's quiz done!</div>
           <div class="sub-text mt8">Come back tomorrow for a new question.</div>
+          <div v-if="result" class="quiz-result mt8" :class="result.correct?'correct':'wrong'">
+            <strong>{{ result.correct ? '✓ Correct! +25 coins' : '✗ Not quite this time' }}</strong><br><br>
+            <div v-if="result.correctAnswer !== undefined" style="margin-bottom:8px;">
+              Correct answer: <strong>{{ ['A','B','C','D'][result.correctAnswer] }}</strong>
+            </div>
+            {{ result.explanation }}
+          </div>
         </div>
       </div>
 
@@ -72,7 +80,7 @@ const props = defineProps({
   user: Object,
   coins: { type: Number, default: 0 },
 })
-const emit = defineEmits(['coins-updated'])
+const emit = defineEmits(['coins-updated', 'stay-on-quiz'])
 
 const quiz       = ref({ completed: false, question: null, idx: 0 })
 const selected   = ref(null)
@@ -80,6 +88,30 @@ const submitting = ref(false)
 const result     = ref(null)
 const loading    = ref(true)
 const coinText   = computed(() => Number(props.coins || 0).toLocaleString())
+const RESULT_KEY = 'cq_quiz_feedback'
+
+function resultStorageKey() {
+  const u = String(props.user?.username || 'guest').trim().toLowerCase() || 'guest'
+  const d = new Date().toISOString().split('T')[0]
+  return `${RESULT_KEY}:${u}:${d}`
+}
+
+function saveResultCache(res) {
+  try {
+    localStorage.setItem(resultStorageKey(), JSON.stringify(res || null))
+  } catch {
+    // ignore
+  }
+}
+
+function loadResultCache() {
+  try {
+    const raw = localStorage.getItem(resultStorageKey())
+    return JSON.parse(raw || 'null')
+  } catch {
+    return null
+  }
+}
 
 function select(i) { if (!result.value) selected.value = i }
 
@@ -93,21 +125,32 @@ function optClass(i) {
 async function submit() {
   if (selected.value === null || submitting.value) return
   submitting.value = true
-  const res = await submitQuiz(quiz.value.idx, selected.value)
-  result.value = res
-  quiz.value.completed = true
-  if (res?.correct) {
+  try {
+    const res = await submitQuiz(quiz.value.idx, selected.value)
+    if (res?.error) return
+    result.value = res
+    saveResultCache(res)
+    quiz.value.completed = true
+    emit('stay-on-quiz')
     emit('coins-updated', {
       totalCoins: res?.totalCoins,
       streak: res?.streak,
       sceneProgress: res?.sceneProgress,
     })
+  } finally {
+    submitting.value = false
   }
-  submitting.value = false
 }
 
 onMounted(async () => {
-  quiz.value = (await getQuiz()) || quiz.value
+  const data = (await getQuiz()) || quiz.value
+  quiz.value = data
+  if (data?.completedResult) {
+    result.value = data.completedResult
+    saveResultCache(data.completedResult)
+  } else if (data?.completed) {
+    result.value = loadResultCache()
+  }
   loading.value = false
 })
 </script>

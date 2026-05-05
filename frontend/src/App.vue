@@ -27,6 +27,7 @@
       :toastShow="toast.show"
       :toastTitle="toast.title"
       :toastText="toast.text"
+      :toastActions="toast.actions"
       @back="onNavigate('home')"
       @navigate="onNavClick"
       @login="onLogin"
@@ -38,6 +39,7 @@
       @activity="onActivity"
       @refresh="refreshGameState"
       @toast-dismiss="dismissToast"
+      @toast-action="onToastAction"
     />
 
     <!-- ════════════════════════════════════════════════════
@@ -95,8 +97,10 @@
             :user="user"
             :coins="shellCoins"
             @coins-updated="refreshShellStats"
+            @stay-on-quiz="onStayOnQuiz"
           />
           <AppLeaderboard v-else-if="currentView === 'leaderboard'" :user="user" />
+          <AppEducation v-else-if="currentView === 'education'" />
         </div>
       </div>
     </div>
@@ -226,6 +230,7 @@ import AppTasks from './components/AppTasks.vue'
 import AppScene from './components/AppScene.vue'
 import AppQuiz from './components/AppQuiz.vue'
 import AppLeaderboard from './components/AppLeaderboard.vue'
+import AppEducation from './components/AppEducation.vue'
 import AppLandingV2 from './components/AppLandingV2.vue'
 import SceneBuilderShell from './components/game/SceneBuilderShell.vue'
 import { getProgress } from './api/features.js'
@@ -301,24 +306,32 @@ function resetThemeState() {
   game.themeLocked = false
 }
 
-const toast = reactive({ show: false, title: '', text: '', key: 0 })
+const toast = reactive({ show: false, title: '', text: '', key: 0, actions: [] })
 let toastTimer = 0
 function dismissToast() {
   clearTimeout(toastTimer)
   toast.show = false
   toast.title = ''
+  toast.actions = []
 }
 
-function showToast(text, title = '', durationMs = 4200) {
+function showToast(text, title = '', durationMs = 4200, actions = []) {
   clearTimeout(toastTimer)
   toast.text = String(text || '')
   toast.title = typeof title === 'string' ? title : ''
+  toast.actions = Array.isArray(actions) ? actions : []
   toast.show = true
   toast.key += 1
   const ms = typeof durationMs === 'number' && durationMs >= 1200 ? durationMs : 4200
   toastTimer = setTimeout(() => {
     dismissToast()
   }, ms)
+}
+
+function onToastAction(actionKey) {
+  dismissToast()
+  if (actionKey === 'go-tasks') onNavigate('tasks')
+  if (actionKey === 'go-quiz') onNavigate('quiz')
 }
 
 const tipState = reactive({
@@ -379,11 +392,15 @@ const pageTitles = {
   scene: 'My Scene',
   quiz: 'Climate Quiz',
   leaderboard: 'Leaderboard',
+  education: 'Education',
 }
+const validViews = new Set(['home', 'dashboard', 'scene', 'game', 'tasks', 'quiz', 'education', 'leaderboard'])
+let navReqId = 0
 
 const shellCoins = ref(0)
 const shellStreak = ref(0)
 const userViewNonce = ref(0)
+const stickyView = ref('')
 
 function bumpUserViewNonce() {
   userViewNonce.value += 1
@@ -472,12 +489,26 @@ async function refreshShellStats(payload = null) {
   syncShellFromGame()
 }
 
-async function onNavigate(view) {
+async function onNavigate(view, options = {}) {
+  const userAction = !!options.userAction
+  if (!validViews.has(view)) return
+  if (
+    stickyView.value === 'quiz' &&
+    !!user.value &&
+    currentView.value === 'quiz' &&
+    view !== 'quiz' &&
+    !userAction
+  ) return
+  if (userAction && view !== 'quiz') stickyView.value = ''
+  const reqId = ++navReqId
   // Scene builder ("My Scene" from nav or landing CTA as `game`): single forest biome only.
   if (view === 'scene' || view === 'game') {
     if (!user.value) return openAuth()
-    await refreshGameState()
+    // Open Scene immediately, then refresh data in background.
     currentView.value = 'game'
+    syncShellFromGame()
+    await refreshGameState()
+    if (reqId !== navReqId) return
     syncShellFromGame()
     return
   }
@@ -612,7 +643,11 @@ async function onPlace(p) {
       showToast(
         'Coin pouch too light for that splurge — swing by Daily Tasks or the Quiz for a refill, then plant away.',
         'Need more coins',
-        6200
+        6200,
+        [
+          { key: 'go-tasks', label: 'Go to Tasks' },
+          { key: 'go-quiz', label: 'Go to Quiz' },
+        ]
       )
       return
     }
@@ -659,7 +694,15 @@ async function onPlace(p) {
     rollback?.()
     const msg = String(e?.message || '')
     if (msg === 'INSUFFICIENT_COINS') {
-      showToast('Still short on coins — bag a few from Tasks or the Quiz, then swing back.', 'Need more coins', 6200)
+      showToast(
+        'Still short on coins — bag a few from Tasks or the Quiz, then swing back.',
+        'Need more coins',
+        6200,
+        [
+          { key: 'go-tasks', label: 'Go to Tasks' },
+          { key: 'go-quiz', label: 'Go to Quiz' },
+        ]
+      )
     } else {
       showToast(String(msg || 'That plant did not stick — quick retry?'), 'Heads-up')
     }
@@ -680,10 +723,11 @@ const navLinks = [
   { label: 'My Scene', key: 'scene' },
   { label: 'Tasks', key: 'tasks' },
   { label: 'Quiz', key: 'quiz' },
+  { label: 'Education', key: 'education' },
   { label: 'Leaderboard', key: 'leaderboard' },
 ]
 
-const viewsWithoutSidebar = new Set(['dashboard', 'tasks', 'quiz', 'leaderboard'])
+const viewsWithoutSidebar = new Set(['dashboard', 'tasks', 'quiz', 'leaderboard', 'education'])
 const showSidebar = computed(() => !viewsWithoutSidebar.has(currentView.value))
 
 const titleLines = ['The Climate is Changing', 'So Can You']
@@ -776,9 +820,14 @@ async function refreshMe() {
 }
 
 function onNavClick(key) {
-  if (key === 'home') return onNavigate('home')
+  if (!validViews.has(key)) return
+  if (key === 'home') return onNavigate('home', { userAction: true })
   if (!user.value) return openAuth()
-  onNavigate(key === 'home' ? 'home' : key === 'scene' ? 'scene' : key)
+  onNavigate(key, { userAction: true })
+}
+
+function onStayOnQuiz() {
+  stickyView.value = 'quiz'
 }
 
 function openAuth() {
