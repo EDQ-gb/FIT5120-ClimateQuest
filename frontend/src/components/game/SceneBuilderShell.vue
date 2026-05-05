@@ -431,11 +431,11 @@ watch(
   top: calc(var(--sb-topbar-h) + 10px);
   right: 14px;
   z-index: 95;
-  min-width: 200px;
+  min-width: 188px;
   max-width: min(320px, calc(100vw - 28px));
   display: grid;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 7px;
+  padding: 9px 11px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(0, 0, 0, 0.45);
@@ -487,14 +487,15 @@ watch(
   position: absolute;
   top: calc(var(--sb-topbar-h) + 10px);
   left: 12px;
-  right: max(12px, calc(220px + 10px));
+  right: auto;
+  width: min(760px, calc(100vw - 250px));
   z-index: 40;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px 16px;
-  padding: 10px 14px;
+  gap: 8px 14px;
+  padding: 9px 12px;
   border-radius: 12px;
   border: 1px solid rgba(82, 212, 150, 0.35);
   background: rgba(8, 22, 16, 0.82);
@@ -514,10 +515,10 @@ watch(
 .scene-guide-banner__steps {
   margin: 0;
   padding-left: 18px;
-  font-size: 0.74rem;
-  line-height: 1.55;
+  font-size: 0.72rem;
+  line-height: 1.48;
   color: rgba(255, 255, 255, 0.82);
-  max-width: min(920px, 100%);
+  max-width: 100%;
 }
 .scene-guide-banner__steps li {
   margin-bottom: 4px;
@@ -529,7 +530,7 @@ watch(
 .scene-guide-banner__dismiss {
   flex-shrink: 0;
   align-self: center;
-  padding: 8px 12px;
+  padding: 7px 10px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(82, 212, 150, 0.12);
@@ -866,7 +867,10 @@ canvas {
   }
   .scene-guide-banner {
     top: calc(var(--sb-topbar-h) + 8px);
-    right: 10px;
+    left: 8px;
+    width: calc(100vw - 16px);
+    max-height: 108px;
+    overflow: auto;
   }
   .scene-stats-label {
     font-size: 0.68rem;

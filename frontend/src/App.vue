@@ -76,12 +76,14 @@
         <div class="shell-content">
           <AppDashboard
             v-if="currentView === 'dashboard'"
+            :key="`dash-${user?.id || user?.username || 'guest'}-${userViewNonce}`"
             :user="user"
             @navigate="onNavigate"
             @coins-updated="refreshShellStats"
           />
           <AppTasks
             v-else-if="currentView === 'tasks'"
+            :key="`tasks-${user?.id || user?.username || 'guest'}-${userViewNonce}`"
             :user="user"
             :coins="shellCoins"
             @coins-updated="refreshShellStats"
@@ -89,6 +91,7 @@
           <AppScene v-else-if="currentView === 'scene'" :user="user" />
           <AppQuiz
             v-else-if="currentView === 'quiz'"
+            :key="`quiz-${user?.id || user?.username || 'guest'}-${userViewNonce}`"
             :user="user"
             :coins="shellCoins"
             @coins-updated="refreshShellStats"
@@ -371,6 +374,11 @@ const pageTitles = {
 
 const shellCoins = ref(0)
 const shellStreak = ref(0)
+const userViewNonce = ref(0)
+
+function bumpUserViewNonce() {
+  userViewNonce.value += 1
+}
 
 function syncShellFromGame() {
   shellCoins.value = game.coins || 0
@@ -714,9 +722,12 @@ async function api(path, options = {}) {
 }
 
 async function refreshMe() {
+  const prevIdentity = user.value?.id || user.value?.username || null
   try {
     const data = await api('/api/auth/me', { method: 'GET' })
     user.value = data.user
+    const nextIdentity = user.value?.id || user.value?.username || null
+    if (prevIdentity !== nextIdentity) bumpUserViewNonce()
     if (data.user) {
       resetThemeState()
       loadThemeCacheForUser(data.user?.username)
@@ -730,6 +741,7 @@ async function refreshMe() {
     }
   } catch {
     user.value = null
+    if (prevIdentity !== null) bumpUserViewNonce()
     currentView.value = 'home'
   }
 }
@@ -761,6 +773,7 @@ async function submitRegister() {
       body: JSON.stringify({ username: form.username, displayName: form.displayName }),
     })
     user.value = data.user
+    bumpUserViewNonce()
     closeAuth()
     resetThemeState()
     clearThemeCacheForUser(data.user?.username)
@@ -788,6 +801,7 @@ async function submitSignin() {
       body: JSON.stringify({ username: form.username }),
     })
     user.value = data.user
+    bumpUserViewNonce()
     closeAuth()
     resetThemeState()
     loadThemeCacheForUser(data.user?.username)
@@ -818,6 +832,7 @@ async function onLogout() {
     clearThemeCacheForUser(user.value?.username)
     resetThemeState()
     user.value = null
+    bumpUserViewNonce()
     menuOpen.value = false
     onNavigate('home')
     shellCoins.value = 0
