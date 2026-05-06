@@ -22,7 +22,14 @@
 
     <template v-else>
       <div class="lb-list">
-        <div v-for="u in pagedBoard" :key="u.rank" class="lb-row" :class="{ you: u.isYou }">
+        <button
+          v-for="u in pagedBoard"
+          :key="u.rank"
+          type="button"
+          class="lb-row lb-row-btn"
+          :class="{ you: u.isYou }"
+          @click="$emit('view-scene', u)"
+        >
           <div class="lb-rank" :class="'r' + u.rank">
             <span v-if="u.rank === 1">🥇</span>
             <span v-else-if="u.rank === 2">🥈</span>
@@ -39,7 +46,7 @@
           <span class="badge" style="font-size:.7rem;">Lv {{ u.level || 1 }}</span>
           <span class="cyan text-sm" style="min-width:58px;text-align:right;">🔥 {{ u.streak || 0 }}d</span>
           <span class="gold fw7 text-sm" style="min-width:80px;text-align:right;">🪙 {{ (u.coins || 0).toLocaleString() }}</span>
-        </div>
+        </button>
       </div>
 
       <div class="lb-pagination">
@@ -66,6 +73,7 @@ import { getLeaderboard } from '../api/features.js'
 const props = defineProps({
   user: { type: Object, default: null },
 })
+defineEmits(['view-scene'])
 
 const board = ref([])
 const loading = ref(true)
@@ -229,6 +237,16 @@ watch(
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   transition: border-color .2s;
+}
+
+.lb-row-btn {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lb-row-btn:hover {
+  border-color: rgba(0, 242, 255, 0.28);
 }
 
 .lb-list {

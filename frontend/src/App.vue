@@ -42,6 +42,20 @@
       @toast-action="onToastAction"
     />
 
+    <SceneViewerShell
+      v-else-if="currentView === 'scene_viewer'"
+      :themeType="viewer.themeType"
+      :viewerUser="viewer.user"
+      :placements="viewer.placements"
+      :likeCount="viewer.likeCount"
+      :likedByMe="viewer.likedByMe"
+      :comments="viewer.comments"
+      :errorMsg="viewer.errorMsg"
+      @back="closeViewer"
+      @toggle-like="toggleViewerLike"
+      @send-comment="sendViewerComment"
+    />
+
     <!-- ════════════════════════════════════════════════════
          APP SHELL  (all other views)
     ════════════════════════════════════════════════════ -->
@@ -99,7 +113,7 @@
             @coins-updated="refreshShellStats"
             @stay-on-quiz="onStayOnQuiz"
           />
-          <AppLeaderboard v-else-if="currentView === 'leaderboard'" :user="user" />
+          <AppLeaderboard v-else-if="currentView === 'leaderboard'" :user="user" @view-scene="openViewerFromLeaderboard" />
           <AppEducation v-else-if="currentView === 'education'" />
         </div>
       </div>
@@ -233,6 +247,7 @@ import AppLeaderboard from './components/AppLeaderboard.vue'
 import AppEducation from './components/AppEducation.vue'
 import AppLandingV2 from './components/AppLandingV2.vue'
 import SceneBuilderShell from './components/game/SceneBuilderShell.vue'
+import SceneViewerShell from './components/game/SceneViewerShell.vue'
 import { getProgress } from './api/features.js'
 import { getItemByIdAnyTheme, TREE_COINS_COST } from './game/assets/catalog.js'
 
@@ -251,6 +266,18 @@ const game = reactive({
 })
 
 const effectiveTheme = computed(() => 'forest')
+
+const viewer = reactive({
+  open: false,
+  username: '',
+  themeType: 'forest',
+  user: null,
+  placements: { items: [] },
+  likeCount: 0,
+  likedByMe: false,
+  comments: [],
+  errorMsg: '',
+})
 
 function themeKey(username, key) {
   const u = String(username || '').trim()
@@ -351,6 +378,38 @@ function isLifePlacement(it) {
   return !!def?.tags?.includes('life')
 }
 
+function isHomeItemId(itemId) {
+  const id = String(itemId || '').trim()
+  if (!id) return false
+  const def = getItemByIdAnyTheme(id)
+  if (def?.tags?.includes('home')) return true
+  // fallback: suburban house ids
+  if (id.startsWith('my_scene_house_')) return true
+  return false
+}
+
+function footprintForItemId(itemId) {
+  const id = String(itemId || '').trim()
+  if (!id) return { w: 1, h: 1 }
+  const def = getItemByIdAnyTheme(id)
+  const w = Number(def?.footprint?.w || 1)
+  const h = Number(def?.footprint?.h || 1)
+  if (!Number.isFinite(w) || !Number.isFinite(h)) return { w: 1, h: 1 }
+  return { w: Math.max(1, Math.min(3, Math.round(w))), h: Math.max(1, Math.min(3, Math.round(h))) }
+}
+
+function cellsForFootprint(col, row, fp) {
+  const out = []
+  const w = Number(fp?.w || 1)
+  const h = Number(fp?.h || 1)
+  for (let dy = 0; dy < h; dy++) {
+    for (let dx = 0; dx < w; dx++) {
+      out.push({ col: col + dx, row: row + dy })
+    }
+  }
+  return out
+}
+
 function maybeEmitPlacementTips(prevPlacements, nextPlacements, lastPlacedItem) {
   const prevItems = Array.isArray(prevPlacements?.items) ? prevPlacements.items : []
   const nextItems = Array.isArray(nextPlacements?.items) ? nextPlacements.items : []
@@ -364,14 +423,15 @@ function maybeEmitPlacementTips(prevPlacements, nextPlacements, lastPlacedItem) 
     const co2RoughYr = Math.round(treeMilestone * 18)
     showToast(
       `Mega — ${treeMilestone} trees standing tall on your map!\nFun fact: roughly ~${co2RoughYr} kg CO₂ sucked in per year (ballpark vibes, not an audit).`,
-      'Forest level up'
+      'Forest level up',
+      9200
     )
     return
   }
 
   // No ground. Keep animal/life tips.
   if (lastPlacedItem && isLifePlacement(lastPlacedItem)) {
-    showToast('Look at that — your patch just got louder with life!', 'Wild friend added')
+    showToast('Look at that — your patch just got louder with life!', 'Wild friend added', 6800)
   }
 }
 
@@ -394,7 +454,7 @@ const pageTitles = {
   leaderboard: 'Leaderboard',
   education: 'Education',
 }
-const validViews = new Set(['home', 'dashboard', 'scene', 'game', 'tasks', 'quiz', 'education', 'leaderboard'])
+const validViews = new Set(['home', 'dashboard', 'scene', 'game', 'tasks', 'quiz', 'education', 'leaderboard', 'scene_viewer'])
 let navReqId = 0
 
 const shellCoins = ref(0)
@@ -516,6 +576,107 @@ async function onNavigate(view, options = {}) {
   if (view !== 'home') await refreshShellStats()
 }
 
+function closeViewer() {
+  viewer.open = false
+  viewer.username = ''
+  viewer.user = null
+  viewer.placements = { items: [] }
+  viewer.likeCount = 0
+  viewer.likedByMe = false
+  viewer.comments = []
+  viewer.errorMsg = ''
+  currentView.value = 'leaderboard'
+}
+
+async function openViewerFromLeaderboard(u) {
+  const username = String(u?.username || '').trim()
+  if (!username) return
+  viewer.open = true
+  viewer.username = username
+  currentView.value = 'scene_viewer'
+  await refreshViewer()
+}
+
+async function refreshViewer() {
+  if (!viewer.username) return
+  try {
+    const res = await fetch(`/api/community/scene/${encodeURIComponent(viewer.username)}`, { credentials: 'include' })
+    const scene = await res.json().catch(() => ({}))
+    if (res.status === 404) {
+      viewer.errorMsg = 'Viewer not available on this server'
+      return
+    }
+    if (!res.ok) throw new Error(scene?.error || `HTTP_${res.status}`)
+    viewer.themeType = String(scene?.sceneType || 'forest')
+    viewer.user = scene?.user || { username: viewer.username }
+    viewer.placements = scene?.placements || { items: [] }
+    viewer.errorMsg = ''
+  } catch {
+    viewer.user = viewer.user || { username: viewer.username }
+    viewer.placements = viewer.placements || { items: [] }
+  }
+
+  try {
+    const res = await fetch(`/api/community/scene/${encodeURIComponent(viewer.username)}/social`, { credentials: 'include' })
+    const social = await res.json().catch(() => ({}))
+    if (res.status === 404) {
+      viewer.errorMsg = viewer.errorMsg || 'Viewer not available on this server'
+      return
+    }
+    if (res.ok && !social?.error) {
+      viewer.likeCount = Number(social?.likesCount || 0)
+      viewer.likedByMe = !!social?.likedByMe
+      viewer.comments = Array.isArray(social?.comments) ? social.comments : []
+    }
+  } catch {
+    // ignore
+  }
+}
+
+async function toggleViewerLike() {
+  if (!viewer.username) return
+  try {
+    const res = await fetch(`/api/community/scene/${encodeURIComponent(viewer.username)}/like`, { method: 'POST', credentials: 'include' })
+    const data = await res.json().catch(() => ({}))
+    if (res.status === 404) {
+      viewer.errorMsg = 'Like is not available on this server'
+      return
+    }
+    if (res.ok && !data?.error) {
+      viewer.likeCount = Number(data?.likesCount || 0)
+      viewer.likedByMe = !!data?.likedByMe
+    }
+  } catch {
+    // ignore
+  }
+}
+
+async function sendViewerComment({ body }) {
+  if (!viewer.username) return
+  const text = String(body || '').trim()
+  if (!text) return
+  try {
+    const res = await fetch(`/api/community/scene/${encodeURIComponent(viewer.username)}/comment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ body: text }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (res.status === 404) {
+      viewer.errorMsg = 'Comments are not available on this server'
+      return
+    }
+    if (res.ok && !data?.error) {
+      viewer.comments = Array.isArray(data?.comments) ? data.comments : viewer.comments
+    } else {
+      await refreshViewer()
+    }
+  } catch {
+    // ignore
+  }
+}
+
 async function refreshGameState(options = {}) {
   try {
     const gs = await api('/api/game/state', { method: 'GET' })
@@ -599,6 +760,47 @@ async function onPlace(p) {
     const type = String(p?.type || '')
     if (!itemId || !type) return
 
+    const col0 = Number.isFinite(p?.col) ? p.col : null
+    const row0 = Number.isFinite(p?.row) ? p.row : null
+    const items0 = Array.isArray(game.placements?.items) ? game.placements.items : []
+    const inCell0 = col0 != null && row0 != null ? items0.filter((it) => it && it.col === col0 && it.row === row0) : []
+    const cellHasTree = inCell0.some((it) => kindFromPlacementItem(it) === 'tree')
+    const cellHasHome = inCell0.some((it) => isHomeItemId(it?.itemId))
+    const placingHome = isHomeItemId(itemId)
+
+    // Footprint-aware rule: homes occupy 2–3 tiles; any tile covered by a home is blocked for others.
+    if (col0 != null && row0 != null) {
+      if (placingHome) {
+        const fp = footprintForItemId(itemId)
+        const cells = cellsForFootprint(col0, row0, fp)
+        // require all covered cells to be empty (no trees/decor/flowers) and in bounds
+        const occupied = cells.some(({ col, row }) => {
+          if (col < 0 || row < 0 || col >= 26 || row >= 26) return true
+          return items0.some((it) => it && it.col === col && it.row === row)
+        })
+        if (occupied) {
+          showToast('Homes need a clear 2–3 tile space. Try an emptier patch.')
+          return
+        }
+      } else {
+        // If any home footprint covers this cell, block placement.
+        const blockedByHome = items0.some((it) => {
+          if (!isHomeItemId(it?.itemId)) return false
+          const fp = footprintForItemId(it.itemId)
+          const cells = cellsForFootprint(Number(it.col || 0), Number(it.row || 0), fp)
+          return cells.some((c) => c.col === col0 && c.row === row0)
+        })
+        if (blockedByHome) {
+          showToast('That tile is reserved for a home. Pick a free tile.')
+          return
+        }
+        if (type === 'tree' && cellHasTree) {
+          showToast('Spot taken — only one centerpiece tree fits here.')
+          return
+        }
+      }
+    }
+
     // Placement rule: flowers occupy tile corners, max 4 per tile.
     if (type === 'flower') {
       const items = Array.isArray(game.placements?.items) ? game.placements.items : []
@@ -631,8 +833,8 @@ async function onPlace(p) {
     if (!game.placements || !Array.isArray(game.placements.items)) game.placements = { items: [] }
 
     // Optimistic placement + local coin deduction
-    const col = Number.isFinite(p?.col) ? p.col : null
-    const row = Number.isFinite(p?.row) ? p.row : null
+    const col = col0
+    const row = row0
     const optimisticId = `${Date.now()}_${Math.random().toString(16).slice(2)}`
     const optimisticItem = { itemId, type, col, row, at: new Date().toISOString(), _optimistic: optimisticId }
     const optimisticCost = getItemCostForPlacement(itemId, type)
@@ -683,9 +885,15 @@ async function onPlace(p) {
       }
       const placed = await applyPlacementApi('/api/scene/place', p)
       if (!placed) throw new Error('PLACE_FAILED')
+      if (placed?.toast?.text) {
+        showToast(String(placed.toast.text), String(placed.toast.title || ''), 8400)
+      }
     } else {
       const placed = await applyPlacementApi('/api/scene/place', p)
       if (!placed) throw new Error('PLACE_FAILED')
+      if (placed?.toast?.text) {
+        showToast(String(placed.toast.text), String(placed.toast.title || ''), 8400)
+      }
     }
     // Tips: compare snapshots — game.placements is mutated in place during optimistic UX,
     // so use prevItemsSnapshot (items before this place) vs authoritative server placements.
@@ -720,7 +928,7 @@ async function onMove(p) {
 const navLinks = [
   { label: 'Home', key: 'home' },
   { label: 'Dashboard', key: 'dashboard' },
-  { label: 'My Scene', key: 'scene' },
+  { label: 'Community', key: 'scene' },
   { label: 'Tasks', key: 'tasks' },
   { label: 'Quiz', key: 'quiz' },
   { label: 'Education', key: 'education' },

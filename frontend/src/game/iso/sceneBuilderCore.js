@@ -1,5 +1,5 @@
-const TILE_W = 128
-const TILE_H = 64
+const TILE_W = 116
+const TILE_H = 58
 const IMG_W = 128
 const IMG_H = 256
 
@@ -97,6 +97,15 @@ export function createSceneBuilderCore(opts) {
 
   let W = 1
   let H = 1
+  // Screen-space clouds (drift + bob, similar vibe to AppLandingV2 globe clouds).
+  const sceneClouds = Array.from({ length: 8 }, (_, i) => ({
+    yNorm: 0.07 + (i % 4) * 0.055 + Math.random() * 0.04,
+    xOffset: (i / 8 + Math.random() * 0.12) % 1,
+    spd: 0.014 + Math.random() * 0.022,
+    phase: Math.random() * Math.PI * 2,
+    scale: 0.72 + Math.random() * 0.55,
+    depth: 0.35 + Math.random() * 0.45,
+  }))
   let offsetX = 0
   let offsetY = 0
   let zoom = 1
@@ -125,6 +134,55 @@ export function createSceneBuilderCore(opts) {
       }
     }
     imageCache.set(src, img)
+    return img
+  }
+
+  function normalizeSrcCandidates(def) {
+    if (!def) return []
+    const c = Array.isArray(def.srcCandidates) ? def.srcCandidates : []
+    const out = []
+    for (const x of c) {
+      const s = String(x || '').trim()
+      if (s) out.push(s)
+    }
+    const primary = String(def.src || '').trim()
+    if (primary) out.unshift(primary)
+    return [...new Set(out)]
+  }
+
+  function getPrimarySrc(def) {
+    const c = normalizeSrcCandidates(def)
+    return c[0] || ''
+  }
+
+  function getImageForDef(def) {
+    const candidates = normalizeSrcCandidates(def)
+    if (!candidates.length) return null
+    const key = candidates.join('|')
+    const cached = imageCache.get(key)
+    if (cached) return cached
+
+    const img = new Image()
+    img.decoding = 'async'
+    let idx = 0
+    const tryLoad = () => {
+      const src = candidates[idx]
+      if (!src) return
+      img.src = src
+    }
+    img.onload = () => {
+      try {
+        if (typeof img.decode === 'function') img.decode().catch(() => {})
+      } catch (_) {
+        // ignore
+      }
+    }
+    img.onerror = () => {
+      idx += 1
+      if (idx < candidates.length) tryLoad()
+    }
+    imageCache.set(key, img)
+    tryLoad()
     return img
   }
 
@@ -309,8 +367,9 @@ export function createSceneBuilderCore(opts) {
 
   function drawObjectAt(col, row, it, cellItems = null) {
     const def = it?.itemId ? getItemDefById(it.itemId) : null
-    if (!def?.src) return
-    const img = getImage(def.src)
+    const primarySrc = getPrimarySrc(def)
+    if (!primarySrc) return
+    const img = getImageForDef(def)
 
     const { x, y } = gridToScreen(col, row, offsetX, offsetY, zoom)
     // Match scene_builder.html positioning
@@ -350,7 +409,7 @@ export function createSceneBuilderCore(opts) {
 
       iw = clamp(ih * ratio, 10, IMG_W * zoom * 2)
     }
-    const anchor = getSpriteAnchor(def.src, img)
+    const anchor = def?.anchor && typeof def.anchor === 'object' ? def.anchor : getSpriteAnchor(primarySrc, img)
     const dx = footX - iw * anchor.rx
     const dy = footY - ih * anchor.ry
 
@@ -371,8 +430,9 @@ export function createSceneBuilderCore(opts) {
     const groundId = getDefaultGroundItemId?.()
     if (!groundId) return
     const def = getItemDefById(groundId)
-    if (!def?.src) return
-    const img = getImage(def.src)
+    const primarySrc = getPrimarySrc(def)
+    if (!primarySrc) return
+    const img = getImageForDef(def)
     if (!img || !img.complete) return
     const { x, y } = gridToScreen(col, row, offsetX, offsetY, zoom)
     // Keep aspect ratio for ground sprites too (some kits are square previews).
@@ -397,19 +457,29 @@ export function createSceneBuilderCore(opts) {
 
   function groundPalette() {
     return {
-      c1Even: '#3f7a44',
-      c2Even: '#2f6338',
-      c1Odd: '#3a713f',
-      c2Odd: '#2a5b34',
-      leftEven: '#244b2c',
-      leftOdd: '#204227',
-      rightEven: '#2b5633',
-      rightOdd: '#254d2e',
-      stroke: 'rgba(0,0,0,0.10)',
+      // Softer, less “checkerboard”, more grass-like
+      c1Even: '#3c7f46',
+      c2Even: '#367843',
+      c1Odd: '#3a7b45',
+      c2Odd: '#347542',
+      leftEven: 'rgba(40, 80, 52, 0.55)',
+      leftOdd: 'rgba(38, 74, 48, 0.55)',
+      rightEven: 'rgba(46, 92, 58, 0.55)',
+      rightOdd: 'rgba(42, 86, 54, 0.55)',
+      stroke: 'rgba(0,0,0,0.07)',
     }
   }
 
+  function rand01(col, row, salt = 0) {
+    // Deterministic pseudo-random (no flicker)
+    let x = (col + 1) * 374761393 + (row + 1) * 668265263 + (salt + 1) * 2147483647
+    x = (x ^ (x >> 13)) >>> 0
+    x = (x * 1274126177) >>> 0
+    return (x & 0xfffffff) / 0xfffffff
+  }
+
   // Match scene_builder.html ground shading (theme-aware)
+
   function drawIsoGround(x, y, tw, th, col, row) {
     const even = (col + row) % 2 === 0
     const pal = groundPalette()
@@ -435,6 +505,24 @@ export function createSceneBuilderCore(opts) {
     ctx.lineWidth = 0.5
     ctx.stroke()
 
+    // “Fuzzy grass” micro texture on the top face
+    ctx.save()
+    ctx.globalAlpha = 0.22
+    ctx.fillStyle = even ? 'rgba(210,255,210,0.22)' : 'rgba(210,255,210,0.18)'
+    const dots = 7
+    for (let i = 0; i < dots; i++) {
+      const r1 = rand01(col, row, i)
+      const r2 = rand01(col, row, i + 99)
+      // place within diamond-ish region
+      const px = x + tw * (0.25 + r1 * 0.5)
+      const py = y + th * (0.18 + r2 * 0.64)
+      const rr = (0.6 + rand01(col, row, i + 7) * 1.3) * zoom
+      ctx.beginPath()
+      ctx.arc(px, py, rr, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    ctx.restore()
+
     // Left face
     ctx.beginPath()
     ctx.moveTo(x, y + th / 2)
@@ -456,6 +544,102 @@ export function createSceneBuilderCore(opts) {
     ctx.fill()
 
     ctx.restore()
+  }
+
+  function drawGroundEdgeFeather() {
+    // Feather the ground boundary into the sky (soft blur extension).
+    ctx.save()
+    ctx.globalCompositeOperation = 'source-over'
+    ctx.filter = `blur(${Math.max(12, 28 * zoom)}px)`
+    ctx.globalAlpha = 0.52
+
+    const cx = offsetX
+    const cy = offsetY + (gridSize + 10) * (TILE_H / 2) * zoom
+    const r0 = Math.max(W, H) * 0.25
+    const r1 = Math.max(W, H) * 0.92
+    const g = ctx.createRadialGradient(cx, cy, r0, cx, cy, r1)
+    g.addColorStop(0, 'rgba(255,255,255,0)')
+    g.addColorStop(0.55, 'rgba(215,245,255,0.03)')
+    g.addColorStop(0.78, 'rgba(215,245,255,0.09)')
+    g.addColorStop(1, 'rgba(215,245,255,0.20)')
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, W, H)
+
+    ctx.restore()
+    ctx.filter = 'none'
+  }
+
+  function boardCornersForPlayable(tw, th) {
+    // Outer diamond corners for the playable board (gridSize).
+    return {
+      top: { x: offsetX + tw / 2, y: offsetY },
+      right: {
+        x: offsetX + (gridSize - 1) * (TILE_W / 2) * zoom + tw,
+        y: offsetY + (gridSize - 1) * (TILE_H / 2) * zoom + th / 2,
+      },
+      bottom: { x: offsetX + tw / 2, y: offsetY + (gridSize - 1) * TILE_H * zoom + th },
+      left: {
+        x: offsetX - (gridSize - 1) * (TILE_W / 2) * zoom,
+        y: offsetY + (gridSize - 1) * (TILE_H / 2) * zoom + th / 2,
+      },
+    }
+  }
+
+  function roundedBoardPath(top, right, bottom, left, r) {
+    // Rounded corners for the outer board silhouette only.
+    const rr = Math.max(0, r)
+    const t1 = { x: top.x - rr, y: top.y + rr * 0.55 }
+    const t2 = { x: top.x + rr, y: top.y + rr * 0.55 }
+    const r1 = { x: right.x - rr, y: right.y - rr * 0.55 }
+    const r2 = { x: right.x - rr, y: right.y + rr * 0.55 }
+    const b1 = { x: bottom.x + rr, y: bottom.y - rr * 0.55 }
+    const b2 = { x: bottom.x - rr, y: bottom.y - rr * 0.55 }
+    const l1 = { x: left.x + rr, y: left.y + rr * 0.55 }
+    const l2 = { x: left.x + rr, y: left.y - rr * 0.55 }
+
+    ctx.beginPath()
+    ctx.moveTo(t1.x, t1.y)
+    ctx.quadraticCurveTo(top.x, top.y, t2.x, t2.y)
+    ctx.lineTo(r1.x, r1.y)
+    ctx.quadraticCurveTo(right.x, right.y, r2.x, r2.y)
+    ctx.lineTo(b1.x, b1.y)
+    ctx.quadraticCurveTo(bottom.x, bottom.y, b2.x, b2.y)
+    ctx.lineTo(l1.x, l1.y)
+    ctx.quadraticCurveTo(left.x, left.y, l2.x, l2.y)
+    ctx.closePath()
+  }
+
+  function drawRoundedBoardEdge() {
+    // Visual-only rounded outer edge with soft fade.
+    const tw = TILE_W * zoom
+    const th = TILE_H * zoom
+    const c = boardCornersForPlayable(tw, th)
+    const radius = 46 * zoom
+
+    ctx.save()
+    ctx.globalCompositeOperation = 'source-over'
+
+    // Outer feather glow (blurred stroke)
+    ctx.save()
+    ctx.filter = `blur(${Math.max(10, 18 * zoom)}px)`
+    ctx.globalAlpha = 0.26
+    roundedBoardPath(c.top, c.right, c.bottom, c.left, radius)
+    ctx.strokeStyle = 'rgba(215,245,255,0.12)'
+    ctx.lineWidth = Math.max(10, 18 * zoom)
+    ctx.stroke()
+    ctx.restore()
+
+    // Inner subtle rim to suggest a rounded bevel
+    ctx.save()
+    ctx.globalAlpha = 0.18
+    roundedBoardPath(c.top, c.right, c.bottom, c.left, radius)
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'
+    ctx.lineWidth = Math.max(1.3, 2.2 * zoom)
+    ctx.stroke()
+    ctx.restore()
+
+    ctx.restore()
+    ctx.filter = 'none'
   }
 
   function drawHoverTile(col, row) {
@@ -482,8 +666,9 @@ export function createSceneBuilderCore(opts) {
     if (m === 'place') {
       const sel = getSelectedItem()
       const def = sel ? getItemDefById(sel) : null
-      if (def?.src) {
-        const img = getImage(def.src)
+      const primarySrc = getPrimarySrc(def)
+      if (primarySrc) {
+        const img = getImageForDef(def)
         const placements = getPlacements()
         const gi = buildGridIndex(placements)
         const kk = keyFor(col, row)
@@ -501,7 +686,7 @@ export function createSceneBuilderCore(opts) {
           const s = Number.isFinite(def.scale) ? def.scale : baseScaleForKind(def.kind)
           const iw = IMG_W * zoom * s
           const ih = IMG_H * zoom * s
-          const anchor = getSpriteAnchor(def.src, img)
+          const anchor = def?.anchor && typeof def.anchor === 'object' ? def.anchor : getSpriteAnchor(primarySrc, img)
           const { dx, dy } = getSpriteDrawRectForTile(x, y, tw, th, iw, ih, anchor)
           ctx.globalAlpha = 0.6
           ctx.drawImage(img, dx, dy, iw, ih)
@@ -522,14 +707,17 @@ export function createSceneBuilderCore(opts) {
     // Bright, friendly sky (no image assets needed)
     ctx.save()
 
-    const top = '#7ec8ff'
-    const mid = '#d7f5ff'
-    const bot = '#fff6d8'
+    const t = performance.now() * 0.001
+
+    // Deeper blue sky (less cream at horizon than before)
+    const top = '#4fa8ff'
+    const mid = '#b8e8ff'
+    const bot = '#e8f6ff'
 
     // Sky gradient
     const bg = ctx.createLinearGradient(0, 0, 0, H)
     bg.addColorStop(0, top)
-    bg.addColorStop(0.62, mid)
+    bg.addColorStop(0.55, mid)
     bg.addColorStop(1, bot)
     ctx.fillStyle = bg
     ctx.fillRect(0, 0, W, H)
@@ -540,36 +728,59 @@ export function createSceneBuilderCore(opts) {
     const sunR = Math.max(W, H) * 0.18
     const sun = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR)
     sun.addColorStop(0, 'rgba(255,255,255,0.95)')
-    sun.addColorStop(0.25, 'rgba(255,244,196,0.65)')
+    sun.addColorStop(0.18, 'rgba(255,248,210,0.50)')
     sun.addColorStop(1, 'rgba(255,244,196,0)')
     ctx.fillStyle = sun
     ctx.fillRect(0, 0, W, H)
 
-    // Soft clouds (a few translucent blobs)
-    function cloud(cx, cy, s, a) {
-      ctx.save()
-      ctx.globalAlpha = a
-      ctx.fillStyle = 'rgba(255,255,255,0.95)'
+    // Drifting clouds (multi-puff clusters, inspired by landing-page globe clouds)
+    function drawCloudPuffs(cx, cy, sz, alpha) {
+      const cg = Math.round(228 + (1 - alpha) * 18)
+      ctx.globalAlpha = alpha
+      ctx.fillStyle = `rgb(${cg + 10},${cg + 14},${cg + 18})`
       ctx.beginPath()
-      ctx.ellipse(cx, cy, 46 * s, 22 * s, 0, 0, Math.PI * 2)
-      ctx.ellipse(cx - 34 * s, cy + 2 * s, 30 * s, 18 * s, 0, 0, Math.PI * 2)
-      ctx.ellipse(cx + 34 * s, cy + 4 * s, 32 * s, 19 * s, 0, 0, Math.PI * 2)
-      ctx.ellipse(cx + 8 * s, cy - 10 * s, 28 * s, 18 * s, 0, 0, Math.PI * 2)
+      ctx.arc(cx, cy, sz, 0, Math.PI * 2)
       ctx.fill()
-
-      // Slight shadow to ground the cloud
-      ctx.globalAlpha = a * 0.35
-      ctx.fillStyle = 'rgba(120,160,190,0.35)'
       ctx.beginPath()
-      ctx.ellipse(cx + 6 * s, cy + 12 * s, 52 * s, 18 * s, 0, 0, Math.PI * 2)
+      ctx.arc(cx + sz * 0.85, cy + sz * 0.15, sz * 0.72, 0, Math.PI * 2)
       ctx.fill()
-      ctx.restore()
+      ctx.beginPath()
+      ctx.arc(cx - sz * 0.8, cy + sz * 0.15, sz * 0.65, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.globalAlpha = alpha * 0.32
+      ctx.fillStyle = 'rgba(100,140,180,0.28)'
+      ctx.beginPath()
+      ctx.ellipse(cx + sz * 0.15, cy + sz * 0.95, sz * 1.1, sz * 0.35, 0, 0, Math.PI * 2)
+      ctx.fill()
     }
 
-    cloud(W * 0.22, H * 0.18, 0.95, 0.34)
-    cloud(W * 0.44, H * 0.12, 0.75, 0.28)
-    cloud(W * 0.62, H * 0.22, 1.05, 0.26)
-    if (W > 900) cloud(W * 0.36, H * 0.26, 1.2, 0.22)
+    sceneClouds.forEach((cl) => {
+      const span = W + 280
+      const drift = (cl.xOffset + t * cl.spd * (0.6 + cl.depth * 0.4)) % 1.15
+      const cx = drift * span - 120
+      const cy =
+        cl.yNorm * H +
+        Math.sin(t * 0.35 + cl.phase) * (6 + 5 * cl.depth) +
+        Math.sin(t * 0.12 + cl.phase * 0.7) * 3
+      const baseSz = (34 + 26 * cl.depth) * Math.min(1.25, zoom) * cl.scale
+      const alpha = Math.max(0.14, Math.min(0.52, 0.18 + cl.depth * 0.42))
+      ctx.save()
+      drawCloudPuffs(cx, cy, baseSz, alpha)
+      ctx.restore()
+    })
+
+    // A tiny bit of sky grain to avoid flat gradients (very subtle)
+    ctx.save()
+    ctx.globalAlpha = 0.035
+    ctx.fillStyle = 'rgba(255,255,255,1)'
+    const step = Math.max(28, 46 * zoom)
+    for (let y = 0; y < H; y += step) {
+      for (let x = 0; x < W; x += step) {
+        const a = (x * 0.17 + y * 0.23) % 1
+        if (a > 0.55) ctx.fillRect(x, y, 1, 1)
+      }
+    }
+    ctx.restore()
 
     ctx.restore()
   }
@@ -578,22 +789,23 @@ export function createSceneBuilderCore(opts) {
     // Softens the sky/ground boundary and pushes distant tiles back.
     ctx.save()
 
-    const tint = 'rgba(255, 252, 230, '
+    const tint = 'rgba(255, 250, 230, '
 
     // Haze over the top portion (distance fog)
     const haze = ctx.createLinearGradient(0, 0, 0, H)
-    haze.addColorStop(0, `${tint}0.26)`)
-    haze.addColorStop(0.22, `${tint}0.18)`)
-    haze.addColorStop(0.45, `${tint}0.00)`)
+    haze.addColorStop(0, `${tint}0.20)`)
+    haze.addColorStop(0.26, `${tint}0.12)`)
+    haze.addColorStop(0.62, `${tint}0.04)`)
+    haze.addColorStop(1, `${tint}0.00)`)
     ctx.fillStyle = haze
     ctx.fillRect(0, 0, W, H)
 
-    // Horizon glow band around the first row of tiles
-    const horizonY = offsetY + (TILE_H * zoom) * 0.25
-    const band = ctx.createLinearGradient(0, horizonY - 80 * zoom, 0, horizonY + 140 * zoom)
+    // NOTE: Keep horizon glow very subtle (avoid visible “white band” across the map).
+    const horizonY = offsetY + (TILE_H * zoom) * 0.18
+    const band = ctx.createLinearGradient(0, horizonY - 120 * zoom, 0, horizonY + 160 * zoom)
     band.addColorStop(0, `${tint}0.00)`)
-    band.addColorStop(0.35, `${tint}0.16)`)
-    band.addColorStop(0.7, `${tint}0.05)`)
+    band.addColorStop(0.35, `${tint}0.07)`)
+    band.addColorStop(0.65, `${tint}0.05)`)
     band.addColorStop(1, `${tint}0.00)`)
     ctx.fillStyle = band
     ctx.fillRect(0, 0, W, H)
@@ -611,22 +823,33 @@ export function createSceneBuilderCore(opts) {
     const placements = getPlacements()
     const gridIndex = buildGridIndex(placements)
 
+    // Rounded board silhouette (visual only): clip the entire ground to rounded corners.
+    const tw = TILE_W * zoom
+    const th = TILE_H * zoom
+    const corners = boardCornersForPlayable(tw, th)
+    const boardRadius = 50 * zoom
+
+    ctx.save()
+    roundedBoardPath(corners.top, corners.right, corners.bottom, corners.left, boardRadius)
+    ctx.clip()
+
     // Draw grid + objects in row-major order (scene_builder.html)
     for (let row = 0; row < gridSize; row++) {
       for (let col = 0; col < gridSize; col++) {
-        const { x, y } = gridToScreen(col, row, offsetX, offsetY, zoom)
-        const tw = TILE_W * zoom
-        const th = TILE_H * zoom
-        drawIsoGround(x, y, tw, th, col, row)
+        const p = gridToScreen(col, row, offsetX, offsetY, zoom)
+        drawIsoGround(p.x, p.y, tw, th, col, row)
         const k = keyFor(col, row)
         if (gridIndex[k]) {
           for (const it of gridIndex[k]) drawObjectAt(col, row, it, gridIndex[k])
         }
       }
     }
+    ctx.restore()
 
     // Blend sky/ground transition (after tiles so it affects distance too)
     drawAtmosphereBlend()
+    drawGroundEdgeFeather()
+    drawRoundedBoardEdge()
 
     // Hover highlight
     if (hoverCell && validCell(hoverCell.col, hoverCell.row)) drawHoverTile(hoverCell.col, hoverCell.row)

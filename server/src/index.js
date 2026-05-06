@@ -1263,6 +1263,30 @@ function getThemePlacements(byTheme, theme) {
   return byTheme[theme];
 }
 
+function getOrInitMySceneMeta(placements) {
+  if (!placements || typeof placements !== "object") return { challenges: {} };
+  if (!placements.meta || typeof placements.meta !== "object") placements.meta = {};
+  if (!placements.meta.myScene || typeof placements.meta.myScene !== "object") placements.meta.myScene = {};
+  if (!placements.meta.myScene.challenges || typeof placements.meta.myScene.challenges !== "object") {
+    placements.meta.myScene.challenges = {};
+  }
+  return placements.meta.myScene;
+}
+
+function computeMySceneMilestones(placements, lastPlaced) {
+  const items = Array.isArray(placements?.items) ? placements.items : [];
+  const trees = items.filter((x) => String(x?.type || "") === "tree").length;
+  const treeSpecies = new Set();
+  for (const it of items) {
+    if (String(it?.type || "") !== "tree") continue;
+    const id = String(it?.itemId || "").trim();
+    if (id) treeSpecies.add(id);
+  }
+  const uniqueSpecies = treeSpecies.size;
+  const placedHome = !!(lastPlaced && String(lastPlaced.itemId || "") === "my_scene_cabin");
+  return { trees, uniqueSpecies, placedHome };
+}
+
 /** Forest-only client: merge placements from legacy scene_type buckets into `forest`. */
 async function migrateForestOnlyProfile(userId, st) {
   const sceneType = String(st.scene_type || "forest").trim();
@@ -1315,6 +1339,7 @@ app.post("/api/scene/place", async (req, res, next) => {
     const theme = s.scene_type || "forest";
     const byTheme = placementsByThemeFromJson(s.placements_json, theme);
     const placements = getThemePlacements(byTheme, theme);
+    const meta = getOrInitMySceneMeta(placements);
 
     const k = `${col},${row}`;
     const exists = placements.items.some(
@@ -1330,13 +1355,43 @@ app.post("/api/scene/place", async (req, res, next) => {
       });
     }
 
+    const ms = computeMySceneMilestones(placements, { itemId, type, col, row });
+    const challenges = meta.challenges || {};
+    let toast = null;
+    if (ms.trees >= 5 && !challenges.plant5Trees) {
+      challenges.plant5Trees = true;
+      toast = {
+        title: "Restoration milestone",
+        text: "5 trees planted. Young forests cool cities and create habitat as they grow.",
+      };
+    } else if (ms.trees >= 10 && !challenges.plant10Trees) {
+      challenges.plant10Trees = true;
+      toast = {
+        title: "Canopy unlocked",
+        text: "10 trees planted. Your scene is starting to behave like a real carbon sink — keep going to unlock more species.",
+      };
+    } else if (ms.uniqueSpecies >= 3 && !challenges.biodiversity3) {
+      challenges.biodiversity3 = true;
+      toast = {
+        title: "Biodiversity boost",
+        text: "3 tree species placed. Diversity helps ecosystems handle heatwaves, pests, and drought.",
+      };
+    } else if (ms.placedHome && !challenges.placeHome) {
+      challenges.placeHome = true;
+      toast = {
+        title: "Sustainable living",
+        text: "A tiny home appeared in your restored land. Efficient homes reduce energy demand and emissions over time.",
+      };
+    }
+    meta.challenges = challenges;
+
     await query(
       `update user_state set placements_json = ? where user_id = ?`,
       [JSON.stringify(byTheme), userId]
     );
     await touchActive(userId);
 
-    res.json({ ok: true, placements });
+    res.json({ ok: true, placements, toast });
   } catch (err) {
     next(err);
   }
@@ -1687,6 +1742,181 @@ app.get("/api/leaderboard", async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Community: public scene viewer (read-only) + likes/comments
+// ─────────────────────────────────────────────────────────────
+
+async function getPublicUserByUsername(username) {
+  await ensureProjectExtensions();
+  const u = normalizeUsername(username);
+  if (!u) return null;
+  const r = await query(
+    `select id, username, display_name, profile_public
+     from users
+     where username = ?
+     limit 1`,
+    [u]
+  );
+  const row = r.rows?.[0] || null;
+  if (!row) return null;
+  const isPublic =
+    row.profile_public === undefined || row.profile_public === null
+      ? true
+      : Number(row.profile_public) === 1;
+  if (!isPublic) return { private: true, user: publicUserRow(row) };
+  return { private: false, user: publicUserRow(row) };
+}
+
+app.get("/api/community/scene/:username", async (req, res) => {
+  await ensureDbBootstrapped();
+  const info = await getPublicUserByUsername(req.params.username);
+  if (!info) return res.status(404).json({ error: "NOT_FOUND" });
+  if (info.private) return res.status(403).json({ error: "PRIVATE_PROFILE" });
+
+  await ensureUserStateSchema();
+  const r = await query(
+    `select scene_type, placements_json
+     from user_state
+     where user_id = ?
+     limit 1`,
+    [info.user.id]
+  );
+  const st = r.rows?.[0] || {};
+  let placements = { items: [] };
+  try {
+    const raw = st.placements_json;
+    if (raw) placements = typeof raw === "string" ? JSON.parse(raw) : raw;
+  } catch {
+    placements = { items: [] };
+  }
+  res.json({
+    user: info.user,
+    sceneType: st.scene_type || "forest",
+    placements: placements || { items: [] },
+  });
+});
+
+app.get("/api/community/scene/:username/social", async (req, res) => {
+  await ensureDbBootstrapped();
+  const info = await getPublicUserByUsername(req.params.username);
+  if (!info) return res.status(404).json({ error: "NOT_FOUND" });
+  if (info.private) return res.status(403).json({ error: "PRIVATE_PROFILE" });
+
+  const meId = req.session.userId || null;
+  const likes = await query(
+    `select count(*) as c from scene_likes where target_user_id = ?`,
+    [info.user.id]
+  );
+  const likesCount = Number(likes.rows?.[0]?.c || 0);
+  let likedByMe = false;
+  if (meId) {
+    const mine = await query(
+      `select 1 as ok from scene_likes where user_id = ? and target_user_id = ? limit 1`,
+      [meId, info.user.id]
+    );
+    likedByMe = (mine.rows || []).length > 0;
+  }
+
+  const cr = await query(
+    `select c.id, c.body, c.created_at,
+            u.username as author_username, u.display_name as author_display_name
+     from scene_comments c
+     join users u on u.id = c.author_user_id
+     where c.target_user_id = ?
+     order by c.created_at desc
+     limit 30`,
+    [info.user.id]
+  );
+  const comments = (cr.rows || []).map((x) => ({
+    id: x.id,
+    body: x.body,
+    createdAt: x.created_at,
+    authorUsername: x.author_username,
+    authorDisplayName: x.author_display_name || "",
+  }));
+
+  res.json({ likesCount, likedByMe, comments });
+});
+
+app.post("/api/community/scene/:username/like", async (req, res) => {
+  await ensureDbBootstrapped();
+  const meId = requireAuth(req, res);
+  if (!meId) return;
+
+  const info = await getPublicUserByUsername(req.params.username);
+  if (!info) return res.status(404).json({ error: "NOT_FOUND" });
+  if (info.private) return res.status(403).json({ error: "PRIVATE_PROFILE" });
+  if (Number(info.user.id) === Number(meId))
+    return res.status(400).json({ error: "CANNOT_LIKE_SELF" });
+
+  const existing = await query(
+    `select 1 as ok from scene_likes where user_id = ? and target_user_id = ? limit 1`,
+    [meId, info.user.id]
+  );
+  if ((existing.rows || []).length > 0) {
+    await query(
+      `delete from scene_likes where user_id = ? and target_user_id = ?`,
+      [meId, info.user.id]
+    );
+  } else {
+    await query(
+      `insert into scene_likes (user_id, target_user_id) values (?, ?)`,
+      [meId, info.user.id]
+    );
+  }
+  const likes = await query(
+    `select count(*) as c from scene_likes where target_user_id = ?`,
+    [info.user.id]
+  );
+  const likesCount = Number(likes.rows?.[0]?.c || 0);
+  const mine2 = await query(
+    `select 1 as ok from scene_likes where user_id = ? and target_user_id = ? limit 1`,
+    [meId, info.user.id]
+  );
+  const likedByMe = (mine2.rows || []).length > 0;
+  res.json({ likesCount, likedByMe });
+});
+
+app.post("/api/community/scene/:username/comment", async (req, res) => {
+  await ensureDbBootstrapped();
+  const meId = requireAuth(req, res);
+  if (!meId) return;
+
+  const info = await getPublicUserByUsername(req.params.username);
+  if (!info) return res.status(404).json({ error: "NOT_FOUND" });
+  if (info.private) return res.status(403).json({ error: "PRIVATE_PROFILE" });
+
+  const body = String(req.body?.body || "").trim();
+  if (!body) return res.status(400).json({ error: "EMPTY_BODY" });
+  if (body.length > 280) return res.status(400).json({ error: "TOO_LONG" });
+
+  await query(
+    `insert into scene_comments (target_user_id, author_user_id, body)
+     values (?, ?, ?)`,
+    [info.user.id, meId, body]
+  );
+
+  const cr = await query(
+    `select c.id, c.body, c.created_at,
+            u.username as author_username, u.display_name as author_display_name
+     from scene_comments c
+     join users u on u.id = c.author_user_id
+     where c.target_user_id = ?
+     order by c.created_at desc
+     limit 30`,
+    [info.user.id]
+  );
+  const comments = (cr.rows || []).map((x) => ({
+    id: x.id,
+    body: x.body,
+    createdAt: x.created_at,
+    authorUsername: x.author_username,
+    authorDisplayName: x.author_display_name || "",
+  }));
+
+  res.json({ comments });
 });
 
 app.get("/api/game/state", async (req, res, next) => {
