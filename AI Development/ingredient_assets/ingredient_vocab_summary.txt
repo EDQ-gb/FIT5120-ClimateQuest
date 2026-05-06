@@ -1,0 +1,40 @@
+Ingredient vocabulary build summary
+source: G:\FIT5120\FIT5120-ClimateQuest\AI Development\Cooking_Dataset\train.csv
+rows: 162899
+ingredient mentions: 1169770
+candidate ingredients: 300
+min count: 20
+top N: 300
+top candidate mention coverage: 867100 (74.13%)
+
+Top 30 ingredients:
+sugar	46753
+salt	46065
+onion	37377
+water	33811
+butter	25489
+milk	21554
+flour	21134
+egg	19827
+pepper	15644
+vanilla	15472
+cream cheese	15293
+bell pepper	14230
+margarine	12180
+garlic	11538
+cool whip	11229
+lemon juice	10986
+vinegar	10759
+sour cream	10720
+tomato	10046
+mayonnaise	9928
+ground beef	9644
+salt and pepper	9509
+pineapple	9392
+brown sugar	8969
+celery	8180
+powdered sugar	7773
+cheddar cheese	7129
+worcestershire sauce	6820
+nut	6717
+mustard	6459

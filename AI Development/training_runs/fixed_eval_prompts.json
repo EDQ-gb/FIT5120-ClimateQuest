@@ -1,0 +1,52 @@
+[
+  {
+    "id": "quick_chicken_rice",
+    "ingredients": ["chicken breast", "rice", "onion", "garlic", "soy sauce"],
+    "category": "savory_main"
+  },
+  {
+    "id": "beef_potato_tomato",
+    "ingredients": ["ground beef", "potato", "tomato", "onion", "pepper"],
+    "category": "savory_main"
+  },
+  {
+    "id": "egg_cheese_bread",
+    "ingredients": ["egg", "cheddar cheese", "bread", "milk", "butter"],
+    "category": "breakfast"
+  },
+  {
+    "id": "vegetable_pasta",
+    "ingredients": ["pasta", "tomato sauce", "mushroom", "bell pepper", "garlic"],
+    "category": "vegetarian"
+  },
+  {
+    "id": "broccoli_cheese_rice",
+    "ingredients": ["rice", "broccoli", "cheddar cheese", "milk", "butter"],
+    "category": "casserole"
+  },
+  {
+    "id": "tuna_pasta_celery",
+    "ingredients": ["tuna", "pasta", "celery", "mayonnaise", "onion"],
+    "category": "salad"
+  },
+  {
+    "id": "banana_peanut_butter",
+    "ingredients": ["banana", "peanut butter", "milk", "vanilla", "sugar"],
+    "category": "sweet"
+  },
+  {
+    "id": "apple_cinnamon_oats",
+    "ingredients": ["apple", "cinnamon", "oats", "brown sugar", "butter"],
+    "category": "sweet"
+  },
+  {
+    "id": "pork_cabbage_carrot",
+    "ingredients": ["pork", "cabbage", "carrot", "onion", "soy sauce"],
+    "category": "savory_main"
+  },
+  {
+    "id": "cream_cheese_pineapple",
+    "ingredients": ["cream cheese", "pineapple", "cool whip", "powdered sugar", "vanilla"],
+    "category": "dessert"
+  }
+]

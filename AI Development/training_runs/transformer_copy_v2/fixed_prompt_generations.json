@@ -1,0 +1,122 @@
+[
+  {
+    "id": "quick_chicken_rice",
+    "ingredients": [
+      "chicken breast",
+      "rice",
+      "onion",
+      "garlic",
+      "soy sauce"
+    ],
+    "category": "savory_main",
+    "generated_recipe": "fry chicken breasts. add onion, garlic and soy sauce. cook until chicken is done; set aside."
+  },
+  {
+    "id": "beef_potato_tomato",
+    "ingredients": [
+      "ground beef",
+      "potato",
+      "tomato",
+      "onion",
+      "pepper"
+    ],
+    "category": "savory_main",
+    "generated_recipe": "brown ground beef and onion. drain. add 1 can of tomato soup. cook until done."
+  },
+  {
+    "id": "egg_cheese_bread",
+    "ingredients": [
+      "egg",
+      "cheddar cheese",
+      "bread",
+      "milk",
+      "butter"
+    ],
+    "category": "breakfast",
+    "generated_recipe": "cut bread into cubes. dip in egg, then in milk, then dip in egg, then into milk. fry in butter."
+  },
+  {
+    "id": "vegetable_pasta",
+    "ingredients": [
+      "pasta",
+      "tomato sauce",
+      "mushroom",
+      "bell pepper",
+      "garlic"
+    ],
+    "category": "vegetarian",
+    "generated_recipe": "cut bell pepper into strips and fry in oil. put in tomato sauce. add garlic powder, pepper, garlic and tomato sauce. cook on low heat until tender."
+  },
+  {
+    "id": "broccoli_cheese_rice",
+    "ingredients": [
+      "rice",
+      "broccoli",
+      "cheddar cheese",
+      "milk",
+      "butter"
+    ],
+    "category": "casserole",
+    "generated_recipe": "cook rice according to directions on box. mix in milk and add 1 teaspoon salt. add butter and cheddar cheese."
+  },
+  {
+    "id": "tuna_pasta_celery",
+    "ingredients": [
+      "tuna",
+      "pasta",
+      "celery",
+      "mayonnaise",
+      "onion"
+    ],
+    "category": "salad",
+    "generated_recipe": "cook pasta according to package directions. drain and chop. dice onion and celery and add to pasta. add to pasta and mayonnaise."
+  },
+  {
+    "id": "banana_peanut_butter",
+    "ingredients": [
+      "banana",
+      "peanut butter",
+      "milk",
+      "vanilla",
+      "sugar"
+    ],
+    "category": "sweet",
+    "generated_recipe": "slice banana and place in a bowl. add milk and sugar. add vanilla to taste. mix until desired consistency. put on top of your choice."
+  },
+  {
+    "id": "apple_cinnamon_oats",
+    "ingredients": [
+      "apple",
+      "cinnamon",
+      "oats",
+      "brown sugar",
+      "butter"
+    ],
+    "category": "sweet",
+    "generated_recipe": "cut apple in half lengthwise. sprinkle with brown sugar and butter. put in oven and bake until apple is tender."
+  },
+  {
+    "id": "pork_cabbage_carrot",
+    "ingredients": [
+      "pork",
+      "cabbage",
+      "carrot",
+      "onion",
+      "soy sauce"
+    ],
+    "category": "savory_main",
+    "generated_recipe": "slice pork in thin strips and fry until brown. put into crock-pot and add vegetables. cook until done. serve with rice."
+  },
+  {
+    "id": "cream_cheese_pineapple",
+    "ingredients": [
+      "cream cheese",
+      "pineapple",
+      "cool whip",
+      "powdered sugar",
+      "vanilla"
+    ],
+    "category": "dessert",
+    "generated_recipe": "mix pineapple, cool whip and powdered sugar together. pour into a graham cracker crust. top with fresh fruit or strawberries. chill."
+  }
+]

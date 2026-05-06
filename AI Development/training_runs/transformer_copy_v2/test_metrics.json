@@ -1,0 +1,1017 @@
+{
+  "metrics": {
+    "run_name": "transformer_copy_v2",
+    "checkpoint_path": "best_transformer_copy_v2.pt",
+    "max_items": 500,
+    "num_items": 500,
+    "bleu4": 0.06598599806945304,
+    "meteor": 0.2662368944429736,
+    "bertscore_f1": 0.8770431876182556,
+    "ingredient_coverage": 0.24679063756217967,
+    "repetition_rate": 0.00994001130137676,
+    "average_generated_length": 34.734,
+    "empty_output_rate": 0.0
+  },
+  "examples": [
+    {
+      "ingredients": "1 (8 oz.) pkg. cream cheese, 1 small jar Marshmallow Creme, 1 Tbsp. orange juice",
+      "reference": "Whip cream cheese with mixer until smooth. Blend in orange juice. Add Marshmallow Creme. Whip again until smooth. Chill before serving.",
+      "prediction": "mix all ingredients. use for fruit, apples, strawberries, bananas, bananas, bananas or pineapple chunks.",
+      "bleu4": 0.011732811391251733,
+      "meteor": 0.05882352941176472,
+      "ingredient_coverage": 0.0,
+      "repetition_rate": 0.10526315789473684,
+      "generated_length": 21
+    },
+    {
+      "ingredients": "1 lb. ground beef, 1/2 c. onions, cut up (sauteed in butter or oil), 1 tsp. mustard, 1 can chicken gumbo soup, 2 Tbsp. catsup",
+      "reference": "Combine all ingredients. Cook 30 minutes. Serve on warm buns.",
+      "prediction": "brown meat in skillet with oil. add onions and soup. simmer until thick. add catsup or mustard and catsup. serve hot. makes 4 servings.",
+      "bleu4": 0.02435359923226655,
+      "meteor": 0.17006802721088435,
+      "ingredient_coverage": 0.25,
+      "repetition_rate": 0.0,
+      "generated_length": 30
+    },
+    {
+      "ingredients": "1 large box lemon jello, 1 large can crushed pineapple (can use chunks), 1 large container Cool Whip, 8 oz. cream cheese, 1 c. powdered sugar, 3/4 c. sugar, 4 Tbsp. flour, 2 eggs, beaten",
+      "reference": "Drain juice from pineapple and save. Prepare lemon jello as directed and pour into a 9 x 13-inch Pyrex dish. Allow to jell a little. Add pineapple to jello and stir well. Let it jell completely. Mix 1 cup pineapple juice, flour and beaten eggs in saucepan over low heat for 10 minutes. Cool. Spoon over jello layer. Then spoon whipped topping over this layer. Sprinkle with nuts. Put back into refrigerator.",
+      "prediction": "drain pineapple, reserving 1 cup of juice. add enough water to juice to make 1 cup. bring to a boil and remove from heat. add lemon jello, 1 cup reserved pineapple juice and 2 cups water. stir until dissolved. add to jello and let cool.",
+      "bleu4": 0.0324230204430765,
+      "meteor": 0.21381779593132552,
+      "ingredient_coverage": 0.20689655172413793,
+      "repetition_rate": 0.0,
+      "generated_length": 53
+    },
+    {
+      "ingredients": "2 c. mayonnaise, 1/2 c. grated Parmesan cheese, 1/4 c. sugar, 1/2 tsp. dried basil, 1/2 tsp. salt, 4 c. fresh broccoli florets, 4 c. fresh cauliflowerets, 1 medium red onion, sliced, 1 (8 oz.) can sliced water chestnuts, drained, 1 large head iceberg lettuce, torn, 1 lb. sliced bacon, cooked and crumbled, 2 c. croutons",
+      "reference": "In a large bowl, combine mayonnaise, Parmesan cheese, sugar, basil and salt. Add broccoli, cauliflower, onion and water chestnuts; toss. Cover and refrigerate for several hours or overnight.",
+      "prediction": "combine broccoli, water chestnuts, water chestnuts and bacon in a large salad bowl; set aside. in large bowl, combine mayonnaise, sugar, salt and basil. toss to coat evenly. cover and chill at least 8 hours.",
+      "bleu4": 0.21307665420453561,
+      "meteor": 0.5089624029235476,
+      "ingredient_coverage": 0.24390243902439024,
+      "repetition_rate": 0.023255813953488413,
+      "generated_length": 45
+    },
+    {
+      "ingredients": "3 1/2 c. flour (sifted all-purpose), 1 tsp. baking soda, 1/2 tsp. salt, 1 c. butter (soft not runny), 2 c. light brown sugar, 2 eggs, 1/2 c. buttermilk, 1 tsp. vanilla extract, 1 1/2 c. chopped nuts, 2 c. halved candied cherries, 2 c. cut-up pitted dates",
+      "reference": "Sift together into bowl and reserve flour, soda and salt. Cream butter, sugar and eggs. Add buttermilk, vanilla and flour mixture, mixing well. Stir in chopped nuts, candied cherries and pitted dates. Drop by teaspoon on lightly greased cookie sheet. Top each with a nut half if desired.",
+      "prediction": "grease a 10-inch tube pan with butter. in a large mixer bowl, combine flour, salt, baking soda and brown sugar. beat until light and fluffy. add eggs and beat well. stir in dry ingredients. stir in nuts, dates and vanilla. add flour mixture and beat until well blended.",
+      "bleu4": 0.08338208654395231,
+      "meteor": 0.36653061224489797,
+      "ingredient_coverage": 0.36363636363636365,
+      "repetition_rate": 0.01754385964912286,
+      "generated_length": 59
+    },
+    {
+      "ingredients": "1 c. white sugar, 1 pkg. chopped sugared dates, 1 stick butter, 1 c. chopped pecans, 2 c. Rice Krispies, 2 tsp. vanilla, powdered sugar",
+      "reference": "Place sugar, dates and butter in a double boiler. Cook slow for approximately 10 minutes until sticky. Remove from heat. Add pecans, Rice Krispies and vanilla. Let cool. Fill 1 teaspoon full, roll in a ball and roll in powdered sugar.",
+      "prediction": "melt butter; add dates, sugar and dates. cook until mixture begins to boil. stir occasionally. remove from heat; add vanilla and chopped pecans. mix with hands; roll into balls. roll in powdered sugar.",
+      "bleu4": 0.151597072073358,
+      "meteor": 0.42447819772675444,
+      "ingredient_coverage": 0.4117647058823529,
+      "repetition_rate": 0.0,
+      "generated_length": 43
+    },
+    {
+      "ingredients": "1 (10 oz.) bag chopped broccoli, 4 chicken breasts, boiled and cut into bite-size pieces, 1 can cream of mushroom soup, 1 stick butter, 1 onion, diced, 1 small jar Cheez Whiz, 1/2 c. celery, diced, 1 small jar pimiento, drained, 2 c. cooked rice (1 c. uncooked rice)",
+      "reference": "Saute onion and celery in butter. In large casserole dish, mix Cheez Whiz and cream of mushroom soup. Add butter, celery and onion while warm. Mix in rice, broccoli and chicken. Sprinkle pimiento on top. Cover and bake 30 to 40 minutes or until golden in color. Serves 4 to 6.",
+      "prediction": "mix and pour into buttered casserole dish. bake at 350 degrees for 1 hour.",
+      "bleu4": 0.0029918226758809978,
+      "meteor": 0.09416482300884955,
+      "ingredient_coverage": 0.05263157894736842,
+      "repetition_rate": 0.0,
+      "generated_length": 16
+    },
+    {
+      "ingredients": "1 bunch broccoli, chopped, 1 medium purple onion, chopped, 8 to 12 strips bacon, cook crisp and crumble when cool and set aside, 1/4 to 1/2 c. sunflower seeds, 1/2 to 1 c. raisins, 1/2 c. mayonnaise, 1/4 c. sugar, 1 Tbsp. or to taste wine vinegar",
+      "reference": "Mix broccoli and onion together and set aside in refrigerator. Mix mayonnaise, sugar and vinegar together and set aside. One hour before serving, stir in bacon, sunflower seeds and raisins. Then add mayonnaise mixture, mixing well. Refrigerate. Right before serving, stir in 1 cup grated mild or medium Cheddar cheese. This is an excellent salad and very colorful.",
+      "prediction": "mix the first 5 ingredients. mix mayonnaise, vinegar and sugar in separate bowl and pour over first mixture and let stand overnight.",
+      "bleu4": 0.02092753810852161,
+      "meteor": 0.09923664122137404,
+      "ingredient_coverage": 0.0967741935483871,
+      "repetition_rate": 0.0,
+      "generated_length": 25
+    },
+    {
+      "ingredients": "1/2 c. each dried pinto beans, pink beans and kidney beans, 1 c. small pasta bows (4 oz.), 1 tsp. salt, 1/4 tsp. crushed red pepper, 1 Tbsp. instant chicken broth granules, 2 tsp. dried rosemary leaves, 2 Tbsp. dried parsley flakes, 1 tsp. dried basil leaves, 1/2 tsp. instant minced garlic",
+      "reference": "If Packaged for Gift: Put beans into a 3 to 3 1/2-cup jar with tight fitting lid. Put pasta in a sandwich size plastic bag and place on top of beans. Put remaining ingredients into sandwich bag or make a pouch using cheesecloth, plastic wrap or fine netting. Close tightly or tie with a ribbon. Put packet in with beans and pasta or tie to jar. Be sure to include the following cooking directions.",
+      "prediction": "sort and wash beans. in a large pot, combine chicken broth, garlic, rosemary, parsley flakes, basil and basil. bring to a boil over medium heat. reduce heat; cover and simmer for 2 hours. add pasta and heat.",
+      "bleu4": 0.012971585357673883,
+      "meteor": 0.10178117048346055,
+      "ingredient_coverage": 0.2857142857142857,
+      "repetition_rate": 0.0,
+      "generated_length": 48
+    },
+    {
+      "ingredients": "2 c. sugar, 1/2 tsp. salt, 1 c. hot water, 1 c. cocoa, 1 c. cold water, 1 tsp. vanilla",
+      "reference": "Combine cocoa, sugar and salt in saucepan. Mix well and stir in cold water to make a smooth paste. Blend in hot water and vanilla. Simmer 4 to 5 minutes, stirring until thick and smooth. If more rich syrup is wanted, use 1 cup hot milk for hot water. Store and use as you would any other chocolate syrup.",
+      "prediction": "mix all ingredients and bring to a boil. boil for 1 minute. add vanilla. pour into jars and seal.",
+      "bleu4": 0.005769448057513441,
+      "meteor": 0.10236220472440943,
+      "ingredient_coverage": 0.16666666666666666,
+      "repetition_rate": 0.0,
+      "generated_length": 23
+    },
+    {
+      "ingredients": "1-1/2 lb hamburger, 1 lg can pork and beans, 1-1/2 tsp chili powder, 2 or 3 dashes worcestershire sauce, 16 oz ketchup, 1 can stewed tomatoes, 1 med onion chopped (optional)",
+      "reference": "Brown hamburger. Add remaining ingredients, let simmer a little then eat. Can substitute ground venison for hamburger.",
+      "prediction": "brown hamburger and onion until done. mix all ingredients together. heat in crock-pot and cook on low for about 10 to 12 hours. serve over rice with a side dish.",
+      "bleu4": 0.02585545716412742,
+      "meteor": 0.179372197309417,
+      "ingredient_coverage": 0.07407407407407407,
+      "repetition_rate": 0.0,
+      "generated_length": 34
+    },
+    {
+      "ingredients": "tubular pasta, diced tomatoes, shredded Parmesan, basil, olive oil, pinch of red pepper flakes",
+      "reference": "Toss with hot pasta. If desired, cilantro, artichoke hearts, mushrooms or other vegetables may be added.",
+      "prediction": "cook and drain pasta. put tomatoes in a bowl. add parmesan cheese and toss well. sprinkle with olive oil, red pepper flakes and basil flakes. toss.",
+      "bleu4": 0.025419693820071008,
+      "meteor": 0.13574660633484162,
+      "ingredient_coverage": 0.6428571428571429,
+      "repetition_rate": 0.0,
+      "generated_length": 32
+    },
+    {
+      "ingredients": "8 oz. cream cheese (soft), 8 oz. Smooth 'N Melty mints, melted (Mary of Puddin Hill), 2/3 c. powdered sugar, 3 Tbsp. half and half or milk, 1 small container Cool Whip, 1 graham cracker or Oreo crust",
+      "reference": "Blend cream cheese, mints and sugar until smooth. Add half and half, beating until fluffy. Fold in Cool Whip. Pour into crust and chill well.",
+      "prediction": "cream powdered sugar and cream cheese together. add milk, cool whip and mints. pour into graham cracker crust. cover with plastic wrap. refrigerate.",
+      "bleu4": 0.07856885436806606,
+      "meteor": 0.39781153102952416,
+      "ingredient_coverage": 0.3333333333333333,
+      "repetition_rate": 0.0,
+      "generated_length": 29
+    },
+    {
+      "ingredients": "3 Tbsp. soy sauce, 1 Tbsp. cornstarch, 2 large chicken breasts, boned, skinned and cut into 1/2-inch cubes, 1 Tbsp. sherry, 2 tsp. sugar, 1 tsp. white vinegar, 1/4 c. Planters peanut oil, 1 tsp. crushed red pepper, 1/3 c. sliced scallions, 1/2 tsp. ground ginger",
+      "reference": "Blend 1 tablespoon soy sauce and cornstarch in a bowl; mix in chicken and set aside. Combine remaining 2 tablespoons soy sauce sherry, sugar and white vinegar; set aside. Heat Planters peanut oil in wok or large skillet over high heat. Add red pepper, cook until pepper turns black; add chicken and stir-fry 2 minutes. Remove and set aside. Stir-fry scallions and ginger for 1 minute. Return chicken to wok and cook 2 minutes, stirring constantly. Add soy mixture; cook 1 minute longer, stirring constantly. Serve over hot rice (use Uncle Ben's converted rice).",
+      "prediction": "in large bowl, combine sherry, cornstarch, sugar and ginger. set aside. combine vinegar, cornstarch, sherry, soy sauce, ginger, ginger and pepper. add chicken. marinate chicken in sauce mixture at least 2 hours. remove chicken and reserve marinade.",
+      "bleu4": 0.03525132593648887,
+      "meteor": 0.1934672214771255,
+      "ingredient_coverage": 0.3142857142857143,
+      "repetition_rate": 0.020408163265306145,
+      "generated_length": 51
+    },
+    {
+      "ingredients": "2 lb. round steak, 1/4 c. soy sauce, 1 c. chopped onion, 1 garlic clove, minced, 1 tsp. sugar, 1 (16 oz.) can stewed tomatoes with liquid, 2 green peppers, cut into strips, salt and pepper to taste, 1/2 c. cold water, 1 Tbsp. cornstarch, cooked noodles or rice",
+      "reference": "Cut beef into 3 x 1-inch strips. Place in crock-pot. Combine the next 4 ingredients and pour over beef. Cover and cook on low 5 to 6 hours. Add tomatoes and green peppers; cook on low for 1 hour longer. Combine the cold water and cornstarch to make a paste. Stir into liquid in slow cooker and cook on high until thickened. Serve over noodles or rice.",
+      "prediction": "cut meat into thin strips and brown in skillet. add onion, green pepper, garlic, tomatoes, sugar and soy sauce; stir well. bring to a boil; reduce heat, cover and simmer for 1 1/2 to 2 hours or until meat is tender. blend cornstarch and water. stir into mixture. cook until thickened, stirring constantly. serve over rice or hot noodles.",
+      "bleu4": 0.054003456471828575,
+      "meteor": 0.35865950570639027,
+      "ingredient_coverage": 0.4523809523809524,
+      "repetition_rate": 0.0,
+      "generated_length": 74
+    },
+    {
+      "ingredients": "1 can cranberry sauce, 1/2 tsp. salt, 2 tsp. sugar, 1 Tbsp. Knox gelatine, 1/2 c. cold water, 1/2 c. walnuts, 1/2 c. chopped celery, 1 c. chopped apple, 1 small can crushed pineapple, with most juice drained off",
+      "reference": "Melt cranberry sauce; add salt, sugar and gelatine which has been soaked in cold water. Add to hot mixture and cool. When nearly set, add walnuts, celery, apple and pineapple. Chill until firm.",
+      "prediction": "dissolve gelatine in cold water. add to cranberry sauce. chill until partially set. add remaining ingredients. pour into mold; refrigerate.",
+      "bleu4": 0.14840081654091195,
+      "meteor": 0.34679159957518246,
+      "ingredient_coverage": 0.18518518518518517,
+      "repetition_rate": 0.0,
+      "generated_length": 26
+    },
+    {
+      "ingredients": "2 lb. peanut butter, 3 lb. powdered sugar, 1 lb. margarine or butter, 2 large pkg. Nestle morsels, 1/2 piece paraffin wax",
+      "reference": "Melt butter and mix with peanut butter. Mix in powdered sugar. Roll into small balls. Melt paraffin wax and morsels in double boiler. Put toothpick in peanut butter balls and dip in melted chocolate. Place on wax paper.",
+      "prediction": "mix peanut butter, butter, sugar and margarine together. form into small balls and refrigerate. melt paraffin wax in double boiler. dip balls into chocolate mixture. put on wax paper.",
+      "bleu4": 0.22119515245139335,
+      "meteor": 0.5468897628495842,
+      "ingredient_coverage": 0.35294117647058826,
+      "repetition_rate": 0.0,
+      "generated_length": 36
+    },
+    {
+      "ingredients": "1 box Nilla wafers, crushed in blender, 1 box powdered sugar, 1 stick margarine, 1 (16 oz.) can frozen orange juice, 1/2 c. coconut, 1 c. chopped pecans",
+      "reference": "Cream butter, sugar and orange juice together. Add remaining ingredients. Shape into balls and dip in powdered sugar or coconut. Makes 36 balls.",
+      "prediction": "crush nilla. mix all ingredients in a large bowl. make into balls. roll in powdered sugar. store in refrigerator.",
+      "bleu4": 0.07112587679250285,
+      "meteor": 0.2488321954725117,
+      "ingredient_coverage": 0.16666666666666666,
+      "repetition_rate": 0.0,
+      "generated_length": 24
+    },
+    {
+      "ingredients": "2 Tbsp. shortening, 1/2 c. chopped onions, 3 lb. broiler-fryer chicken, disjointed, 2 tsp. salt, 1 Tbsp. paprika, 1 c. water, 2 Tbsp. flour, 1 c. sour cream",
+      "reference": "Melt shortening in deep heavy skillet or Dutch oven. Add onions and saute until golden. Remove from pan. Add chicken pieces, browning lightly. Sprinkle with seasonings and return onions to pan. Add water, cover and simmer until tender, about 1 hour. Remove chicken and keep warm. Pour off about half of the drippings. Stir flour into sour cream. Add to drippings in pan, simmer gently until thoroughly heated. But do not boil. Pour over chicken. Serve with dumpling noodles. Makes 6 servings.",
+      "prediction": "melt shortening in frying pan. cook onions, chicken until tender. remove chicken from pan. sprinkle with salt, pepper and paprika. saute chicken until brown. pour off fat. add water, sour cream and flour. bring to a boil. reduce heat and simmer about 1 hour. cover. simmer 20 minutes or until chicken is tender. serves 6 to 8.",
+      "bleu4": 0.11493296150641764,
+      "meteor": 0.35266203703703713,
+      "ingredient_coverage": 0.5,
+      "repetition_rate": 0.0,
+      "generated_length": 72
+    },
+    {
+      "ingredients": "1 box butter cake mix, 1 stick butter, 3 eggs, 1 box confectioners sugar, 1 (8 oz.) pkg. cream cheese",
+      "reference": "Mix the cake mix, butter and 1 egg. Spread into pan.",
+      "prediction": "combine the cake mix, softened butter, eggs and 1 cup sugar. press into 9 x 13-inch pan.",
+      "bleu4": 0.166352496246992,
+      "meteor": 0.6953892668178383,
+      "ingredient_coverage": 0.35294117647058826,
+      "repetition_rate": 0.0,
+      "generated_length": 21
+    },
+    {
+      "ingredients": "1 pkg. yeast, 1/2 cup lukewarm water, 5 c. all-purpose flour, 1 tsp. baking soda, 1 tsp. salt, 1 tsp. baking powder, 2 Tbsp. sugar, 3/4 c. Crisco shortening, 2 c. buttermilk",
+      "reference": "Preheat oven to 400 degree. Dissolve yeast in warm water; set aside. Mix dry ingredients together, Cut in shortening, Add yeast and buttermilk and mix well. Turn dough onto lightly floured surface and roll out to desired thickness. Cut with small biscuit cutter and place on greased baking sheet. Bake for 12 minutes or until golden brown.",
+      "prediction": "dissolve yeast in lukewarm water. combine flour, sugar, baking powder, salt and baking soda. cut in crisco until mixture resembles coarse cornmeal. add buttermilk and mix well. cover and refrigerate until ready to use.",
+      "bleu4": 0.0864010938532108,
+      "meteor": 0.22709193926537902,
+      "ingredient_coverage": 0.4782608695652174,
+      "repetition_rate": 0.0,
+      "generated_length": 42
+    },
+    {
+      "ingredients": "1 pkg. cream cheese, softened, 1/3 c. sugar, 1 (8 oz.) tub Cool Whip, 1 (6 oz.) prepared graham cracker crust, 1 1/2 c. cherry pie filling",
+      "reference": "Beat cream cheese and sugar in large bowl with whisk or mixer on high speed until smooth. Gently stir in whipped topping. Spoon into prepared graham cracker crust. Refrigerate 3 hours and top with pie filling.",
+      "prediction": "beat softened cream cheese until fluffy and add sugar. beat until smooth. fold in whipped topping. spoon into crust. refrigerate until set, at least 3 hours. top with pie filling. refrigerate.",
+      "bleu4": 0.2933626976465471,
+      "meteor": 0.5280780075187971,
+      "ingredient_coverage": 0.2916666666666667,
+      "repetition_rate": 0.0,
+      "generated_length": 39
+    },
+    {
+      "ingredients": "5 eggs, 2 c. sugar, 1/2 pt. whipping cream, unwhipped, flavoring, milk",
+      "reference": "Beat eggs and sugar together. Add cream and flavoring. Fill freezer within 2 or 3 inches of top with whole milk. This will make one gallon.",
+      "prediction": "beat eggs until fluffy. add sugar, flavoring and whipping cream. whip egg whites until stiff and then fold into mixture.",
+      "bleu4": 0.03558032510699584,
+      "meteor": 0.23359757125990893,
+      "ingredient_coverage": 0.4166666666666667,
+      "repetition_rate": 0.0,
+      "generated_length": 24
+    },
+    {
+      "ingredients": "1 can sweetened condensed milk, 1 large Orange Slice (2 or 3 liter), milk",
+      "reference": "Mix milk and Orange Slice in churn. Churn according to churn's directions.",
+      "prediction": "mix all together, except the milk. add the milk and stir until the mixture comes to a rolling boil. put in freezer and freeze.",
+      "bleu4": 0.02982112663631105,
+      "meteor": 0.24539877300613497,
+      "ingredient_coverage": 0.07692307692307693,
+      "repetition_rate": 0.0,
+      "generated_length": 28
+    },
+    {
+      "ingredients": "2 (10-inch) loaves French bread, butter, lettuce leaves, 16 slices assorted luncheon meats, 6 tomato slices, 1 (4 1/2 oz.) can deviled ham, 1 (3 oz.) pkg. cream cheese, 2 Tbsp. pickle relish",
+      "reference": "Cut bread lengthwise into thirds. Spread cut sides of bottom portions with butter. Top with lettuce leaves. Roll each slice of meat up as for jelly roll. Arrange 8 rolls crosswise on lettuce on each sandwich. Spread center portion of bread with butter; place over meat rolls. Top with lettuce leaves. Arrange 3 tomato slices on lettuce on each sandwich. Combine deviled ham, cream cheese and relish. Top tomato slices with deviled ham mixture; cover with top slices of bread.",
+      "prediction": "spread cream cheese on each slice of bread slice. spread deviled relish on each slice of ham. sprinkle with cream cheese, relish, relish and pickle relish. roll up and secure with toothpicks. serve with toothpicks.",
+      "bleu4": 0.02264147805008052,
+      "meteor": 0.19679021263759083,
+      "ingredient_coverage": 0.22580645161290322,
+      "repetition_rate": 0.07499999999999996,
+      "generated_length": 42
+    },
+    {
+      "ingredients": "1 lb. ground beef, 2 cans Campbell's chili beef soup, 1 small can tomato sauce, 1 tsp. cumin seed, 1 tsp. dill seed, 1 small minced onion",
+      "reference": "Brown hamburger and onion in dish by microwaving on High until pink is gone. Add soup, tomato sauce and seasonings; cover. Microwave on High 5 minutes. Reduce to simmer (6) for 10 minutes. Cover with crushed tortilla chips or Fritos.",
+      "prediction": "brown meat and onion; drain. add remaining ingredients. simmer about 20 minutes.",
+      "bleu4": 0.009113024011976428,
+      "meteor": 0.10940919037199125,
+      "ingredient_coverage": 0.05,
+      "repetition_rate": 0.0,
+      "generated_length": 16
+    },
+    {
+      "ingredients": "1 box jello (lemon or orange), 1 1/2 c. boiling water, 1 c. cold water plus ice cubes, 2 Tbsp. lemon juice, 1 (20 oz.) can pineapple chunks, 1/2 c. shredded carrots",
+      "reference": "Dissolve gelatin in 1 1/2 cups boiling water. Combine 1 cup cold water and enough ice cubes to make 2 1/2 cups. Add to gelatin with lemon juice; stir 2 minutes. Let stand until slightly thickened. Fold in drained pineapple and shredded carrots. Chill.",
+      "prediction": "dissolve jello in boiling water. add cold water, lemon juice and ice cubes. stir until melted. add carrots and carrots. stir. put in refrigerator to thicken, until slightly thickened. add pineapple and lemon juice.",
+      "bleu4": 0.10934024788021522,
+      "meteor": 0.4285464452204898,
+      "ingredient_coverage": 0.4,
+      "repetition_rate": 0.0,
+      "generated_length": 43
+    },
+    {
+      "ingredients": "2 Tbsp. butter, 1/2 small onion, diced, 1/2 head cabbage, shredded, 1 lb. wide noodles, cooked",
+      "reference": "Cook noodles and drain. Cook shredded cabbage for 5 minutes and drain. Saute onions until they are transparent. Place cabbage, wide noodles and sauteed onions together in a large pan and mix. Cover pan and allow cabbage and noodles to simmer for a few minutes, until done.",
+      "prediction": "cook noodles until done, but still firm. saute onion in butter until tender. add to cabbage and cook until done. add noodles and cook until cabbage is done.",
+      "bleu4": 0.04224048522010788,
+      "meteor": 0.24489402697495183,
+      "ingredient_coverage": 0.26666666666666666,
+      "repetition_rate": 0.032258064516129004,
+      "generated_length": 33
+    },
+    {
+      "ingredients": "1 bag cranberries, 2 3/4 c. water, 2 1/2 c. sugar, 1 c. white grapes (seedless), cut in half, 1 can drained crushed pineapple, 2 large boxes red jello (strawberry), 1 c. chopped nuts",
+      "reference": "Cook cranberries, water and sugar until berries are soft. Let cool! Make jello, using only hot water called for. Stir all ingredients together and refrigerate.",
+      "prediction": "bring sugar, water and cranberries to a boil. remove from heat and add jello. stir until dissolved. let cool. when cool, add grapes, pineapple, grapes and nuts. pour into a mold or mold.",
+      "bleu4": 0.0660638723618522,
+      "meteor": 0.23291925465838512,
+      "ingredient_coverage": 0.25,
+      "repetition_rate": 0.0,
+      "generated_length": 43
+    },
+    {
+      "ingredients": "1 roll Pillsbury cookie dough, 1/2 c. Cool Whip, 1 (8 oz.) pkg. cream cheese, 1/2 c. powdered sugar, various fruits",
+      "reference": "Roll pizza dough out on pizza tin or cookie sheet. Bake for 10 to 12 minutes or until lightly brown. Combine Cool Whip and softened cream cheese on cooled crust. Top with fruits of your choice (grapes, blueberries, orange sections, kiwi, cantaloupe, strawberries).",
+      "prediction": "spread cookie dough on a large pizza pan. bake as directed on package, using a pizza pan. cool. whip together cream cheese and powdered sugar. spread on cookie dough. slice fruits and add to top.",
+      "bleu4": 0.02399851561605549,
+      "meteor": 0.21640625000000005,
+      "ingredient_coverage": 0.45,
+      "repetition_rate": 0.025000000000000022,
+      "generated_length": 42
+    },
+    {
+      "ingredients": "1 c. Rice Krispies cereal, crushed, 2 Tbsp. margarine, melted, 2 tsp. artificial sweetener",
+      "reference": "Combine ingredients and press into bottom of 8-inch pie pan. Chill while preparing filling. Carbohydrate 2.5 g, protein .3 g, fat 3.7 g, calories 45. Serving size 1/8 crust = 1/4 fruit exchange, 1 fat exchange.",
+      "prediction": "mix together and press into a 9-inch pie plate.",
+      "bleu4": 0.0053923056079048974,
+      "meteor": 0.11234256926952141,
+      "ingredient_coverage": 0.0,
+      "repetition_rate": 0.0,
+      "generated_length": 10
+    },
+    {
+      "ingredients": "2 lb. Velveeta, melted, green onions, green chili salsa (12 oz.), hot sauce",
+      "reference": "Mix all ingredients together.",
+      "prediction": "cut up velveeta into small cubes. add chili sauce and stir until cheese is melted. add green onions and cook until well heated. serve with tortilla chips.",
+      "bleu4": 0.009048295247234425,
+      "meteor": 0.06578947368421054,
+      "ingredient_coverage": 0.42857142857142855,
+      "repetition_rate": 0.0,
+      "generated_length": 31
+    },
+    {
+      "ingredients": "2 Tbsp. flour, 2 Tbsp. cornstarch, 1/4 tsp. salt, 1 tsp. vanilla, 3 ripe bananas, 1 3/4 c. milk, 1/2 c. sugar, 3 egg yolks, lightly beaten, 1 Tbsp. butter or margarine, 1 (9-inch) pie crust",
+      "reference": "Or you can use 1 large package of Jell-O pudding and pie filling (banana cream, French vanilla or vanilla). You can use instant but the type you cook is better.",
+      "prediction": "in saucepan, mix flour, salt, sugar and cornstarch. gradually add milk and beaten egg yolks. cook on medium heat until mixture thickens ( about 10 minutes on low heat ). remove from heat. add butter, vanilla and vanilla. slice bananas. place on top of pie. pour filling over bananas in pie shell. cool, cut into squares.",
+      "bleu4": 0.014894388209336997,
+      "meteor": 0.16883116883116883,
+      "ingredient_coverage": 0.5,
+      "repetition_rate": 0.0,
+      "generated_length": 70
+    },
+    {
+      "ingredients": "1 pt. frozen sweetened raspberries, 1 Tbsp. cornstarch, 1 Tbsp. water",
+      "reference": "Thaw frozen raspberries and place in covered saucepan. Bring to a boil and simmer 5 minutes. Strain and discard pulp. Blend cornstarch and water and add it to the juice, stirring constantly. Cook until mixture boils and thickens. Chill until serving time.",
+      "prediction": "cook berries in water until clear. stir in cornstarch until thickened. serve hot or cold.",
+      "bleu4": 0.004406244930073403,
+      "meteor": 0.16075102880658437,
+      "ingredient_coverage": 0.25,
+      "repetition_rate": 0.0,
+      "generated_length": 18
+    },
+    {
+      "ingredients": "1 yellow cake mix, 1 can creamy coconut, 1 medium Cool Whip, 1 can Angel Flake coconut, 1 can Eagle Brand milk",
+      "reference": "Bake cake as directed. Punch hole in cake while hot and spread Eagle Brand milk over. Let cool 10 minutes. Put 1 can creamy coconut spread over cake. Let cool completely. Spread Cool Whip over cake. Add one can Angel Flake coconut. Keep refrigerated.",
+      "prediction": "prepare cake as directed. when cake cools, poke holes in top with fork. pour eagle brand milk and coconut over cake. let cool. top with cool whip.",
+      "bleu4": 0.14005154210863005,
+      "meteor": 0.4205651197604791,
+      "ingredient_coverage": 0.4666666666666667,
+      "repetition_rate": 0.0,
+      "generated_length": 33
+    },
+    {
+      "ingredients": "6 to 8 medium new potatoes, 3 to 4 strips bacon, 2 small to medium onions, black pepper, 14 1/2 oz. can tomatoes, drained, 2 beaten eggs",
+      "reference": "Boil potatoes until done. Brown bacon and remove. Save about 2 tablespoons grease in skillet. Cut up potatoes and onion; add black pepper and brown in grease. Add drained tomatoes and eggs and a little more black pepper. Cover and cook until set. May need to cook some with lid off.",
+      "prediction": "peel and slice potatoes into small chunks. fry bacon until crisp. remove from pan. saute onions in bacon fat until tender. add potatoes, tomatoes and pepper. cover and cook over medium heat until potatoes are done. remove from skillet. add eggs, salt and pepper to taste.",
+      "bleu4": 0.10625244843289225,
+      "meteor": 0.2887927290389944,
+      "ingredient_coverage": 0.391304347826087,
+      "repetition_rate": 0.01851851851851849,
+      "generated_length": 56
+    },
+    {
+      "ingredients": "2 onions, sliced, 4 to 5 lb. picnic ham (for beef barbecue use 5 lb. rump roast), 5 to 6 cloves, 2 c. water, 16 oz. bottle barbecue sauce, 1 large onion, chopped, 1/8 tsp. Tabasco sauce if desired",
+      "reference": "Crock-pot: Put 1/2 sliced onions on bottom of crock-pot, then add meat, cloves and water with remaining sliced onions on top. Cover and cook overnight or 8 to 10 hours on low. Remove bone and fat from meat. Put meat back in crock-pot. Add chopped onion, Tabasco and barbecue sauce. Cover and cook 1 to 3 hours on high or 4 to 8 hours on low, stirring 2 to 3 times. Serve from crock-pot on large toasted buns.",
+      "prediction": "place picnic in crock-pot; cook on high for 3 to 4 hours until done. remove meat from crock-pot. put ham in slow cooker. add onion, cloves, barbecue sauce and tabasco sauce. cover and cook on low for 8 to 10 hours. add water if needed.",
+      "bleu4": 0.0997161487964912,
+      "meteor": 0.35081975565690615,
+      "ingredient_coverage": 0.35294117647058826,
+      "repetition_rate": 0.0,
+      "generated_length": 54
+    },
+    {
+      "ingredients": "1/2 c. butter, 3 Tbsp. all-purpose flour, 2 c. milk, 1 c. grated Colby cheese, 1 c. grated American cheese, 1 c. grated Parmesan cheese, 5 dashes Tabasco sauce or more to taste, chicken or turkey, city or country ham, crisp fried bacon, sliced tomatoes, paprika, toasted white bread, 2 egg yolks, well beaten",
+      "reference": "In a 4-quart, heavy saucepan, melt butter. Over medium heat, mix in flour until smooth. Add milk slowly, stirring constantly, until thick. Add Tabasco sauce and Parmesan cheese. Remove from heat. Take out 1/2 cup sauce and add the two beaten egg yolks. Mix well and return to the remainder, stirring constantly. Add Colby and American cheeses; stir until melted. Remove from heat.",
+      "prediction": "melt butter in saucepan. add flour and stir until smooth. add milk gradually. cook over low heat, stirring, until mixture thickens and comes to a boil. add egg yolks and cook 1 minute more. remove from heat. stir in cheese and ham. season with paprika.",
+      "bleu4": 0.13368408960487507,
+      "meteor": 0.33185378590078324,
+      "ingredient_coverage": 0.275,
+      "repetition_rate": 0.0,
+      "generated_length": 55
+    },
+    {
+      "ingredients": "1 (No. 2) can fruit cocktail (undrained), 1 can chunk pineapple (undrained), 1 (3 1/2 oz.) pkg. pistachio pudding, 1 c. miniature marshmallows, 1 c. chopped nuts, 1 (9 oz.) carton Cool Whip",
+      "reference": "Mix all and refrigerate.",
+      "prediction": "drain fruit cocktail, reserving 2 cups of juice. combine fruit juice and pineapple. add to pudding mix. fold in cool whip and nuts. chill.",
+      "bleu4": 0.012238309496966717,
+      "meteor": 0.2,
+      "ingredient_coverage": 0.3076923076923077,
+      "repetition_rate": 0.0,
+      "generated_length": 30
+    },
+    {
+      "ingredients": "1-2 lb. chuck or round roast (venison may be substituted), 4 or 5 medium sized potatoes, 1 c. shredded cabbage, 1 medium sized onion, 2 large carrots, 3 stalks celery, 1 c. green beans, 1 c. corn, 1/4 to 1/2 c. macaroni, 1 large can tomato juice",
+      "reference": "Cook roast and cut into small pieces. Dice potatoes, onion, carrots and celery. After meat is tender add all other ingredients, except tomato juice, to meat and meat stock. When everything is cooked add juice and boil. Salt and pepper to taste.",
+      "prediction": "cut venison into bite size pieces. brown in a large pot. add all other ingredients. cook on low for 2 hours. add salt and pepper to taste. cook until vegetables are soft. serves 6 to 8.",
+      "bleu4": 0.1622488266740234,
+      "meteor": 0.33714316288564755,
+      "ingredient_coverage": 0.10810810810810811,
+      "repetition_rate": 0.0,
+      "generated_length": 43
+    },
+    {
+      "ingredients": "10 oz. spinach, 1 c. salad oil, 1/4 c. sugar, 1/3 c. catsup, 1/4 c. vinegar, 1 Tbsp. Worcestershire sauce, 1 medium onion, diced, 6 slices crisp bacon, crumbled, 4 hard-boiled eggs, cut fine",
+      "reference": "Cut stems off spinach leaves. Rinse well. Mix and refrigerate salad oil, sugar, catsup, vinegar, Worcestershire sauce and onion. Salt to taste. Top with crisp bacon and hard-boiled eggs.",
+      "prediction": "mix sugar, oil, vinegar, worcestershire sauce, worcestershire sauce and catsup. pour over spinach; chill overnight.",
+      "bleu4": 0.14064869629438173,
+      "meteor": 0.277960927960928,
+      "ingredient_coverage": 0.25,
+      "repetition_rate": 0.050000000000000044,
+      "generated_length": 22
+    },
+    {
+      "ingredients": "4 c. cooked chicken, chopped, 4 Tbsp. chopped green olives, 4 Tbsp. chopped ripe olives, 1 c. celery, 1 c. toasted chopped almonds, 4 Tbsp. salad pickles, 4 hard-cooked eggs, chopped, 1 1/2 c. mayonnaise, 1 Tbsp. cooking sherry, 1 recipe Puff Pastry (recipe follows)",
+      "reference": "Combine all ingredients. Fill pastries with salad. Garnish with slices of green and ripe olives and fresh parsley. Yield: 36.",
+      "prediction": "remove crust from chicken and shred. stir in remaining ingredients.",
+      "bleu4": 0.019218643869329453,
+      "meteor": 0.08438818565400844,
+      "ingredient_coverage": 0.037037037037037035,
+      "repetition_rate": 0.0,
+      "generated_length": 12
+    },
+    {
+      "ingredients": "1 Tbsp. lemon juice, 1 large banana, sliced, 2 c. chicken, cut in 1-inch cubes and cooked, 1 (20 oz.) can pineapple chunks, drained, 1 pt. fresh strawberries, stems removed and halved, 2 Tbsp. sesame seed, toasted, 1/2 c. bottled French dressing (spicy and sweet), Premium saltine crackers, lettuce leaves",
+      "reference": "In large bowl, sprinkle lemon juice over banana. Add chicken, pineapple and strawberries; toss to mix. Place lettuce leaves on individual serving plates. Top with salad. Sprinkle with sesame seed. Serve with dressing and crackers. Makes 4 main dish servings.",
+      "prediction": "in a bowl, combine chicken, pineapple, banana and sesame seed. in another bowl, combine dressing and lemon juice and mix gently. cover; chill at least 1 hour.",
+      "bleu4": 0.06067531136461183,
+      "meteor": 0.28574742268041237,
+      "ingredient_coverage": 0.23255813953488372,
+      "repetition_rate": 0.030303030303030276,
+      "generated_length": 35
+    },
+    {
+      "ingredients": "3 c. cashews, chopped (unsalted), 1 lb. bittersweet chocolate, 1 1/4 c. cream, 1 Tbsp. cinnamon, 2 Tbsp. Kahlua, 2 Tbsp. vanilla, 4 oz. unsalted butter",
+      "reference": "Chop chocolate; place in bowl. Heat butter and cream to scald. Pour over chocolate. Stir to melt. Add cinnamon, Kahlua, vanilla and cashews. Pour into lightly greased mold (loaf pan); chill.",
+      "prediction": "melt chocolate in double boiler. mix all ingredients. spread on waxed paper to cool.",
+      "bleu4": 0.00526379942794105,
+      "meteor": 0.13169090346534654,
+      "ingredient_coverage": 0.047619047619047616,
+      "repetition_rate": 0.0,
+      "generated_length": 17
+    },
+    {
+      "ingredients": "1 can baked beans, 1/2 tsp. dry mustard, 1 small onion, 1/4 c. catsup, 2 Tbsp. brown sugar",
+      "reference": "Mix all ingredients. Cover and cook 10 minutes.",
+      "prediction": "put all ingredients in slow cooker and cook for 1 hour.",
+      "bleu4": 0.07139921386902234,
+      "meteor": 0.43725490196078437,
+      "ingredient_coverage": 0.058823529411764705,
+      "repetition_rate": 0.0,
+      "generated_length": 12
+    },
+    {
+      "ingredients": "1 graham cracker crust or any kind of crumb pie shell, 1 (12 oz.) carton Cool Whip, softened, 1 large Hershey almond candy bar, melted",
+      "reference": "Melt candy bar in large bowl. Add Cool Whip and mix together until the candy bar has been completely dissolved. Pour into crumb pie shell. Let set in refrigerator until cool. Garnish with whipped cream and almonds.",
+      "prediction": "mix well and pour into pie shell. refrigerate until serving time.",
+      "bleu4": 0.01522897071500324,
+      "meteor": 0.21189258312020456,
+      "ingredient_coverage": 0.08333333333333333,
+      "repetition_rate": 0.0,
+      "generated_length": 13
+    },
+    {
+      "ingredients": "1 (6 oz.) pkg. black raspberry jello, 3 c. boiling water, 1 (No. 2) can crushed pineapple and juice, 2/3 qt. blueberries, 1 c. milk, 1 c. sugar, 1 pkg. Knox gelatine, 1/4 c. cold water, 1 c. cultured sour cream, 1 tsp. vanilla",
+      "reference": "Scald the jello in the boiling water; add pineapple and blueberries. Chill.",
+      "prediction": "dissolve knox jello in cold water. add blueberries and pineapple. add sugar and let set. add sour cream. mix and vanilla. pour into an 8 x 12 x 2-inch pyrex dish and refrigerate.",
+      "bleu4": 0.02351888741752478,
+      "meteor": 0.3356038030367533,
+      "ingredient_coverage": 0.30303030303030304,
+      "repetition_rate": 0.0,
+      "generated_length": 39
+    },
+    {
+      "ingredients": "1 Egg, 1/2 c. melted Shortening, 1/2 c. Sugar, 1/2 c. Molasses, 1/2 c. Water, 1/2 tsp. Salt, 1/2 tsp. Ginger, 1 tsp. Cinnamon, 1 tsp. Baking Soda, 2 c. rounded Flour",
+      "reference": "Beat Egg; add Sugar, Shortening, Molasses and Water. Sift dry ingredients and add to mixture. Mix well and chill. Drop by teaspoon and bake at 375 for 10 minutes.",
+      "prediction": "mix sugar, shortening, egg and water. stir in molasses. add salt, cinnamon, ginger and ginger. sift flour, soda and add to creamed mixture. stir in molasses and chill 1 hour.",
+      "bleu4": 0.14494103545021728,
+      "meteor": 0.37734992280446833,
+      "ingredient_coverage": 0.6111111111111112,
+      "repetition_rate": 0.052631578947368474,
+      "generated_length": 40
+    },
+    {
+      "ingredients": "1 jar Ragu spaghetti sauce with mushroom and onions, 1/2 tsp. garlic salt, 1/4 tsp. black pepper, 1/2 tsp. oregano, 1/2 tsp. sugar, 1 lb. ground beef, 1 onion, chopped, 1 pkg. noodles",
+      "reference": "Brown ground beef and onions. Drain grease. Add to other ingredients. Cook 10 minutes. Pour over noodles.",
+      "prediction": "brown meat and onions. add ragu sauce and other ingredients. cook until done. serve with noodles or rice or cornbread.",
+      "bleu4": 0.170595737016168,
+      "meteor": 0.46046046046046046,
+      "ingredient_coverage": 0.20833333333333334,
+      "repetition_rate": 0.0,
+      "generated_length": 24
+    },
+    {
+      "ingredients": "2 eggs, beaten, 5 c. milk, 2 c. flour, salt, 2 Tbsp. butter, cinnamon and sugar mixture to taste",
+      "reference": "Combine eggs and 1 cup of milk in a bowl; mix well. Add sifted flour and salt; mix well. Stir in just enough milk until stiff dough forms; knead well. Roll into a thin rectangle on a lightly floured surface; dust with additional flour and cut into thin strips.",
+      "prediction": "mix all ingredients. roll out and cut with donut cutter. cook in boiling water until done.",
+      "bleu4": 0.007477622954538259,
+      "meteor": 0.11945488721804509,
+      "ingredient_coverage": 0.0,
+      "repetition_rate": 0.0,
+      "generated_length": 19
+    },
+    {
+      "ingredients": "1 head lettuce, chopped, 1 c. celery, chopped, 10 oz. frozen peas, 1/2 c. bell pepper, chopped, 1 medium onion, chopped, 1 c. shredded carrot, 2 c. mayonnaise, 2 Tbsp. sugar, 8 oz. Mozzarella cheese, shredded, bacon bits (if desired)",
+      "reference": "Place a layer of lettuce. Add each vegetable in layers. Top off vegetables with more lettuce. Spread over lettuce 2 cups mayonnaise. Sprinkle 2 tablespoons sugar over mayonnaise. Add the Mozzarella cheese. Let set for 24 hours. Sprinkle bacon bits before serving, if desired.",
+      "prediction": "place lettuce in a 9 x 13-inch glass dish. add celery, carrot, onion, peas and bacon bits. spread evenly over this. spread mayonnaise over peas. sprinkle sugar and cheese. cover tightly. let chill overnight.",
+      "bleu4": 0.034011609687957245,
+      "meteor": 0.2832426956707187,
+      "ingredient_coverage": 0.3333333333333333,
+      "repetition_rate": 0.0,
+      "generated_length": 44
+    },
+    {
+      "ingredients": "2 gal. cut up green tomatoes, 1/2 gal. cut up onions, 1 pt. cut up bell peppers (some red), 1/2 pt. cut up hot peppers, 3 qt. vinegar, 8 c. sugar, 1/2 c. canning salt",
+      "reference": "Place sugar, salt, vinegar and peppers in pan; let come to a boil. Put in onions and let come to a boil again. Now put in tomatoes; allow to heat. Do not let the tomatoes boil. Place in jars and seal. Makes 20 pints.",
+      "prediction": "cook until thick. cook until thick. put in jars.",
+      "bleu4": 0.004206402714501675,
+      "meteor": 0.09630358167363332,
+      "ingredient_coverage": 0.0,
+      "repetition_rate": 0.19999999999999996,
+      "generated_length": 12
+    },
+    {
+      "ingredients": "1 c. sugar, 1 c. water, 3 1/2 Tbsp. flour, 3 egg yolks, 1/4 stick butter, 2 Tbsp. cocoa",
+      "reference": "Cook all ingredients in medium saucepan over medium heat. When ready it will be very thick. May need to use a wire whisk to smooth. Pour in baked pie shell.",
+      "prediction": "mix all ingredients; cook over medium heat and stir until thick. pour this into baked pie crust.",
+      "bleu4": 0.05795307445219108,
+      "meteor": 0.33156526925698704,
+      "ingredient_coverage": 0.0,
+      "repetition_rate": 0.0,
+      "generated_length": 20
+    },
+    {
+      "ingredients": "3 oz. liquid smoke, 5 to 6 lb. beef brisket, bottled barbecue sauce, celery salt, garlic salt, onion salt and meat tenderizer, salt and pepper, Worcestershire sauce, flour",
+      "reference": "Pour liquid smoke over meat and rub on all sides. Sprinkle with celery salt, garlic salt, onion salt and meat tenderizer. Cover with foil and leave in the refrigerator overnight.",
+      "prediction": "rub meat with salt, pepper, garlic salt and onion salt. place on a large baking pan. pour liquid over meat. sprinkle with barbecue sauce. cover and cook slowly on low for 2 to 3 1/2 hours or until tender.",
+      "bleu4": 0.08188941360653985,
+      "meteor": 0.5245844875346262,
+      "ingredient_coverage": 0.45454545454545453,
+      "repetition_rate": 0.0,
+      "generated_length": 46
+    },
+    {
+      "ingredients": "1 gal. jar whole sour pickles, 5 lb. sugar, 1 small can pickling spice, wrapped in clean cloth and tied",
+      "reference": "Cut and drain pickles very good. Put, in a large container, 1 layer of pickles and then sugar, until finished. Place bag of spice in between. Stir twice a day for 3 days. Put into jars.",
+      "prediction": "put sugar over pickles and let stand overnight. drain and rinse in cold water. mix remaining ingredients and pour over pickles. let stand 24 hours. stir occasionally.",
+      "bleu4": 0.025678022774159023,
+      "meteor": 0.16355140186915887,
+      "ingredient_coverage": 0.16666666666666666,
+      "repetition_rate": 0.0,
+      "generated_length": 32
+    },
+    {
+      "ingredients": "3 cups rice, 3 cups hot water, 1 can cream of mushroom soup, 6 chicken breasts, 1 pkg. onion soup mix",
+      "reference": "Place rice, hot water and mushroom soup in a 9x13 pan, stir. Layer chicken breast on top of mixture. Sprinkle onion soup mix over chicken. Cover with foil and bake at 350 degrees for 1 1/2 hours.",
+      "prediction": "put chicken in casserole dish. pour rice over chicken. mix onion soup and water. pour over chicken. cover with wax paper. bake at 350 degrees for 25 to 30 minutes.",
+      "bleu4": 0.19594368066284779,
+      "meteor": 0.43766973409139764,
+      "ingredient_coverage": 0.35294117647058826,
+      "repetition_rate": 0.02941176470588236,
+      "generated_length": 36
+    },
+    {
+      "ingredients": "1 lb. Jimmy Dean sausage, 5 eggs, 1 tsp. salt, 1 tsp. dry mustard, 6 slices white bread, 1 1/2 c. Longhorn Cheddar cheese, 2 c. half and half",
+      "reference": "Crumble sausage in skillet. Cook until brown, stirring occasionally. Drain. Grease a 13 x 9-inch Pyrex dish. Line bottom with bread that has been cubed. Top with cooked sausage and grated cheese.",
+      "prediction": "cook sausage and drain. tear bread into small pieces. layer in a buttered 9 x 13-inch pan.",
+      "bleu4": 0.02087582544434001,
+      "meteor": 0.1851150564701165,
+      "ingredient_coverage": 0.09090909090909091,
+      "repetition_rate": 0.0,
+      "generated_length": 20
+    },
+    {
+      "ingredients": "8 oz. flank steak, trimmed, 1 clove garlic, finely chopped, 1 Tbsp. grated fresh ginger, 1 Tbsp. soy sauce, 1 lb. broccoli, 1 Tbsp. vegetable oil, 1 medium-size onion, sliced, 1/4 c. beef broth",
+      "reference": "Slice steak diagonally into 1/4-inch thick strips. Place in bowl with garlic, ginger and soy sauce. Refrigerate, covered, 20 minutes. Cut broccoli flowerets. Peel stem and slice 1/4-inch thick. Heat 1 1/2 teaspoons of oil in large saucepan. Add beef and marinade. Stir-fry until brown 2 to 3 minutes. Remove from pan and set aside. Swirl remaining oil around pan. Add beef broth and onion. Stir-fry for 6 to 8 minutes. Add beef broth as needed to prevent sticking. Stir in meat; heat through. Makes 4 servings.",
+      "prediction": "trim fat from steak and cut into thin strips. in a large skillet, heat the oil. add garlic and cook until tender. stir in the beef broth, soy sauce and onion. cook, stirring, until meat is browned. add broccoli. cook until broccoli is tender-crisp, about 8 minutes. add to skillet and cook 1 minute. add 1 tablespoon soy sauce. cook until heated through and thickened. serve immediately.",
+      "bleu4": 0.06914955702209753,
+      "meteor": 0.32126039287549696,
+      "ingredient_coverage": 0.4074074074074074,
+      "repetition_rate": 0.012345679012345734,
+      "generated_length": 83
+    },
+    {
+      "ingredients": "3 oz. cream cheese, softened, 1/2 c. powdered sugar, sifted, 1/2 tsp. vanilla, pinch of salt, 1/2 pt. whipping cream, whipped, 1 graham cracker or vanilla wafer crust, 1 can cherry pie filling",
+      "reference": "Cream together the cream cheese, sugar, vanilla and salt. Fold whipped cream into mixture. Pour into pie shell. Cover with pie filling and chill. Makes 1 pie.",
+      "prediction": "combine softened cream cheese, sugar and salt; beat until smooth. add whipped cream and vanilla. fold in pie filling and pour into crust. refrigerate overnight before serving.",
+      "bleu4": 0.1466669246717799,
+      "meteor": 0.438938053097345,
+      "ingredient_coverage": 0.37037037037037035,
+      "repetition_rate": 0.0,
+      "generated_length": 33
+    },
+    {
+      "ingredients": "1 (1 lb.) can sauerkraut, 1/2 c. cucumber (sliced thin), 1/2 c. celery, chopped, 1/2 c. carrot, shredded, 1/4 c. onion, chopped, 1 Tbsp. vinegar, 1/4 c. sugar, salt and pepper",
+      "reference": "Drain sauerkraut and cut into short pieces. Add remaining ingredients and mix well. Cover and chill for 8 hours or overnight.",
+      "prediction": "mix all ingredients together. let stand overnight. serve cold.",
+      "bleu4": 0.02311728146289043,
+      "meteor": 0.13157894736842105,
+      "ingredient_coverage": 0.0,
+      "repetition_rate": 0.0,
+      "generated_length": 12
+    },
+    {
+      "ingredients": "7 c. sliced cucumbers, 1 c. sliced onion, 1 Tbsp. salt, 1 c. vinegar, 1 tsp. celery seed, 2 c. sugar, 1/2 tsp. mustard seed",
+      "reference": "Let cucumbers, onion and salt stand for 2 hours, then drain well. Combine remaining ingredients; bring to a boil for 1 minute, then let it cool. Add to cucumbers and onion. Let set in refrigerator for 2 to 3 days. Put into containers and freeze. Can also be kept in refrigerator.",
+      "prediction": "mix sugar, vinegar, mustard seed and salt. bring to boil and pour over cucumbers. let set overnight. do not heat. put in jars and seal.",
+      "bleu4": 0.031753577522450865,
+      "meteor": 0.22937813779852298,
+      "ingredient_coverage": 0.375,
+      "repetition_rate": 0.0,
+      "generated_length": 32
+    },
+    {
+      "ingredients": "1/4 lb. margarine, softened, 2 c. flour, 1 c. brown sugar, 1/2 c. white sugar, 1 c. buttermilk, 1 tsp. soda, 1 egg, 1 tsp. vanilla, 5 Heath bars, crumbled or 1 pkg. Heath chips, 1/4 c. chopped pecans",
+      "reference": "Mix margarine, flour and sugar until crumbly. Take out 1/2 cup of mixture. Add Heath bars and pecans to 1/2 cup mixture and set aside.",
+      "prediction": "in a mixing bowl, combine flour, sugar, soda and soda. set aside. in a large bowl, combine buttermilk, egg, vanilla and margarine. add flour mixture to creamed mixture. stir until blended. add nuts and chips.",
+      "bleu4": 0.049729758822363176,
+      "meteor": 0.37918871252204595,
+      "ingredient_coverage": 0.32,
+      "repetition_rate": 0.022222222222222254,
+      "generated_length": 47
+    },
+    {
+      "ingredients": "5 (3 oz.) pkg. jello (regular or sugar-free), 1 1/4 c. boiling water (for each pkg. jello), sour cream",
+      "reference": "Mix 1 1/4 cups water with one package jello. Pour 3/4 cup jello mixture in 9 x 13-inch pan. Let set. Add 3 tablespoons sour cream in remainder. Spread over the set jello. Continue with remainder of 4 flavors.",
+      "prediction": "dissolve jello in boiling water. chill. when set, add sour cream and beat until fluffy. pour into 8-inch square pan. refrigerate until set, about 2 hours.",
+      "bleu4": 0.02843812000702908,
+      "meteor": 0.2032470826991375,
+      "ingredient_coverage": 0.2777777777777778,
+      "repetition_rate": 0.0,
+      "generated_length": 33
+    },
+    {
+      "ingredients": "2 c. sugar, 3/4 c. margarine, 1/2 c. milk, 3/4 c. peanut butter, 4 Tbsp. cocoa, 1/2 tsp. vanilla, 3 1/2 c. oatmeal",
+      "reference": "Mix sugar, margarine and milk and boil for 1 minute exactly, stirring constantly, then take off stove. Add remaining ingredients. When mixed together, spoon onto cookie sheet and place in refrigerator until hard.",
+      "prediction": "mix sugar, cocoa, and milk in saucepan. bring to a boil and boil for 1 minute. add peanut butter, vanilla and oatmeal. stir well and drop by spoonfuls onto wax paper.",
+      "bleu4": 0.15356308312488912,
+      "meteor": 0.4464471115910129,
+      "ingredient_coverage": 0.4375,
+      "repetition_rate": 0.0,
+      "generated_length": 38
+    },
+    {
+      "ingredients": "1 c. black-eyed peas, 3 1/2 c. water, 1/4 lb. bacon, sliced, 1 onion, sliced, 1/4 tsp. crushed hot pepper, 1/2 c. uncooked rice, 1 c. stewed tomatoes, 1/2 large green pepper, coarsely chopped, 1 tsp. salt, black pepper to taste",
+      "reference": "Heat peas and water to boiling in a medium saucepan. Cover and remove from heat. Let stand for 1 hour. Fry bacon; drain. Add with onion and hot pepper to peas. Cover and simmer until peas are tender, 1 to 1 1/2 hours; stir in rice, salt, black pepper, tomatoes and green pepper. Cover and simmer, stirring occasionally until rice is tender, about 25 minutes. Add additional water, if necessary.",
+      "prediction": "wash and drain peas. place in a large kettle and cover with water and bring to a boil. reduce heat and cover and simmer for 1 hour. add rice, tomatoes, green pepper and rice. cover and simmer for 1 hour or until peas are tender, adding water as needed. add salt and pepper to taste. simmer for 10 minutes.",
+      "bleu4": 0.153763388200975,
+      "meteor": 0.33314425834772826,
+      "ingredient_coverage": 0.39285714285714285,
+      "repetition_rate": 0.05970149253731338,
+      "generated_length": 69
+    },
+    {
+      "ingredients": "2 lb. steak, sliced, 1 small onion, 1 c. ketchup, 1 c. sour cream, 1 can cream of mushroom soup, 4 dashes of Worcestershire sauce, 3 Tbsp. butter, egg noodles",
+      "reference": "Saute onions in butter. Add meat; brown. Add other ingredients. Simmer covered 20 minutes. Cook noodles. Drain. Serve beef over noodles.",
+      "prediction": "brown steak and onion in butter. add soup, ketchup and worcestershire sauce. cook until thickened. add sour cream to meat, onions and worcestershire sauce. simmer 10 minutes. serve over noodles.",
+      "bleu4": 0.133930579343757,
+      "meteor": 0.4791132028275229,
+      "ingredient_coverage": 0.4166666666666667,
+      "repetition_rate": 0.05555555555555558,
+      "generated_length": 38
+    },
+    {
+      "ingredients": "2 (3 oz.) pkg. instant vanilla pudding, 3 c. milk, 1 (8 oz.) container sour cream, 1 (9 oz.) Cool Whip, 1 large can chunk pineapple, 1 box vanilla wafers",
+      "reference": "Combine pudding and milk. Mix thoroughly. Add sour cream and Cool Whip; mix well. Layer with pineapple and wafers.",
+      "prediction": "beat pudding and milk together until thick. add sour cream, then cool whip. layer vanilla wafers, wafers and bananas. chill.",
+      "bleu4": 0.17213315536347637,
+      "meteor": 0.4611570247933884,
+      "ingredient_coverage": 0.32,
+      "repetition_rate": 0.0,
+      "generated_length": 26
+    },
+    {
+      "ingredients": "1 lb. cream cheese, room temperature (for easier mixing), 1 pt. sour cream, 1 c. sugar, 2 tsp. lemon extract, 2 Tbsp. flour, 5 eggs, separated, 2 Tbsp. butter, 1/4 lb. butter for crust, softened, 1/3 pkg. graham cracker crumbs",
+      "reference": "Mix together cheese, sour cream, sugar, lemon extract, egg yolks, flour and 2 tablespoons butter in a large mixing bowl. Beat egg whites stiff and fold in last.",
+      "prediction": "cream butter and sugar until fluffy. add flour and mix well. add egg whites and sour cream. beat until stiff.",
+      "bleu4": 0.03648994691113138,
+      "meteor": 0.3377280115586057,
+      "ingredient_coverage": 0.15151515151515152,
+      "repetition_rate": 0.0,
+      "generated_length": 24
+    },
+    {
+      "ingredients": "6 lamb shanks, 2 tsp. seasoned salt, 1 Tbsp. shortening, 1 (10 1/2 oz.) can condensed tomato soup, 1/2 can water, 1 Tbsp. vinegar, 2 Tbsp. soy sauce, 2 tsp. Worcestershire sauce, 1/2 c. water, fluffy, hot rice",
+      "reference": "Wipe shanks with damp paper towel. Remove excess fat. Sprinkle with salt. Brown meat in hot fat in a heavy skillet or Dutch oven. Combine remaining ingredients except flour and water. Pour over browned shanks. Cover snugly and cook over low heat for 1 1/2 hours or until tender. Skim off fat. Combine flour and water; add to sauce and shanks. Cook until sauce is slightly thickened. Serve with rice. Serves 6.",
+      "prediction": "brown lamb in shortening. add soup, water, vinegar, vinegar, salt and soy sauce. cook for 15 minutes. add rice and cook 5 minutes. serve over rice. serves 6.",
+      "bleu4": 0.04387077687316889,
+      "meteor": 0.2107669586159341,
+      "ingredient_coverage": 0.35714285714285715,
+      "repetition_rate": 0.02777777777777779,
+      "generated_length": 38
+    },
+    {
+      "ingredients": "1 lb. ground beef, 1 large onion, 1 large bell pepper, 4 to 5 fresh tomatoes, 4 to 5 potatoes, 1/4 c. uncooked rice, chili powder, salt, pepper to taste",
+      "reference": "Brown beef and onion until brown. Drain. Mix chili powder, salt and pepper to meat. Set aside.",
+      "prediction": "peel and dice up the ground beef, onion and rice. brown the ground beef and bell pepper in a large skillet. drain well. add tomatoes, salt, pepper and chili powder if desired. cook for 20 minutes, or until rice is tender.",
+      "bleu4": 0.030680462323196267,
+      "meteor": 0.47213646673387094,
+      "ingredient_coverage": 0.5,
+      "repetition_rate": 0.02083333333333337,
+      "generated_length": 50
+    },
+    {
+      "ingredients": "2 c. flour, 1 c. packed brown sugar, 3/4 c. sugar, 1 1/2 tsp. cinnamon, 1/2 c. Parkay spread, 1 c. chopped walnuts, 1 (8 oz.) cream cheese, 2 Tbsp. milk, 1 egg, beaten, 1/2 tsp. vanilla, 3 1/2 c. chopped apples",
+      "reference": "Combine flour, brown sugar, 1/2 cup sugar and cinnamon; cut in spread until mixture resembles coarse crumbs. Stir in walnuts. Reserve 2 cup crumb mixture; press remaining mixture onto bottom of a 9 x 13-inch pan.",
+      "prediction": "cream cheese, brown sugar and 1 cup parkay. add 1/2 cup milk and egg. mix and cinnamon; spread onto bottom of a 9-inch pie plate. add apples, then sprinkle with walnuts. bake at 325 for 50 to 40 minutes. cool.",
+      "bleu4": 0.11056817626721356,
+      "meteor": 0.3486111464077867,
+      "ingredient_coverage": 0.4642857142857143,
+      "repetition_rate": 0.0,
+      "generated_length": 49
+    },
+    {
+      "ingredients": "1/2 lb. Velveeta cheese, softened with fork, 2 Tbsp. salad dressing, 8 or 9 chopped, stuffed olives or pickles, 3 hard-cooked eggs, chopped fine, 1/2 small onion, chopped",
+      "reference": "Blend together and store in pint jar. Can add 2 tablespoons butter.",
+      "prediction": "mix all ingredients together until all ingredients are well blended. spread on party rye bread. makes 2 rolls.",
+      "bleu4": 0.017703659019514106,
+      "meteor": 0.17006802721088438,
+      "ingredient_coverage": 0.043478260869565216,
+      "repetition_rate": 0.0,
+      "generated_length": 21
+    },
+    {
+      "ingredients": "1/2 small box macaroni, 1 pkg. seafood sticks, 2 lb. shrimp, steamed, Old Bay seasoning, sprinkle of sugar, 1/2 c. celery, 1/2 c. onions, mayonnaise, 2 boiled eggs",
+      "reference": "Boil your macaroni. In a large bowl, add the macaroni. Sprinkle a little sugar on it and stir. Cut up your celery and onions very fine (add to bowl and stir).",
+      "prediction": "cook macaroni according to directions on package. rinse and drain. add all other ingredients. let set overnight before serving.",
+      "bleu4": 0.010469649677615477,
+      "meteor": 0.12328767123287669,
+      "ingredient_coverage": 0.041666666666666664,
+      "repetition_rate": 0.0,
+      "generated_length": 23
+    },
+    {
+      "ingredients": "1 lb. almond bark, 1 (12 oz.) pkg. chocolate chips, 1 sq. unsweetened chocolate, 1 lb. Spanish peanuts",
+      "reference": "Melt the first 3 ingredients in a double boiler. When smooth, add the peanuts. Drop by teaspoonfuls on aluminum foil. Cool.",
+      "prediction": "melt chocolate chips. add peanuts and stir until well coated. drop by spoonfuls onto waxed paper. let cool.",
+      "bleu4": 0.07107838149018027,
+      "meteor": 0.32363281250000003,
+      "ingredient_coverage": 0.2,
+      "repetition_rate": 0.0,
+      "generated_length": 22
+    },
+    {
+      "ingredients": "large portion deer meat (we use a whole ham, the size will depend on the size of your smoker), 1 (2 liter) bottle Coca-Cola, 1/4 to 1/2 c. corn oil, Tony Chachere's seasoning, hickory or pecan chunks (smoke flavor)",
+      "reference": "Cut meat to fit smoker rack. Rinse, drain and dry meat with a towel. Be sure it is dry. Rub meat with oil, then liberally apply seasoning. Place meat on rack over water pan which has been filled with equal parts Coke and water. Cook approximately 8 to 10 hours. When done, bone is easily removed from meat. Slice and serve with your favorite barbecue sauce.",
+      "prediction": "in a large heavy pot, put the corn and a little water. add the seasoning smoke, corn and corn. cook until you get the meat and the liquid smoke to be sure to cook down the pot. when it is very thick, add the ham ( about 1 cup more or more water if it becomes too thick ). let it cool, then you may need to add more coca-cola. when ready to serve, add the pecan halves and stir until the juice or you can of meat is done.",
+      "bleu4": 0.021030833715767906,
+      "meteor": 0.23061226629481776,
+      "ingredient_coverage": 0.38461538461538464,
+      "repetition_rate": 0.010101010101010055,
+      "generated_length": 101
+    },
+    {
+      "ingredients": "6 green bananas, 2 scallions, mayonnaise dressing, salt and pepper to taste, 2 cloves garlic",
+      "reference": "Boil green bananas until they are easy to peel. Remove peel; cut into cubes. Roast cloves of garlic and chop into pieces. Add to bananas. Chop scallions, using only the leaves (green storkes). Mix dressing, salt and pepper together; add to banana. Serve.",
+      "prediction": "slice bananas into bite size pieces. chop fine. chop scallions and mix with garlic, green pepper and mayonnaise. add to taste. add salt and pepper.",
+      "bleu4": 0.05374807718735104,
+      "meteor": 0.32687313393283046,
+      "ingredient_coverage": 0.6923076923076923,
+      "repetition_rate": 0.0,
+      "generated_length": 31
+    },
+    {
+      "ingredients": "2 (3 oz.) pkg. raspberry jello, 2 c. boiling water, 2 cans frozen raspberries or strawberries, 1/2 pt. whipping cream, 1 (8 oz.) pkg. cream cheese (Philadelphia), colored mini-marshmallows",
+      "reference": "Start to whip whipping cream and add the package of cream cheese. Set aside. Mix the water and jello. Add the frozen berries and let set. After the cream and cream cheese are mixed, put on top of set jello. Add colored mini-marshmallows.",
+      "prediction": "dissolve jello with boiling water. add frozen raspberries. stir until thawed. whip cream cheese. add strawberries, raspberries and nuts. pour into mold and chill.",
+      "bleu4": 0.04040049283301381,
+      "meteor": 0.2061017631951888,
+      "ingredient_coverage": 0.32,
+      "repetition_rate": 0.0,
+      "generated_length": 31
+    },
+    {
+      "ingredients": "1 large strawberry jello, 1 small can crushed pineapple, 2 c. buttermilk, 1 c. chopped nuts (optional), 1 large Cool Whip",
+      "reference": "Mix pineapple and jello; heat to boiling and then let cool. When cool, mix in buttermilk, nuts and Cool Whip. Pour into bowl or mold and chill until firm.",
+      "prediction": "bring pineapple to a rapid boil. add jello and stir until dissolved. cool and add buttermilk. let set until it starts to thicken. add cool whip and nuts. pour into mold and chill. serves 10 to 12.",
+      "bleu4": 0.07027639526227203,
+      "meteor": 0.44499182762034106,
+      "ingredient_coverage": 0.3333333333333333,
+      "repetition_rate": 0.0,
+      "generated_length": 44
+    },
+    {
+      "ingredients": "1/4 lb. butter, 2 tsp. salt, 3/4 tsp. pepper, 3 c. chicken, 2 c. sifted flour, 6 eggs, 2 c. cooked, cooled and shredded chicken",
+      "reference": "Bring to a boil the butter, salt, pepper and chicken broth. Add flour all at once to the boiled mixture, stirring constantly until mixtures leaves side of pan. Cool 3 to 5 minutes. Beat in eggs, one at a time, beating until smooth and glossy after each addition. Mix in chicken. Drop by teaspoonfuls into hot fat. Drain on paper towels.",
+      "prediction": "cream butter and eggs well. add flour, salt, pepper and shredded chicken. mix well. roll into ball and place on floured board. cut into squares. place on greased baking sheet.",
+      "bleu4": 0.06526877332097565,
+      "meteor": 0.18287769784172664,
+      "ingredient_coverage": 0.3888888888888889,
+      "repetition_rate": 0.0,
+      "generated_length": 38
+    },
+    {
+      "ingredients": "1 Small Bottle of Ketchup (12 or 16 ounces), 1 tsp. of Yellow Mustard, 2 Tbsp. of Apple Cider Vinegar, 5 Tbsp. of Brown Sugar, 1 lb. of Chipped Ham or Chipped Baked Ham",
+      "reference": "Mix all of the ingredients together and bring to a boil. Reduce heat and add the ham. Simmer until the ham is thoroughly heated through.",
+      "prediction": "melt chipped ham and add remaining ingredients. mix well. simmer for 20 minutes. serve on buns.",
+      "bleu4": 0.034412646868207906,
+      "meteor": 0.21468772694262891,
+      "ingredient_coverage": 0.08,
+      "repetition_rate": 0.0,
+      "generated_length": 20
+    },
+    {
+      "ingredients": "2 c. water, 2 (14 1/2 oz.) cans Cajun-style stewed tomatoes, 1/4 tsp. hot pepper sauce, 1/2 tsp. Cajun seasoning, 2 garlic cloves, minced, 1 medium onion, sliced, 1/3 c. uncooked regular rice, 1 (10 oz.) pkg. frozen cut okra, thawed, 2 (15 oz.) cans black-eyed peas, drained, 1 1/2 c. medium shrimp",
+      "reference": "Note: If fresh shrimp is used, it must be peeled and deveined.",
+      "prediction": "in large saucepan combine water, rice, onion, cajun seasoning, pepper, cajun seasoning, garlic and tomatoes. bring to a boil. reduce heat; cover and simmer 20 minutes. stir in shrimp, shrimp, peas and shrimp. cover and simmer 20 minutes more or until rice is tender. makes 8 servings.",
+      "bleu4": 0.007568769256841371,
+      "meteor": 0.12690355329949238,
+      "ingredient_coverage": 0.24390243902439024,
+      "repetition_rate": 0.08333333333333337,
+      "generated_length": 62
+    },
+    {
+      "ingredients": "1 large cucumber, 8 oz. cream cheese, softened, 1 small onion, grated, 1/4 tsp. salt, 1 Tbsp. mayonnaise, 2 to 3 drops green food coloring",
+      "reference": "Pare, grate and drain cucumber. Combine cucumber with remaining ingredients. A favorite sandwich spread or can be thinned with milk or sour cream to make a delightful vegetable or chip dip.",
+      "prediction": "grate cucumber and onion. mix together mayonnaise, salt and cucumber. add to mixture. add grated green onion. mix well. chill for 1 hour.",
+      "bleu4": 0.025247964494842737,
+      "meteor": 0.13043478260869565,
+      "ingredient_coverage": 0.34782608695652173,
+      "repetition_rate": 0.0357142857142857,
+      "generated_length": 30
+    },
+    {
+      "ingredients": "3 sprigs dill, 2 garlic cloves, 2 sliced onions, 25 to 30 medium to large cucumbers, 1 pt. water, 1 qt. 5% vinegar, 2 1/2 c. sugar, 1/2 c. pickling salt",
+      "reference": "Wash and slice cucumbers 1/8 to 1/4 inch thick. Soak for 1 hour in ice water. Add ice cubes or crushed ice. Mix water, vinegar, sugar and salt; bring to boil. Pack cucumbers into clean, hot jars with 3 sprigs of dill, 2 garlic cloves and onion. Pour boiling hot pickling syrup over cucumbers, leaving 1/2 inch headspace. Wipe off jar mouth and seal. Process in boiling water bath canner for 15 minutes. (Count processing time as soon as hot jars are placed into actively boiling water.)",
+      "prediction": "wash cucumbers and slice in 1/2 inch thick slices. place on bottom of a greased 2-quart casserole. place onion, garlic and dill. bring to a boil remaining ingredients and pour over cucumbers. cover and refrigerate for 3 to 4 days.",
+      "bleu4": 0.011600483675796762,
+      "meteor": 0.19937437877635097,
+      "ingredient_coverage": 0.23076923076923078,
+      "repetition_rate": 0.0,
+      "generated_length": 46
+    },
+    {
+      "ingredients": "2 pkg. (8 oz.) cream cheese, softened, 2 c. Cheddar cheese, shredded, 1 Tbsp. grated onion, 1 Tbsp. grated green pepper, 1 tsp. lemon juice, 1 tsp. Worcestershire sauce, 1/2 c. chopped walnuts",
+      "reference": "Combine all ingredients. Mix well. Shape into a ball. Sprinkle with chopped walnuts. Refrigerate to set. Serve with crackers.",
+      "prediction": "mix all ingredients except walnuts. shape into ball. roll in chopped nuts and chill.",
+      "bleu4": 0.08027671057511103,
+      "meteor": 0.36711973225872546,
+      "ingredient_coverage": 0.07692307692307693,
+      "repetition_rate": 0.0,
+      "generated_length": 17
+    },
+    {
+      "ingredients": "1 small can crushed pineapple, 1/4 c. sugar, 1 (3 oz.) pkg. strawberry jello, 1 large Cool Whip, 1 (12 oz.) carton cottage cheese",
+      "reference": "Mix sugar and pineapple; bring to boil. Add jello. Mix well. Let cool. Blend in Cool Whip and cottage cheese. Let set 2 hours in fridge before serving.",
+      "prediction": "cook pineapple and sugar for 1 minute. add jello and cottage cheese. mix well. add cool whip and mix well. pour into a 9 x 13 pan and chill.",
+      "bleu4": 0.20380457950171027,
+      "meteor": 0.3970988538681948,
+      "ingredient_coverage": 0.36363636363636365,
+      "repetition_rate": 0.03125,
+      "generated_length": 34
+    },
+    {
+      "ingredients": "12 oz. Italian sausage, removed from casing, 1 (16 oz.) can crushed tomatoes, 1 1/2 tsp. minced garlic, 1/2 c. heavy cream, 3 Tbsp. chopped fresh parsley, 1/4 tsp. salt, 1/4 tsp. pepper, 1 lb. bow tie pasta",
+      "reference": "Cook sausage over medium heat, breaking up clumps. Pour fat from skillet. Add tomatoes and garlic. Reduce heat to medium-low. Cover and simmer 10 minutes. Skim off excess fat. Add cream. Increase heat and boil, stirring constantly, 2 minutes or until sauce is thickened and creamy. Stir in parsley, salt and pepper.",
+      "prediction": "cook sausage in a large skillet over medium heat until browned. drain well on paper towels. stir in tomatoes, cream, parsley, garlic, pepper and salt. cook, stirring constantly, until mixture boils. cook over medium heat, stirring frequently, until thickened and bubbly. add bow bow ties and pasta. toss to coat. makes 4 servings. contains 0 mg. sodium.",
+      "bleu4": 0.11260544372573528,
+      "meteor": 0.35135183418173266,
+      "ingredient_coverage": 0.2727272727272727,
+      "repetition_rate": 0.01388888888888884,
+      "generated_length": 74
+    },
+    {
+      "ingredients": "2 eggs, 2 c water, 2 pkg Pillsbury Date Bread mix, 2 c pecan (halves or chopped), 2 c raisins, 2 c candied cherries, 1 c candied pineapple",
+      "reference": "Heat oven to 350 degrees, grease and flour (or spray with Pam) a tube pan. In large bowl, combine eggs and water. Add remaining ingredients, stir by hand until combined. Pour into prepared pan. Bake for 75 to 85 minutes or until toothpick inserted in center comes out clean. Cool in pan for 30 minutes, loosen edges and remove from pan. Cool completely, wrap in foil or plastic wrap and store in refrigerator.",
+      "prediction": "mix bread mix, and water. add eggs, date mix, and water. mix well. bake in tube pan at 350 degrees for 1 hour. makes about 2 dozen.",
+      "bleu4": 0.026608020995312287,
+      "meteor": 0.1396852078239609,
+      "ingredient_coverage": 0.3684210526315789,
+      "repetition_rate": 0.09090909090909094,
+      "generated_length": 35
+    },
+    {
+      "ingredients": "1 (8 oz.) vermicelli, cut in bite-size, cooked and drained, 1 c. chopped green peppers, 1 c. chopped onions, 1 c. sweet pickle relish, 1 small jar drained pimento, 2 bags frozen cocktail shrimp, salt to taste, little Accent, 1 c. mayo",
+      "reference": "Mix all together and refrigerate.",
+      "prediction": "mix all ingredients and chill. serves 12.",
+      "bleu4": 0.07517081801936397,
+      "meteor": 0.5009920634920636,
+      "ingredient_coverage": 0.0,
+      "repetition_rate": 0.0,
+      "generated_length": 9
+    },
+    {
+      "ingredients": "1 (3 lb.) chicken, cut in 8ths with skin removed, 4 carrots, 1 onion, 1 parsnip, 1 parsley root, 3 stalks celery",
+      "reference": "Remove liver. Place clean, cut up vegetables in pot, except for onion, which is put in whole. Place chicken in pot. Cook 1 1/2 hours.",
+      "prediction": "put all ingredients together and let sit for 1 hour, then put in crock-pot on low for 4 hours. cook on low for 5 to 6 hours.",
+      "bleu4": 0.03672282919481255,
+      "meteor": 0.25118249389261393,
+      "ingredient_coverage": 0.15,
+      "repetition_rate": 0.0357142857142857,
+      "generated_length": 30
+    },
+    {
+      "ingredients": "4 chicken breasts, 1 (10 oz.) can cream of chicken soup, 1 (16 oz.) can mixed vegetables, 1 (16 oz.) can corn, 1/2 (16 oz.) can green beans (if desired), 2 c. mixed Bisquick",
+      "reference": "Cook chicken breasts until tender. Take off bone. Cut in small bite-size pieces. Place chicken with broth in large baking pan. Add cream of chicken soup and all vegetables. Top with Bisquick (recipe on box). Bake 1 hour. Serves 4 to 6.",
+      "prediction": "boil chicken until done. remove bones. debone chicken and cut into pieces. mix all ingredients and mix well. drop by spoonfuls onto greased baking sheet. bake at 350 degrees for 30 minutes or until golden brown.",
+      "bleu4": 0.023422345640777872,
+      "meteor": 0.1568627450980392,
+      "ingredient_coverage": 0.041666666666666664,
+      "repetition_rate": 0.0,
+      "generated_length": 42
+    },
+    {
+      "ingredients": "1 1/2 c. milk, 1 c. uncooked oats, 1 c. whole wheat flour, 2 Tbsp. honey, 1 Tbsp. baking powder, 1 tsp. salt, 1/4 c. olive oil, 2 eggs, beaten",
+      "reference": "Pour milk over oats; let stand 5 minutes. Mix together flour, baking powder, salt and lightly stir in eggs into oats mixture. Add honey then add dry ingredients and oil, stirring until blended. Cook on a hot lightly greased griddle.",
+      "prediction": "combine all ingredients and mix well. pour onto lightly greased griddle. cook on both sides until light brown. serve with syrup or sour cream.",
+      "bleu4": 0.07366836020598971,
+      "meteor": 0.24889086069210292,
+      "ingredient_coverage": 0.0,
+      "repetition_rate": 0.0,
+      "generated_length": 28
+    },
+    {
+      "ingredients": "3/4 lb. powdered sugar, 1 lb. Nilla Wafers, crushed, 1 stick margarine, 1 c. chopped nuts, 6 oz. frozen orange juice, coconut",
+      "reference": "Mix together all ingredients, except coconut. Form into balls and roll in coconut. Refrigerate 12 hours or overnight.",
+      "prediction": "crush nilla wafers in food processor. add nuts, orange juice, sugar and margarine. mix well. shape into balls and roll in coconut. store in refrigerator.",
+      "bleu4": 0.19775876971405587,
+      "meteor": 0.5210959608952921,
+      "ingredient_coverage": 0.42105263157894735,
+      "repetition_rate": 0.0,
+      "generated_length": 32
+    },
+    {
+      "ingredients": "2 c. sugar, 1/2 c. milk, 1/2 c. margarine or butter, 1/4 c. cocoa",
+      "reference": "Mix ingredients and bring to a full boil. Boil for 1 minute. Cool by placing pot in sink and running cold water around it. Beat until thick enough to spread.",
+      "prediction": "in saucepan, combine all ingredients, except butter. bring to a boil. boil for 2 minutes. remove from heat. add vanilla. beat until spreading consistency.",
+      "bleu4": 0.137141968979764,
+      "meteor": 0.34641965606508873,
+      "ingredient_coverage": 0.2222222222222222,
+      "repetition_rate": 0.0,
+      "generated_length": 32
+    },
+    {
+      "ingredients": "1 Tbsp. Dijon mustard, 1 Tbsp. celery seed, 1 Tbsp. salt, 2/3 c. sugar, 1 onion (walnut size), minced, 1/2 c. vinegar, 1 c. oil",
+      "reference": "Put all ingredients in blender. Keep refrigerated.",
+      "prediction": "combine all ingredients in a blender and process until blended. store in refrigerator. serve over any fresh fruit, fresh fruit. yields 4 1/2 cups.",
+      "bleu4": 0.05159912585823018,
+      "meteor": 0.4359925788497217,
+      "ingredient_coverage": 0.05263157894736842,
+      "repetition_rate": 0.0,
+      "generated_length": 29
+    },
+    {
+      "ingredients": "1 medium onion, chopped, 2 ribs celery, chopped, 1/4 c. butter, 3 Tbsp. flour, 8 c. chicken broth, 2 c. creamy peanut butter, 1 3/4 c. half and half",
+      "reference": "Saut onion and celery in butter until soft, but not brown. Stir in flour until well blended. Add chicken broth; stir constantly and bring to a boil. Remove from heat and pure in food processor or blender. Add peanut butter and half and half, stirring to blend thoroughly. Return to low heat and heat until just hot, but do not boil. Serve; garnish with chopped peanuts.",
+      "prediction": "saute onion, celery and celery in butter in saucepan until tender. stir in flour and chicken broth. cook, stirring constantly, until mixture boils. add half and half and half and half and half and half. stir until smooth. add half and half and half and half and half and cook until thickened. do not boil. stir until thickened.",
+      "bleu4": 0.15459389886458635,
+      "meteor": 0.43768725150476334,
+      "ingredient_coverage": 0.35,
+      "repetition_rate": 0.28358208955223885,
+      "generated_length": 69
+    },
+    {
+      "ingredients": "1 (14 oz.) pkg. coconut, 1 c. pecans, 1 can Eagle Brand milk, 1 Tbsp. sugar, 1 tsp. vanilla, 1 small strawberry Jell-O",
+      "reference": "Mix together. Form balls (works better with hands wet). Roll in large package strawberry Jell-O.",
+      "prediction": "mix all ingredients together. shape into strawberries and roll in powdered sugar.",
+      "bleu4": 0.042070210848686014,
+      "meteor": 0.274242912371134,
+      "ingredient_coverage": 0.05,
+      "repetition_rate": 0.0,
+      "generated_length": 14
+    },
+    {
+      "ingredients": "2 lb. boiled shrimp, cut in pieces, 1 head lettuce, torn in bite size pieces, 3 Tbsp. chopped dill pickles, 1/2 lb. Cheddar cheese, cut in small pieces, 2 tomatoes, cut in pieces, 1 tsp. grated onion, 1/4 c. chopped sweet pickles, mayonnaise, salt and pepper to taste",
+      "reference": "Mix ingredients together. Add enough mayonnaise to moisten. Chill until ready to serve.",
+      "prediction": "combine all ingredients except lettuce. top with mayonnaise. toss with salad dressing. serve immediately.",
+      "bleu4": 0.022284219498319536,
+      "meteor": 0.1851851851851852,
+      "ingredient_coverage": 0.058823529411764705,
+      "repetition_rate": 0.0,
+      "generated_length": 18
+    },
+    {
+      "ingredients": "1 onion, 2 cans tomatoes, 1 can corn, 1 can Great Northern beans, 2 Tbsp. chili powder or more to make hot, salt and pepper, 1 lb. hamburger, green pepper (optional)",
+      "reference": "Brown meat and onion until brown. (Don't drain.) Add tomatoes and all other ingredients in a crock-pot or deep dish. Simmer 4 hours. Best if eaten next day.",
+      "prediction": "brown hamburger and onion together, then add the rest of ingredients. simmer for 1 hour.",
+      "bleu4": 0.020205597631356074,
+      "meteor": 0.13157894736842105,
+      "ingredient_coverage": 0.12,
+      "repetition_rate": 0.0,
+      "generated_length": 18
+    },
+    {
+      "ingredients": "1 c. soy sauce, 1/3 c. olive oil, 1/3 c. wine, 2 Tbsp. brown sugar, 4 cloves garlic, chopped, 1/2 tsp. ground ginger or freshly grated, 1 tsp. fresh ground black pepper",
+      "reference": "Combine mix with whisk; marinate 6 hours in Ziploc bag, then use for basting. This can be used for chicken or any steak, grilled or broiled. Try it on roast chicken in the oven, basting occasionally.",
+      "prediction": "mix all ingredients together in a jar. shake well. pour over meat before grilling or broiling. refrigerate overnight.",
+      "bleu4": 0.00725577532859379,
+      "meteor": 0.1717221882640587,
+      "ingredient_coverage": 0.0,
+      "repetition_rate": 0.0,
+      "generated_length": 22
+    },
+    {
+      "ingredients": "turkey, cut up, turkey gravy or broth, vegetables (any kind), chopped, 2 handfuls cauliflower, 3 tsp. chicken bouillon, 1 tsp. beef bouillon, 1 small can tomatoes, diced, 2 potatoes, diced, 1 can corn, 1 pkg. mixed vegetables, garlic powder",
+      "reference": "Using turkey gravy or broth as a base, add all other ingredients to it and stir together. Cook on low heat for 2 to 3 hours.",
+      "prediction": "cook vegetables in broth; drain. put in large kettle with water, gravy, gravy, potatoes and tomatoes. add turkey and garlic powder. simmer until vegetables are tender. add salt and pepper to taste.",
+      "bleu4": 0.012739382650054705,
+      "meteor": 0.16556291390728478,
+      "ingredient_coverage": 0.26666666666666666,
+      "repetition_rate": 0.02564102564102566,
+      "generated_length": 41
+    }
+  ]
+}
