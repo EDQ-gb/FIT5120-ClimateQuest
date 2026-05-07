@@ -351,6 +351,38 @@ function isLifePlacement(it) {
   return !!def?.tags?.includes('life')
 }
 
+function isHomeItemId(itemId) {
+  const id = String(itemId || '').trim()
+  if (!id) return false
+  const def = getItemByIdAnyTheme(id)
+  if (def?.tags?.includes('home')) return true
+  // fallback: suburban house ids
+  if (id.startsWith('my_scene_house_')) return true
+  return false
+}
+
+function footprintForItemId(itemId) {
+  const id = String(itemId || '').trim()
+  if (!id) return { w: 1, h: 1 }
+  const def = getItemByIdAnyTheme(id)
+  const w = Number(def?.footprint?.w || 1)
+  const h = Number(def?.footprint?.h || 1)
+  if (!Number.isFinite(w) || !Number.isFinite(h)) return { w: 1, h: 1 }
+  return { w: Math.max(1, Math.min(3, Math.round(w))), h: Math.max(1, Math.min(3, Math.round(h))) }
+}
+
+function cellsForFootprint(col, row, fp) {
+  const out = []
+  const w = Number(fp?.w || 1)
+  const h = Number(fp?.h || 1)
+  for (let dy = 0; dy < h; dy++) {
+    for (let dx = 0; dx < w; dx++) {
+      out.push({ col: col + dx, row: row + dy })
+    }
+  }
+  return out
+}
+
 function maybeEmitPlacementTips(prevPlacements, nextPlacements, lastPlacedItem) {
   const prevItems = Array.isArray(prevPlacements?.items) ? prevPlacements.items : []
   const nextItems = Array.isArray(nextPlacements?.items) ? nextPlacements.items : []
@@ -364,14 +396,15 @@ function maybeEmitPlacementTips(prevPlacements, nextPlacements, lastPlacedItem) 
     const co2RoughYr = Math.round(treeMilestone * 18)
     showToast(
       `Mega — ${treeMilestone} trees standing tall on your map!\nFun fact: roughly ~${co2RoughYr} kg CO₂ sucked in per year (ballpark vibes, not an audit).`,
-      'Forest level up'
+      'Forest level up',
+      9200
     )
     return
   }
 
   // No ground. Keep animal/life tips.
   if (lastPlacedItem && isLifePlacement(lastPlacedItem)) {
-    showToast('Look at that — your patch just got louder with life!', 'Wild friend added')
+    showToast('Look at that — your patch just got louder with life!', 'Wild friend added', 6800)
   }
 }
 
@@ -599,6 +632,47 @@ async function onPlace(p) {
     const type = String(p?.type || '')
     if (!itemId || !type) return
 
+    const col0 = Number.isFinite(p?.col) ? p.col : null
+    const row0 = Number.isFinite(p?.row) ? p.row : null
+    const items0 = Array.isArray(game.placements?.items) ? game.placements.items : []
+    const inCell0 = col0 != null && row0 != null ? items0.filter((it) => it && it.col === col0 && it.row === row0) : []
+    const cellHasTree = inCell0.some((it) => kindFromPlacementItem(it) === 'tree')
+    const cellHasHome = inCell0.some((it) => isHomeItemId(it?.itemId))
+    const placingHome = isHomeItemId(itemId)
+
+    // Footprint-aware rule: homes occupy 2–3 tiles; any tile covered by a home is blocked for others.
+    if (col0 != null && row0 != null) {
+      if (placingHome) {
+        const fp = footprintForItemId(itemId)
+        const cells = cellsForFootprint(col0, row0, fp)
+        // require all covered cells to be empty (no trees/decor/flowers) and in bounds
+        const occupied = cells.some(({ col, row }) => {
+          if (col < 0 || row < 0 || col >= 26 || row >= 26) return true
+          return items0.some((it) => it && it.col === col && it.row === row)
+        })
+        if (occupied) {
+          showToast('Homes need a clear 2–3 tile space. Try an emptier patch.')
+          return
+        }
+      } else {
+        // If any home footprint covers this cell, block placement.
+        const blockedByHome = items0.some((it) => {
+          if (!isHomeItemId(it?.itemId)) return false
+          const fp = footprintForItemId(it.itemId)
+          const cells = cellsForFootprint(Number(it.col || 0), Number(it.row || 0), fp)
+          return cells.some((c) => c.col === col0 && c.row === row0)
+        })
+        if (blockedByHome) {
+          showToast('That tile is reserved for a home. Pick a free tile.')
+          return
+        }
+        if (type === 'tree' && cellHasTree) {
+          showToast('Spot taken — only one centerpiece tree fits here.')
+          return
+        }
+      }
+    }
+
     // Placement rule: flowers occupy tile corners, max 4 per tile.
     if (type === 'flower') {
       const items = Array.isArray(game.placements?.items) ? game.placements.items : []
@@ -631,8 +705,8 @@ async function onPlace(p) {
     if (!game.placements || !Array.isArray(game.placements.items)) game.placements = { items: [] }
 
     // Optimistic placement + local coin deduction
-    const col = Number.isFinite(p?.col) ? p.col : null
-    const row = Number.isFinite(p?.row) ? p.row : null
+    const col = col0
+    const row = row0
     const optimisticId = `${Date.now()}_${Math.random().toString(16).slice(2)}`
     const optimisticItem = { itemId, type, col, row, at: new Date().toISOString(), _optimistic: optimisticId }
     const optimisticCost = getItemCostForPlacement(itemId, type)
@@ -683,9 +757,15 @@ async function onPlace(p) {
       }
       const placed = await applyPlacementApi('/api/scene/place', p)
       if (!placed) throw new Error('PLACE_FAILED')
+      if (placed?.toast?.text) {
+        showToast(String(placed.toast.text), String(placed.toast.title || ''), 8400)
+      }
     } else {
       const placed = await applyPlacementApi('/api/scene/place', p)
       if (!placed) throw new Error('PLACE_FAILED')
+      if (placed?.toast?.text) {
+        showToast(String(placed.toast.text), String(placed.toast.title || ''), 8400)
+      }
     }
     // Tips: compare snapshots — game.placements is mutated in place during optimistic UX,
     // so use prevItemsSnapshot (items before this place) vs authoritative server placements.

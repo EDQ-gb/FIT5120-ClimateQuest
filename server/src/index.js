@@ -1263,6 +1263,30 @@ function getThemePlacements(byTheme, theme) {
   return byTheme[theme];
 }
 
+function getOrInitMySceneMeta(placements) {
+  if (!placements || typeof placements !== "object") return { challenges: {} };
+  if (!placements.meta || typeof placements.meta !== "object") placements.meta = {};
+  if (!placements.meta.myScene || typeof placements.meta.myScene !== "object") placements.meta.myScene = {};
+  if (!placements.meta.myScene.challenges || typeof placements.meta.myScene.challenges !== "object") {
+    placements.meta.myScene.challenges = {};
+  }
+  return placements.meta.myScene;
+}
+
+function computeMySceneMilestones(placements, lastPlaced) {
+  const items = Array.isArray(placements?.items) ? placements.items : [];
+  const trees = items.filter((x) => String(x?.type || "") === "tree").length;
+  const treeSpecies = new Set();
+  for (const it of items) {
+    if (String(it?.type || "") !== "tree") continue;
+    const id = String(it?.itemId || "").trim();
+    if (id) treeSpecies.add(id);
+  }
+  const uniqueSpecies = treeSpecies.size;
+  const placedHome = !!(lastPlaced && String(lastPlaced.itemId || "") === "my_scene_cabin");
+  return { trees, uniqueSpecies, placedHome };
+}
+
 /** Forest-only client: merge placements from legacy scene_type buckets into `forest`. */
 async function migrateForestOnlyProfile(userId, st) {
   const sceneType = String(st.scene_type || "forest").trim();
@@ -1315,6 +1339,7 @@ app.post("/api/scene/place", async (req, res, next) => {
     const theme = s.scene_type || "forest";
     const byTheme = placementsByThemeFromJson(s.placements_json, theme);
     const placements = getThemePlacements(byTheme, theme);
+    const meta = getOrInitMySceneMeta(placements);
 
     const k = `${col},${row}`;
     const exists = placements.items.some(
@@ -1330,13 +1355,43 @@ app.post("/api/scene/place", async (req, res, next) => {
       });
     }
 
+    const ms = computeMySceneMilestones(placements, { itemId, type, col, row });
+    const challenges = meta.challenges || {};
+    let toast = null;
+    if (ms.trees >= 5 && !challenges.plant5Trees) {
+      challenges.plant5Trees = true;
+      toast = {
+        title: "Restoration milestone",
+        text: "5 trees planted. Young forests cool cities and create habitat as they grow.",
+      };
+    } else if (ms.trees >= 10 && !challenges.plant10Trees) {
+      challenges.plant10Trees = true;
+      toast = {
+        title: "Canopy unlocked",
+        text: "10 trees planted. Your scene is starting to behave like a real carbon sink — keep going to unlock more species.",
+      };
+    } else if (ms.uniqueSpecies >= 3 && !challenges.biodiversity3) {
+      challenges.biodiversity3 = true;
+      toast = {
+        title: "Biodiversity boost",
+        text: "3 tree species placed. Diversity helps ecosystems handle heatwaves, pests, and drought.",
+      };
+    } else if (ms.placedHome && !challenges.placeHome) {
+      challenges.placeHome = true;
+      toast = {
+        title: "Sustainable living",
+        text: "A tiny home appeared in your restored land. Efficient homes reduce energy demand and emissions over time.",
+      };
+    }
+    meta.challenges = challenges;
+
     await query(
       `update user_state set placements_json = ? where user_id = ?`,
       [JSON.stringify(byTheme), userId]
     );
     await touchActive(userId);
 
-    res.json({ ok: true, placements });
+    res.json({ ok: true, placements, toast });
   } catch (err) {
     next(err);
   }

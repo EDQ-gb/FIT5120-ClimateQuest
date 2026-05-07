@@ -22,7 +22,12 @@
 
     <template v-else>
       <div class="lb-list">
-        <div v-for="u in pagedBoard" :key="u.rank" class="lb-row" :class="{ you: u.isYou }">
+        <div
+          v-for="u in pagedBoard"
+          :key="u.rank"
+          class="lb-row"
+          :class="{ you: u.isYou }"
+        >
           <div class="lb-rank" :class="'r' + u.rank">
             <span v-if="u.rank === 1">🥇</span>
             <span v-else-if="u.rank === 2">🥈</span>
@@ -230,6 +235,7 @@ watch(
   border-radius: 12px;
   transition: border-color .2s;
 }
+
 
 .lb-list {
   display: grid;
