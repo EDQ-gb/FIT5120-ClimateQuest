@@ -8,7 +8,7 @@
       </div>
       <ol class="guide-card__steps">
         <li><strong>Earn coins</strong> in <b>Daily Tasks</b> and <b>Daily Quiz</b>.</li>
-        <li><strong>Use coins</strong> in <b>Community</b> to build your eco world.</li>
+        <li><strong>Use coins</strong> in <b>My Scene</b> to build your eco world.</li>
         <li><strong>Track impact</strong> with streak, CO₂ saved, and level progress.</li>
         <li><strong>Compare contribution</strong> in <b>Leaderboard</b>.</li>
       </ol>
@@ -25,9 +25,9 @@
           </div>
         </div>
         <div class="quick-nav-group">
-          <div class="quick-nav-group-title">Decorate my community</div>
+          <div class="quick-nav-group-title">Decorate my scene</div>
           <div class="quick-nav-btns">
-            <button type="button" class="quick-nav-btn" @click="$emit('navigate', 'scene')">Community</button>
+            <button type="button" class="quick-nav-btn" @click="$emit('navigate', 'scene')">My Scene</button>
           </div>
         </div>
         <div class="quick-nav-group">

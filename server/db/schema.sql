@@ -118,29 +118,3 @@ create table if not exists quick_action_logs (
   constraint fk_quick_action_user foreign key (user_id) references users(id) on delete cascade
 );
 
--- ─────────────────────────────────────────────────────────────
--- Community scene social (likes + comments)
--- ─────────────────────────────────────────────────────────────
-
-create table if not exists scene_likes (
-  user_id bigint unsigned not null,
-  target_user_id bigint unsigned not null,
-  created_at timestamp not null default current_timestamp,
-  primary key (user_id, target_user_id),
-  key ix_scene_likes_target (target_user_id, created_at),
-  constraint fk_scene_likes_user foreign key (user_id) references users(id) on delete cascade,
-  constraint fk_scene_likes_target foreign key (target_user_id) references users(id) on delete cascade
-);
-
-create table if not exists scene_comments (
-  id bigint unsigned not null auto_increment,
-  target_user_id bigint unsigned not null,
-  author_user_id bigint unsigned not null,
-  body varchar(280) not null,
-  created_at timestamp not null default current_timestamp,
-  primary key (id),
-  key ix_scene_comments_target_time (target_user_id, created_at),
-  constraint fk_scene_comments_target foreign key (target_user_id) references users(id) on delete cascade,
-  constraint fk_scene_comments_author foreign key (author_user_id) references users(id) on delete cascade
-);
-

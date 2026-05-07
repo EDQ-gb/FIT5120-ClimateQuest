@@ -21,7 +21,7 @@
     <div class="sidebar-tip" role="note" aria-label="Navigation tips">
       <div class="sidebar-tip-head">Play smarter</div>
       <p class="sidebar-tip-text">
-        Farm shiny coins in <strong>Daily Tasks</strong> and the <strong>Quiz</strong>, then drop them in <strong>Community</strong> — snag a prop, tap the soil, done.
+        Farm shiny coins in <strong>Daily Tasks</strong> and the <strong>Quiz</strong>, then drop them in <strong>My Scene</strong> — snag a prop, tap the soil, done.
       </p>
       <p class="sidebar-tip-text sidebar-tip-muted">Leaderboard = bragging rights with your crew.</p>
     </div>
@@ -49,7 +49,7 @@ defineEmits(['navigate', 'logout'])
 const navItems = [
   { key: 'dashboard',   icon: '🏠', label: 'Dashboard'   },
   { key: 'tasks',       icon: '✅', label: 'Daily Tasks'  },
-  { key: 'scene',       icon: '🌍', label: 'Community'     },
+  { key: 'scene',       icon: '🌍', label: 'My Scene'     },
   { key: 'quiz',        icon: '📚', label: 'Quiz'         },
   { key: 'education',   icon: '🎓', label: 'Education'    },
   { key: 'leaderboard', icon: '🏆', label: 'Leaderboard'  },

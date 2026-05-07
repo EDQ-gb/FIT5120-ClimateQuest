@@ -42,20 +42,6 @@
       @toast-action="onToastAction"
     />
 
-    <SceneViewerShell
-      v-else-if="currentView === 'scene_viewer'"
-      :themeType="viewer.themeType"
-      :viewerUser="viewer.user"
-      :placements="viewer.placements"
-      :likeCount="viewer.likeCount"
-      :likedByMe="viewer.likedByMe"
-      :comments="viewer.comments"
-      :errorMsg="viewer.errorMsg"
-      @back="closeViewer"
-      @toggle-like="toggleViewerLike"
-      @send-comment="sendViewerComment"
-    />
-
     <!-- ════════════════════════════════════════════════════
          APP SHELL  (all other views)
     ════════════════════════════════════════════════════ -->
@@ -113,7 +99,7 @@
             @coins-updated="refreshShellStats"
             @stay-on-quiz="onStayOnQuiz"
           />
-          <AppLeaderboard v-else-if="currentView === 'leaderboard'" :user="user" @view-scene="openViewerFromLeaderboard" />
+          <AppLeaderboard v-else-if="currentView === 'leaderboard'" :user="user" />
           <AppEducation v-else-if="currentView === 'education'" />
         </div>
       </div>
@@ -247,7 +233,6 @@ import AppLeaderboard from './components/AppLeaderboard.vue'
 import AppEducation from './components/AppEducation.vue'
 import AppLandingV2 from './components/AppLandingV2.vue'
 import SceneBuilderShell from './components/game/SceneBuilderShell.vue'
-import SceneViewerShell from './components/game/SceneViewerShell.vue'
 import { getProgress } from './api/features.js'
 import { getItemByIdAnyTheme, TREE_COINS_COST } from './game/assets/catalog.js'
 
@@ -266,18 +251,6 @@ const game = reactive({
 })
 
 const effectiveTheme = computed(() => 'forest')
-
-const viewer = reactive({
-  open: false,
-  username: '',
-  themeType: 'forest',
-  user: null,
-  placements: { items: [] },
-  likeCount: 0,
-  likedByMe: false,
-  comments: [],
-  errorMsg: '',
-})
 
 function themeKey(username, key) {
   const u = String(username || '').trim()
@@ -454,7 +427,7 @@ const pageTitles = {
   leaderboard: 'Leaderboard',
   education: 'Education',
 }
-const validViews = new Set(['home', 'dashboard', 'scene', 'game', 'tasks', 'quiz', 'education', 'leaderboard', 'scene_viewer'])
+const validViews = new Set(['home', 'dashboard', 'scene', 'game', 'tasks', 'quiz', 'education', 'leaderboard'])
 let navReqId = 0
 
 const shellCoins = ref(0)
@@ -574,107 +547,6 @@ async function onNavigate(view, options = {}) {
   }
   currentView.value = view
   if (view !== 'home') await refreshShellStats()
-}
-
-function closeViewer() {
-  viewer.open = false
-  viewer.username = ''
-  viewer.user = null
-  viewer.placements = { items: [] }
-  viewer.likeCount = 0
-  viewer.likedByMe = false
-  viewer.comments = []
-  viewer.errorMsg = ''
-  currentView.value = 'leaderboard'
-}
-
-async function openViewerFromLeaderboard(u) {
-  const username = String(u?.username || '').trim()
-  if (!username) return
-  viewer.open = true
-  viewer.username = username
-  currentView.value = 'scene_viewer'
-  await refreshViewer()
-}
-
-async function refreshViewer() {
-  if (!viewer.username) return
-  try {
-    const res = await fetch(`/api/community/scene/${encodeURIComponent(viewer.username)}`, { credentials: 'include' })
-    const scene = await res.json().catch(() => ({}))
-    if (res.status === 404) {
-      viewer.errorMsg = 'Viewer not available on this server'
-      return
-    }
-    if (!res.ok) throw new Error(scene?.error || `HTTP_${res.status}`)
-    viewer.themeType = String(scene?.sceneType || 'forest')
-    viewer.user = scene?.user || { username: viewer.username }
-    viewer.placements = scene?.placements || { items: [] }
-    viewer.errorMsg = ''
-  } catch {
-    viewer.user = viewer.user || { username: viewer.username }
-    viewer.placements = viewer.placements || { items: [] }
-  }
-
-  try {
-    const res = await fetch(`/api/community/scene/${encodeURIComponent(viewer.username)}/social`, { credentials: 'include' })
-    const social = await res.json().catch(() => ({}))
-    if (res.status === 404) {
-      viewer.errorMsg = viewer.errorMsg || 'Viewer not available on this server'
-      return
-    }
-    if (res.ok && !social?.error) {
-      viewer.likeCount = Number(social?.likesCount || 0)
-      viewer.likedByMe = !!social?.likedByMe
-      viewer.comments = Array.isArray(social?.comments) ? social.comments : []
-    }
-  } catch {
-    // ignore
-  }
-}
-
-async function toggleViewerLike() {
-  if (!viewer.username) return
-  try {
-    const res = await fetch(`/api/community/scene/${encodeURIComponent(viewer.username)}/like`, { method: 'POST', credentials: 'include' })
-    const data = await res.json().catch(() => ({}))
-    if (res.status === 404) {
-      viewer.errorMsg = 'Like is not available on this server'
-      return
-    }
-    if (res.ok && !data?.error) {
-      viewer.likeCount = Number(data?.likesCount || 0)
-      viewer.likedByMe = !!data?.likedByMe
-    }
-  } catch {
-    // ignore
-  }
-}
-
-async function sendViewerComment({ body }) {
-  if (!viewer.username) return
-  const text = String(body || '').trim()
-  if (!text) return
-  try {
-    const res = await fetch(`/api/community/scene/${encodeURIComponent(viewer.username)}/comment`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ body: text }),
-    })
-    const data = await res.json().catch(() => ({}))
-    if (res.status === 404) {
-      viewer.errorMsg = 'Comments are not available on this server'
-      return
-    }
-    if (res.ok && !data?.error) {
-      viewer.comments = Array.isArray(data?.comments) ? data.comments : viewer.comments
-    } else {
-      await refreshViewer()
-    }
-  } catch {
-    // ignore
-  }
 }
 
 async function refreshGameState(options = {}) {
@@ -928,7 +800,7 @@ async function onMove(p) {
 const navLinks = [
   { label: 'Home', key: 'home' },
   { label: 'Dashboard', key: 'dashboard' },
-  { label: 'Community', key: 'scene' },
+  { label: 'My Scene', key: 'scene' },
   { label: 'Tasks', key: 'tasks' },
   { label: 'Quiz', key: 'quiz' },
   { label: 'Education', key: 'education' },

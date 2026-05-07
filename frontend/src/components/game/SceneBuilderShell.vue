@@ -146,6 +146,11 @@
 
       <!-- CANVAS -->
       <div class="canvas-area">
+        <transition name="bubble-fade">
+          <div v-if="guideBubble.show" class="guide-bubble" role="status" aria-live="polite">
+            {{ guideBubble.text }}
+          </div>
+        </transition>
         <canvas
           ref="gameCanvas"
           class="cq-scene-canvas"
@@ -223,7 +228,7 @@ const emit = defineEmits(['back', 'reset', 'logout', 'login', 'navigate', 'place
 const topNavItems = [
   { key: 'home', label: 'Home' },
   { key: 'dashboard', label: 'Dashboard' },
-  { key: 'scene', label: 'Community' },
+  { key: 'scene', label: 'My Scene' },
   { key: 'tasks', label: 'Tasks' },
   { key: 'quiz', label: 'Quiz' },
   { key: 'education', label: 'Education' },
@@ -245,7 +250,7 @@ const avatarBg = computed(() => {
 
 function tipsKeyForUser(username) {
   const u = String(username || '').trim().toLowerCase() || 'guest'
-  return `cq_seenCommunityTips:${u}`
+  return `cq_seenMySceneTips:${u}`
 }
 
 const gameCanvas = ref(null)
@@ -257,6 +262,47 @@ const tipsPanelOpen = ref(false)
 function toggleTipsPanel() {
   tipsPanelOpen.value = !tipsPanelOpen.value
   if (tipsPanelOpen.value) markTipsSeen()
+}
+
+const guideBubble = reactive({ show: false, text: '', key: 0 })
+let guideTimer = 0
+function hideGuideBubble() {
+  clearTimeout(guideTimer)
+  guideBubble.show = false
+  guideBubble.text = ''
+}
+function showGuideBubble(text, ms = 5200) {
+  clearTimeout(guideTimer)
+  guideBubble.text = String(text || '').trim()
+  if (!guideBubble.text) return
+  guideBubble.show = true
+  guideBubble.key += 1
+  guideTimer = setTimeout(() => {
+    hideGuideBubble()
+  }, Math.max(1800, Number(ms) || 5200))
+}
+
+function bubbleKeyForUser(username) {
+  const u = String(username || '').trim().toLowerCase() || 'guest'
+  return `cq_seenMySceneBubbles:${u}`
+}
+
+function shouldAutoShowBubbles() {
+  try {
+    const k = bubbleKeyForUser(props.user?.username)
+    return localStorage.getItem(k) !== '1'
+  } catch {
+    return true
+  }
+}
+
+function markBubblesSeen() {
+  try {
+    const k = bubbleKeyForUser(props.user?.username)
+    localStorage.setItem(k, '1')
+  } catch {
+    // ignore
+  }
 }
 
 function shouldAutoOpenTips() {
@@ -513,6 +559,13 @@ function resizeCanvas() {
 
 onMounted(async () => {
   autoOpenTipsOnce()
+  // Lightweight guided bubbles (one-time per user). No expensive rendering.
+  if (shouldAutoShowBubbles()) {
+    markBubblesSeen()
+    setTimeout(() => showGuideBubble('Welcome! Pick 🌿 Vegetation, choose a tree, then tap a tile to plant.'), 650)
+    setTimeout(() => showGuideBubble('Keep planting: at 20 trees (Lv5) you unlock Pets 🐾 and Homes 🏠.'), 7200)
+    setTimeout(() => showGuideBubble('Need coins? Jump to Tasks ✅ or Quiz 📚 from the top bar.'), 14200)
+  }
   if (!selectedItemId.value) {
     const firstUnlocked = (theme.value.items || []).find((x) => x?.id && isUnlocked(x))
     if (firstUnlocked?.id) selectedItemId.value = firstUnlocked.id
@@ -564,7 +617,29 @@ onMounted(async () => {
 onUnmounted(() => {
   core?.stop?.()
   core = null
+  hideGuideBubble()
 })
+
+watch(
+  () => treesPlaced.value,
+  (n, p) => {
+    if ((p || 0) === 0 && (n || 0) > 0) {
+      showGuideBubble('Nice start! Mix decor 🧩 to make your scene feel alive.', 5200)
+    }
+    if ((p || 0) < 20 && (n || 0) >= 20) {
+      showGuideBubble('Level up! Pets 🐾 and Homes 🏠 are now unlocked in the shop.', 7200)
+    }
+  }
+)
+
+watch(
+  () => selectedItemId.value,
+  (id, prev) => {
+    if (!id || id === prev) return
+    if (mode.value === 'delete') return
+    showGuideBubble('Tap a tile to place. Switch to 🪏 to remove items.', 5200)
+  }
+)
 
 watch(() => [props.themeType], () => {
   const first = theme.value.items?.[0]
@@ -1048,7 +1123,7 @@ watch(
 }
 
 /* Float over the canvas so the map keeps the full viewport height (same as before the guide bar). */
-/* legacy scene-guide-banner removed (tips are now a single Community module) */
+/* legacy scene-guide-banner removed (tips are now a single My Scene module) */
 
 .main-inner {
   display: flex;
@@ -1387,6 +1462,40 @@ watch(
   position: relative;
   overflow: hidden;
   background: radial-gradient(ellipse at center bottom, rgba(92, 160, 110, 0.55) 0%, rgba(18, 40, 24, 0.92) 72%);
+}
+
+.guide-bubble {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 92;
+  max-width: min(520px, calc(100vw - 64px));
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.92);
+  font-family: 'Fredoka', 'Nunito', system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 0.86rem;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  text-align: center;
+  pointer-events: none;
+}
+
+.bubble-fade-enter-active,
+.bubble-fade-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.bubble-fade-enter-from,
+.bubble-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-6px);
 }
 canvas {
   display: block;

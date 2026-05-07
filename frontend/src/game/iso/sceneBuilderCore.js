@@ -106,6 +106,60 @@ export function createSceneBuilderCore(opts) {
     scale: 0.72 + Math.random() * 0.55,
     depth: 0.35 + Math.random() * 0.45,
   }))
+  // Cloud sprite cache to avoid per-frame arc/ellipse overhead.
+  const cloudSpriteCache = new Map()
+  function getCloudSprite(key) {
+    const cached = cloudSpriteCache.get(key)
+    if (cached) return cached
+    const size = 256
+    const c = document.createElement('canvas')
+    c.width = size
+    c.height = size
+    const g = c.getContext('2d')
+    // Subtle gradient body + rim + shadow for “finer” look.
+    g.clearRect(0, 0, size, size)
+    g.save()
+    g.translate(size / 2, size / 2)
+    const base = 56
+    const body = g.createRadialGradient(-10, -18, base * 0.25, -10, -18, base * 1.45)
+    body.addColorStop(0, 'rgba(255,255,255,0.98)')
+    body.addColorStop(1, 'rgba(232,242,250,0.90)')
+    g.fillStyle = body
+
+    const puff = (x, y, r) => {
+      g.beginPath()
+      g.arc(x, y, r, 0, Math.PI * 2)
+      g.fill()
+    }
+    // More puffs than before -> more detailed silhouette.
+    puff(-34, 8, base * 0.70)
+    puff(0, 0, base * 0.90)
+    puff(34, 10, base * 0.74)
+    puff(-8, -18, base * 0.62)
+    puff(18, -22, base * 0.56)
+
+    // Rim highlight
+    g.globalCompositeOperation = 'source-atop'
+    const rim = g.createRadialGradient(-20, -28, base * 0.2, -20, -28, base * 1.35)
+    rim.addColorStop(0, 'rgba(255,255,255,0.55)')
+    rim.addColorStop(1, 'rgba(255,255,255,0)')
+    g.fillStyle = rim
+    g.beginPath()
+    g.arc(0, 0, base * 1.35, 0, Math.PI * 2)
+    g.fill()
+
+    // Soft shadow under the cloud (baked in)
+    g.globalCompositeOperation = 'destination-over'
+    g.globalAlpha = 0.45
+    g.fillStyle = 'rgba(95,140,175,0.25)'
+    g.beginPath()
+    g.ellipse(8, 62, base * 1.25, base * 0.42, 0, 0, Math.PI * 2)
+    g.fill()
+    g.restore()
+
+    cloudSpriteCache.set(key, c)
+    return c
+  }
   let offsetX = 0
   let offsetY = 0
   let zoom = 1
@@ -733,27 +787,7 @@ export function createSceneBuilderCore(opts) {
     ctx.fillStyle = sun
     ctx.fillRect(0, 0, W, H)
 
-    // Drifting clouds (multi-puff clusters, inspired by landing-page globe clouds)
-    function drawCloudPuffs(cx, cy, sz, alpha) {
-      const cg = Math.round(228 + (1 - alpha) * 18)
-      ctx.globalAlpha = alpha
-      ctx.fillStyle = `rgb(${cg + 10},${cg + 14},${cg + 18})`
-      ctx.beginPath()
-      ctx.arc(cx, cy, sz, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.beginPath()
-      ctx.arc(cx + sz * 0.85, cy + sz * 0.15, sz * 0.72, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.beginPath()
-      ctx.arc(cx - sz * 0.8, cy + sz * 0.15, sz * 0.65, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.globalAlpha = alpha * 0.32
-      ctx.fillStyle = 'rgba(100,140,180,0.28)'
-      ctx.beginPath()
-      ctx.ellipse(cx + sz * 0.15, cy + sz * 0.95, sz * 1.1, sz * 0.35, 0, 0, Math.PI * 2)
-      ctx.fill()
-    }
-
+    // Drifting clouds (sprite-based for performance; still animated like landing page).
     sceneClouds.forEach((cl) => {
       const span = W + 280
       const drift = (cl.xOffset + t * cl.spd * (0.6 + cl.depth * 0.4)) % 1.15
@@ -764,8 +798,17 @@ export function createSceneBuilderCore(opts) {
         Math.sin(t * 0.12 + cl.phase * 0.7) * 3
       const baseSz = (34 + 26 * cl.depth) * Math.min(1.25, zoom) * cl.scale
       const alpha = Math.max(0.14, Math.min(0.52, 0.18 + cl.depth * 0.42))
+      const sprite = getCloudSprite('v1')
+      const s = (baseSz / 56) * 1.05
+      const w = sprite.width * s
+      const h = sprite.height * s
       ctx.save()
-      drawCloudPuffs(cx, cy, baseSz, alpha)
+      ctx.globalAlpha = alpha
+      // Tiny per-cloud wobble/tilt without heavy path ops.
+      const rot = Math.sin(t * 0.18 + cl.phase) * 0.02
+      ctx.translate(cx, cy)
+      ctx.rotate(rot)
+      ctx.drawImage(sprite, -w / 2, -h / 2, w, h)
       ctx.restore()
     })
 
