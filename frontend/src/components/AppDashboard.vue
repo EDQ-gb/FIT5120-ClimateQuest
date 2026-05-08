@@ -63,7 +63,7 @@
       <div class="glass-card">
         <div class="stat-label">Level</div>
         <div class="stat-num" style="color:#c084fc;">{{ p.level||1 }}</div>
-        <div class="stat-sub">⭐ {{ p.xpInLevel||0 }} / 200 XP</div>
+        <div class="stat-sub">🌳 {{ p.treesInLevel ?? 0 }} / {{ p.treesPerLevel ?? 5 }} trees</div>
       </div>
     </div>
 
@@ -73,10 +73,10 @@
         <div class="card-title">Level Progress</div>
         <div class="prog-row">
           <span class="prog-label" style="color:#c084fc;">Lv {{ p.level||1 }}</span>
-          <div class="prog-track"><div class="prog-fill" :style="{ width: xpPct+'%', background:'linear-gradient(90deg,#7c3aed,#c084fc)' }"></div></div>
+          <div class="prog-track"><div class="prog-fill" :style="{ width: levelPct+'%', background:'linear-gradient(90deg,#7c3aed,#c084fc)' }"></div></div>
           <span class="prog-label" style="color:#c084fc;">Lv {{ (p.level||1)+1 }}</span>
         </div>
-        <div class="sub-text">{{ p.xpInLevel||0 }} / 200 XP to rank up</div>
+        <div class="sub-text">{{ p.treesInLevel ?? 0 }} / {{ p.treesPerLevel ?? 5 }} trees to rank up</div>
 
         <div class="card-title mt16">Today's Tasks</div>
         <div class="prog-row">
@@ -208,7 +208,11 @@ const quickCat = ref([])
 const quickBusy = ref(null)
 const showGuide = ref(true)
 
-const xpPct   = computed(() => Math.round(((p.value.xpInLevel||0)/200)*100))
+const levelPct = computed(() => {
+  const denom = Number(p.value.treesPerLevel ?? 5) || 5
+  const num = Number(p.value.treesInLevel ?? 0) || 0
+  return Math.max(0, Math.min(100, Math.round((num / denom) * 100)))
+})
 const taskPct = computed(() => {
   const d = p.value.todayDone || 0
   const t = p.value.totalTasks || 9

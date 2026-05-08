@@ -583,12 +583,27 @@ onMounted(async () => {
     getItemDefById: (id) => getItemById(props.themeType, id) || getItemByIdAnyTheme(id),
     getDefaultGroundItemId: () => null,
     getPreloadSrcs: () => {
-      const out = []
-      for (const x of theme.value.items || []) {
-        if (x?.src) out.push(x.src)
-        if (Array.isArray(x?.srcCandidates)) out.push(...x.srcCandidates)
+      // Performance: do NOT decode hundreds of PNGs on mount.
+      // Warm only a small set (trees + currently selected item + first few items).
+      const items = theme.value.items || []
+      const pick = []
+
+      const selected = selectedItemId.value ? getItemByIdAnyTheme(selectedItemId.value) : null
+      if (selected?.src) pick.push(selected.src)
+
+      // Always warm a few vegetation basics so first placement feels instant.
+      for (const it of items) {
+        if (it?.kind === 'tree' && it?.src) pick.push(it.src)
+        if (pick.length >= 10) break
       }
-      return out.filter(Boolean)
+
+      // Warm a small variety for the shop grid.
+      for (const it of items) {
+        if (it?.src) pick.push(it.src)
+        if (pick.length >= 32) break
+      }
+
+      return [...new Set(pick.filter(Boolean))]
     },
     getPlacements: () => props.placements || { items: [] },
     setGridPos: (col, row) => {

@@ -1356,6 +1356,7 @@ app.post("/api/scene/place", async (req, res, next) => {
     }
 
     const ms = computeMySceneMilestones(placements, { itemId, type, col, row });
+    const treesCount = ms.trees;
     const challenges = meta.challenges || {};
     let toast = null;
     if (ms.trees >= 5 && !challenges.plant5Trees) {
@@ -1386,8 +1387,10 @@ app.post("/api/scene/place", async (req, res, next) => {
     meta.challenges = challenges;
 
     await query(
-      `update user_state set placements_json = ? where user_id = ?`,
-      [JSON.stringify(byTheme), userId]
+      `update user_state
+       set placements_json = ?, trees = ?
+       where user_id = ?`,
+      [JSON.stringify(byTheme), treesCount, userId]
     );
     await touchActive(userId);
 
@@ -1429,9 +1432,12 @@ app.post("/api/scene/remove", async (req, res, next) => {
     }
     if (idx >= 0) placements.items.splice(idx, 1);
 
+    const treesCount = placements.items.filter((x) => String(x?.type || "") === "tree").length;
     await query(
-      `update user_state set placements_json = ? where user_id = ?`,
-      [JSON.stringify(byTheme), userId]
+      `update user_state
+       set placements_json = ?, trees = ?
+       where user_id = ?`,
+      [JSON.stringify(byTheme), treesCount, userId]
     );
     await touchActive(userId);
     res.json({ ok: true, placements });
@@ -1483,9 +1489,12 @@ app.post("/api/scene/move", async (req, res, next) => {
       };
     }
 
+    const treesCount = placements.items.filter((x) => String(x?.type || "") === "tree").length;
     await query(
-      `update user_state set placements_json = ? where user_id = ?`,
-      [JSON.stringify(byTheme), userId]
+      `update user_state
+       set placements_json = ?, trees = ?
+       where user_id = ?`,
+      [JSON.stringify(byTheme), treesCount, userId]
     );
     await touchActive(userId);
     res.json({ ok: true, placements });
@@ -1609,7 +1618,7 @@ app.get("/api/progress", async (req, res, next) => {
 
     const today = ymdLocal();
     const st = await query(
-      `select coins, xp, scene_progress
+      `select coins, xp, scene_progress, trees
        from user_state
        where user_id = ?`,
       [userId]
@@ -1659,8 +1668,10 @@ app.get("/api/progress", async (req, res, next) => {
     const streak = streakFromActiveSet(activeSet);
 
     const xp = Number(state.xp || 0);
-    const level = Math.floor(xp / 200) + 1;
-    const xpInLevel = xp % 200;
+    const trees = Number(state.trees || 0);
+    // Unified My Scene level: +1 per 5 trees (Lv5 at 20 trees), same everywhere.
+    const level = Math.max(1, 1 + Math.floor(trees / 5));
+    const treesInLevel = trees % 5;
 
     const weekSummaries = [];
     const curMonStr = mondayWeekStartYmd();
@@ -1688,7 +1699,12 @@ app.get("/api/progress", async (req, res, next) => {
       coins: Number(state.coins || 0),
       xp,
       level,
-      xpInLevel,
+      // Keep old field for compatibility (dashboard used to show XP/200).
+      // Now we expose trees-based progress as the source of truth.
+      xpInLevel: treesInLevel,
+      trees,
+      treesInLevel,
+      treesPerLevel: 5,
       streak,
       streakMilestones: { sevenDay: streak >= 7, thirtyDay: streak >= 30 },
       todayDone,
@@ -1713,10 +1729,10 @@ app.get("/api/leaderboard", async (req, res, next) => {
     const myUsername = me.rows?.[0]?.username || null;
 
     const r = await query(
-      `select u.id, u.username, u.display_name, s.coins, s.xp
+      `select u.id, u.username, u.display_name, s.coins, s.xp, s.trees
        from user_state s
        join users u on u.id = s.user_id
-       order by s.coins desc, s.xp desc, u.created_at asc`
+       order by s.trees desc, s.coins desc, s.xp desc, u.created_at asc`
     );
 
     const rows = r.rows || [];
@@ -1725,14 +1741,17 @@ app.get("/api/leaderboard", async (req, res, next) => {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const xp = Number(row.xp || 0);
+      const trees = Number(row.trees || 0);
       const uid = row.id;
       const streak = Number(streakMap.get(uid) || 0);
+      // My Scene level: +1 per 5 trees (Lv5 at 20 trees), same as SceneBuilderShell.
+      const treeLevel = Math.max(1, 1 + Math.floor(trees / 5));
       board.push({
         rank: i + 1,
         username: row.username,
         displayName: row.display_name || "",
         coins: Number(row.coins || 0),
-        level: Math.floor(xp / 200) + 1,
+        level: treeLevel,
         streak,
         isYou: myUsername ? row.username === myUsername : false,
       });
@@ -1796,6 +1815,18 @@ app.get("/api/game/state", async (req, res, next) => {
     const theme = st.scene_type || "forest";
     const byTheme = placementsByThemeFromJson(st.placements_json, theme);
     const placements = getThemePlacements(byTheme, theme);
+
+    // Keep `user_state.trees` consistent with the actual placements.
+    // This avoids leaderboard level mismatches when legacy saves or older endpoints
+    // updated `placements_json` without touching `trees`.
+    const computedTrees = Array.isArray(placements?.items)
+      ? placements.items.filter((x) => String(x?.type || "") === "tree").length
+      : 0;
+    const storedTrees = Number(st.trees || 0);
+    if (Number.isFinite(computedTrees) && computedTrees !== storedTrees) {
+      await query(`update user_state set trees = ? where user_id = ?`, [computedTrees, userId]);
+      st.trees = computedTrees;
+    }
 
     res.json({
       themeType: st.scene_type || "forest",
