@@ -345,8 +345,8 @@ const TASKS = [
   },
   {
     id: 5,
-    title: "Plant-based meal",
-    desc: "Have at least one fully plant-based meal today.",
+    title: "Light emission meal",
+    desc: "Have one meal with selected ingredients, which emits lower carbon.",
     coins: 25,
     co2: 500,
     cat: "food",

@@ -935,13 +935,10 @@ async function submitRegister() {
       body: JSON.stringify({ username: form.username, displayName: form.displayName }),
     })
     user.value = data.user
-<<<<<<< HEAD
     setFeatureStorageUser(data.user?.username)
     clearLegacyFeatureStorage()
-=======
     setMockUserScope(data?.user?.username || 'guest')
     bumpUserViewNonce()
->>>>>>> origin/main
     closeAuth()
     resetThemeState()
     clearThemeCacheForUser(data.user?.username)
@@ -969,13 +966,10 @@ async function submitSignin() {
       body: JSON.stringify({ username: form.username }),
     })
     user.value = data.user
-<<<<<<< HEAD
     setFeatureStorageUser(data.user?.username)
     clearLegacyFeatureStorage()
-=======
     setMockUserScope(data?.user?.username || 'guest')
     bumpUserViewNonce()
->>>>>>> origin/main
     closeAuth()
     resetThemeState()
     loadThemeCacheForUser(data.user?.username)

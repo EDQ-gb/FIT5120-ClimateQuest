@@ -1,6 +1,6 @@
-/**
- * ClimateQuest — Feature API
- * ─────────────────────────────────────────────────────────────
+﻿/**
+ * ClimateQuest 鈥?Feature API
+ * 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
  * Calls real backend endpoints if they exist.
  * Falls back to localStorage mock if backend returns 404.
  *
@@ -16,42 +16,42 @@
  *
  * DB tables needed (add to schema.sql):
  *   task_logs, scenes, quiz_results, coins (or add coins/xp cols to users)
- * ─────────────────────────────────────────────────────────────
+ * 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
  */
 
-// ── Static mock data ──────────────────────────────────────────────────────────
+// 鈹€鈹€ Static mock data 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 export const TASKS = [
-  { id: 1, title: 'Walk or cycle a trip', desc: 'Replace at least one car trip with walking or cycling today.', coins: 30, co2: 340, cat: 'transport', icon: '🚶' },
-  { id: 2, title: 'Use public transport', desc: 'Take a bus, tram or train instead of driving.', coins: 25, co2: 280, cat: 'transport', icon: '🚌' },
-  { id: 3, title: 'Bring a reusable cup', desc: 'Use your own cup for coffee or drinks — no single-use today.', coins: 20, co2: 80, cat: 'habit', icon: '☕' },
-  { id: 4, title: 'Turn off standby devices', desc: 'Switch off devices fully instead of leaving them on standby.', coins: 20, co2: 120, cat: 'energy', icon: '🔌' },
-  { id: 5, title: 'Plant-based meal', desc: 'Have at least one fully plant-based meal today.', coins: 25, co2: 500, cat: 'food', icon: '🥗' },
-  { id: 6, title: 'Read a short climate article', desc: 'Spend three minutes reading any trusted climate or sustainability article.', coins: 12, co2: 0, cat: 'learning', icon: '📰' },
-  { id: 7, title: 'Recycle sorted materials', desc: 'Sort and place recyclables in the correct bin today.', coins: 18, co2: 150, cat: 'lifestyle', icon: '♻️' },
-  { id: 8, title: 'Choose local or seasonal food', desc: 'Prepare one meal using local or seasonal ingredients.', coins: 22, co2: 320, cat: 'food', icon: '🥕' },
-  { id: 9, title: 'Learn one energy-saving tip', desc: 'Watch or read one practical tip to reduce home energy use.', coins: 14, co2: 0, cat: 'learning', icon: '💡' },
+  { id: 1, title: 'Walk or cycle a trip', desc: 'Replace at least one car trip with walking or cycling today.', coins: 30, co2: 340, cat: 'transport', icon: '馃毝' },
+  { id: 2, title: 'Use public transport', desc: 'Take a bus, tram or train instead of driving.', coins: 25, co2: 280, cat: 'transport', icon: '馃殞' },
+  { id: 3, title: 'Bring a reusable cup', desc: 'Use your own cup for coffee or drinks - no single-use today.', coins: 20, co2: 80, cat: 'habit', icon: 'cup' },
+  { id: 4, title: 'Turn off standby devices', desc: 'Switch off devices fully instead of leaving them on standby.', coins: 20, co2: 120, cat: 'energy', icon: '馃攲' },
+  { id: 5, title: 'Light emission meal', desc: 'Have one meal with selected ingredients, which emits lower carbon.', coins: 25, co2: 500, cat: 'food', icon: '馃' },
+  { id: 6, title: 'Read a short climate article', desc: 'Spend three minutes reading any trusted climate or sustainability article.', coins: 12, co2: 0, cat: 'learning', icon: '馃摪' },
+  { id: 7, title: 'Recycle sorted materials', desc: 'Sort and place recyclables in the correct bin today.', coins: 18, co2: 150, cat: 'lifestyle', icon: '鈾伙笍' },
+  { id: 8, title: 'Choose local or seasonal food', desc: 'Prepare one meal using local or seasonal ingredients.', coins: 22, co2: 320, cat: 'food', icon: '馃' },
+  { id: 9, title: 'Learn one energy-saving tip', desc: 'Watch or read one practical tip to reduce home energy use.', coins: 14, co2: 0, cat: 'learning', icon: '馃挕' },
 ]
 
 export const QUIZ_BANK = [
   { q:'Which sector contributes most to Melbourne\'s greenhouse gas emissions?',
     opts:['Transport','Energy (electricity & gas)','Waste','Agriculture'], ans:1,
     exp:'Energy (electricity and gas) accounts for ~54% of Melbourne\'s GHG emissions (City of Melbourne data).' },
-  { q:'How much CO₂ does walking 2 km save vs driving the same distance?',
+  { q:'How much CO鈧?does walking 2 km save vs driving the same distance?',
     opts:['~100 g','~340 g','~1 kg','~50 g'], ans:1,
-    exp:'Based on Australian Government NGA Emission Factors, a 2 km car trip emits ~340 g CO₂.' },
+    exp:'Based on Australian Government NGA Emission Factors, a 2 km car trip emits ~340 g CO鈧?' },
   { q:'What does "net zero" mean?',
     opts:['Zero industrial emissions','Emissions = removals','50% emission cut','No fossil fuels'], ans:1,
     exp:'Net zero means greenhouse gas emissions equal the amount removed from the atmosphere.' },
-  { q:'Roughly what % of 18–34 Australians worry about climate change?',
+  { q:'Roughly what % of 18鈥?4 Australians worry about climate change?',
     opts:['40%','60%','80%','95%'], ans:2,
-    exp:'NCLS Research (2025): 80% of 18–34 year-olds are at least moderately worried.' },
+    exp:'NCLS Research (2025): 80% of 18鈥?4 year-olds are at least moderately worried.' },
   { q:'How long can a plastic bag take to decompose?',
     opts:['10 years','50 years','500 years','5,000 years'], ans:2,
     exp:'Plastic bags can take up to 500 years to break down in landfill.' },
-  { q:'A plant-based diet produces roughly how much less CO₂ than a high-meat diet?',
-    opts:['Same','~1.5× less','~2.5× less','~10× less'], ans:2,
-    exp:'Research shows a vegan diet emits ~2.5× less CO₂ than a high-meat diet.' },
+  { q:'A plant-based diet produces roughly how much less CO鈧?than a high-meat diet?',
+    opts:['Same','~1.5脳 less','~2.5脳 less','~10脳 less'], ans:2,
+    exp:'Research shows a vegan diet emits ~2.5脳 less CO鈧?than a high-meat diet.' },
   { q:'Iceland generates nearly all its electricity from:',
     opts:['Coal','Natural gas','Nuclear','Renewables (geothermal/hydro)'], ans:3,
     exp:'Iceland generates ~100% of electricity from renewable geothermal and hydro sources.' },
@@ -81,7 +81,7 @@ export const QUIZ_BANK = [
     exp:'The leaderboard is a motivation tool to visualize progress and encourage ongoing climate-friendly actions.' },
 ]
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// 鈹€鈹€ Helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 function today() { return new Date().toISOString().split('T')[0] }
 function dayIdx() {
   const day = today()
@@ -96,13 +96,13 @@ async function req(path, options = {}) {
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     credentials: 'include',
   })
-  if (res.status === 404) throw new Error('NOT_FOUND') // backend route doesn't exist yet → use mock
+  if (res.status === 404) throw new Error('NOT_FOUND') // backend route doesn't exist yet 鈫?use mock
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data?.error || `HTTP_${res.status}`)
   return data
 }
 
-// ── localStorage mock state ───────────────────────────────────────────────────
+// 鈹€鈹€ localStorage mock state 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 const K = {
   completions: 'cq_completions',  // { 'YYYY-MM-DD': [taskId,...] }
   scene:       'cq_scene',        // { type, progress }
@@ -112,12 +112,18 @@ const K = {
   xp:          'cq_xp',           // number
 }
 
-<<<<<<< HEAD
 let activeStorageUser = ''
 
 function storageScope() {
   const u = String(activeStorageUser || '').trim().toLowerCase()
-  return u ? `cq:${u}:features` : 'cq:guest:features'
+  if (u) return `cq:${u}:features`
+  try {
+    const raw = localStorage.getItem('cq_user_scope')
+    const v = String(raw || 'guest').trim().toLowerCase()
+    return `cq:${v || 'guest'}:features`
+  } catch {
+    return 'cq:guest:features'
+  }
 }
 
 function scopedKey(key) {
@@ -140,30 +146,6 @@ function get(key, def) {
   try { return JSON.parse(localStorage.getItem(scopedKey(key)) ?? 'null') ?? def }
   catch { return def }
 }
-function set(key, val) { localStorage.setItem(scopedKey(key), JSON.stringify(val)) }
-=======
-function currentMockScope() {
-  try {
-    const raw = localStorage.getItem('cq_user_scope')
-    const v = String(raw || 'guest').trim().toLowerCase()
-    return v || 'guest'
-  } catch {
-    return 'guest'
-  }
-}
-
-function scopedKey(baseKey) {
-  return `${baseKey}::${currentMockScope()}`
-}
-
-function get(key, def) {
-  const sk = scopedKey(key)
-  try {
-    const raw = localStorage.getItem(sk)
-    return JSON.parse(raw ?? 'null') ?? def
-  }
-  catch { return def }
-}
 function set(key, val) {
   try {
     localStorage.setItem(scopedKey(key), JSON.stringify(val))
@@ -171,7 +153,6 @@ function set(key, val) {
     // ignore storage quota/privacy mode issues in mock fallback
   }
 }
->>>>>>> origin/main
 
 function getCompletions() { return get(K.completions, {}) }
 function getSceneState()  { return get(K.scene, { type: 'forest', progress: 0 }) }
@@ -213,18 +194,27 @@ function calcTotals(completions) {
   return { tasks, co2 }
 }
 
-// ── Public API (try real backend → fall back to mock) ─────────────────────────
+function normalizeTask(task) {
+  if (Number(task?.id) !== 5) return task
+  return {
+    ...task,
+    title: 'Light emission meal',
+    desc: 'Have one meal with selected ingredients, which emits lower carbon.',
+  }
+}
+
+// 鈹€鈹€ Public API (try real backend 鈫?fall back to mock) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 export async function getTasks() {
   try {
-    return await req('/api/tasks')
+    return (await req('/api/tasks')).map(normalizeTask)
   } catch (e) {
     // Only fall back when the backend route truly doesn't exist.
     // For auth/network/server errors we should surface the failure so users don't
     // "earn" coins that never reach the database.
     if (String(e?.message || '') !== 'NOT_FOUND') throw e
     const done = (getCompletions()[today()] || [])
-    return TASKS.map(t => ({ ...t, completed: done.includes(t.id) }))
+    return TASKS.map(t => normalizeTask({ ...t, completed: done.includes(t.id) }))
   }
 }
 
@@ -343,7 +333,7 @@ export async function getLeaderboard() {
   try { return await req('/api/leaderboard') }
   catch (e) {
     if (String(e?.message || '') !== 'NOT_FOUND') throw e
-    return [] // No mock for leaderboard — needs real backend data
+    return [] // No mock for leaderboard 鈥?needs real backend data
   }
 }
 

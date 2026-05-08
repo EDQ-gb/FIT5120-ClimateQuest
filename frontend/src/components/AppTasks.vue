@@ -1,9 +1,9 @@
-<template>
+﻿<template>
   <div class="page">
     <div class="row-between mb12">
       <h3 class="page-h3">Daily Green Actions</h3>
       <div class="header-right">
-        <span class="coins-pill">🪙 {{ coinText }}</span>
+        <span class="coins-pill">馃獧 {{ coinText }}</span>
         <span class="sub-text">{{ doneCount }} / {{ tasks.length }} completed</span>
       </div>
     </div>
@@ -11,7 +11,7 @@
 
     <div class="tasks-guide" role="note">
       <strong>Real science, real loot:</strong>
-      each win uses official Aussie carbon math, so your totals mean something — not just made-up points.
+      each win uses official Aussie carbon math, so your totals mean something 鈥?not just made-up points.
       Give a task a minute now, then sprint to My Scene while the win still feels warm.
     </div>
 
@@ -21,10 +21,10 @@
       <transition name="celebrate-pop">
         <div v-if="celebration" class="celebrate-toast">
           <div class="celebrate-firework"></div>
-          <div class="celebrate-title">🎉 Congratulations!</div>
+          <div class="celebrate-title">馃帀 Congratulations!</div>
           <div class="celebrate-text">
             You completed <strong>{{ celebration.title }}</strong> and saved
-            <strong>{{ celebration.co2 }}</strong> g CO₂.
+            <strong>{{ celebration.co2 }}</strong> g CO鈧?
           </div>
         </div>
       </transition>
@@ -38,25 +38,63 @@
               <div class="task-title">{{ task.title }}</div>
               <div class="badges">
                 <span class="badge gold">+{{ task.coins }} coins</span>
-                <span class="badge cyan" v-if="task.co2 > 0">{{ task.co2 }}g CO₂</span>
+                <span class="badge cyan" v-if="task.co2 > 0">{{ task.co2 }}g CO2e</span>
                 <span class="badge">{{ task.cat }}</span>
               </div>
               <div class="task-desc">{{ task.desc }}</div>
+              <section v-if="isPlantMealTask(task) && mealBuilderTaskId === task.id" class="recipe-helper" aria-label="Light emission meal helper">
+                <div class="recipe-helper__head">
+                  <span class="recipe-helper__title">Choose 3-5 ingredients</span>
+                  <button class="recipe-helper__generate" type="button" @click="refreshIngredientOptions">
+                    New 10
+                  </button>
+                </div>
+                <div class="recipe-helper__hint">{{ ingredientSelectionHint }}</div>
+                <div class="ingredient-picker">
+                  <button
+                    v-for="ingredient in visibleIngredients"
+                    :key="ingredient"
+                    type="button"
+                    class="ingredient-chip"
+                    :class="{ selected: selectedIngredients.includes(ingredient) }"
+                    @click="toggleIngredient(ingredient)"
+                  >
+                    {{ ingredient }}
+                  </button>
+                </div>
+                <button
+                  class="recipe-action"
+                  type="button"
+                  :disabled="!canGenerateRecipe"
+                  @click="generateRecipe"
+                >
+                  Generate meal idea
+                </button>
+                <div v-if="recipe" class="recipe-result">
+                  <div class="recipe-result__title">{{ recipe.title }}</div>
+                  <ol>
+                    <li v-for="step in recipe.steps" :key="step">{{ step }}</li>
+                  </ol>
+                  <button class="recipe-action primary" type="button" @click="complete(task.id, { force: true })">
+                    Complete task
+                  </button>
+                </div>
+              </section>
             </div>
           </div>
           <button class="act-btn" :class="task.completed ? 'done' : 'todo'"
                   :disabled="task.completed || completing===task.id"
                   @click="complete(task.id)">
             <div v-if="completing===task.id" class="spin sm"></div>
-            <span v-else>{{ task.completed ? '✓ Done' : 'Complete' }}</span>
+            <span v-else>{{ actionLabel(task) }}</span>
           </button>
         </article>
       </div>
     </template>
 
     <div class="info-card">
-      <div class="info-title">💡 About these tasks</div>
-      <p class="info-body">Every mission is hooked to real-world CO₂ vibes (think walk-instead-of-drive ≈ 340 g saved). Numbers come from Australia’s official emission recipe book — not fluff. Need tree money? Knock out a few tasks, spin the quiz if it is open, then spoil your map.</p>
+      <div class="info-title">馃挕 About these tasks</div>
+      <p class="info-body">Every mission is hooked to real-world CO鈧?vibes (think walk-instead-of-drive 鈮?340 g saved). Numbers come from Australia鈥檚 official emission recipe book 鈥?not fluff. Need tree money? Knock out a few tasks, spin the quiz if it is open, then spoil your map.</p>
     </div>
   </div>
 </template>
@@ -64,6 +102,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { getTasks, completeTask } from '../api/features.js'
+import { PLANT_BASED_INGREDIENTS, generatePlantBasedRecipe } from '../api/recipeGenerator.js'
 // We emit the *resulting* totals so the shell can update immediately
 // without waiting for a separate refresh roundtrip.
 const emit = defineEmits(['coins-updated'])
@@ -76,14 +115,91 @@ const tasks      = ref([])
 const loading    = ref(true)
 const completing = ref(null)
 const celebration = ref(null)
+const plantIngredients = PLANT_BASED_INGREDIENTS
+const visibleIngredients = ref([])
+const selectedIngredients = ref([])
+const mealBuilderTaskId = ref(null)
+const recipe = ref(null)
+let ingredientWindow = 0
 let celebrationTimer = 0
 
 const doneCount = computed(() => tasks.value.filter(t => t.completed).length)
 const pct       = computed(() => tasks.value.length ? Math.round(doneCount.value/tasks.value.length*100) : 0)
 const coinText  = computed(() => Number(props.coins || 0).toLocaleString())
+const canGenerateRecipe = computed(() => selectedIngredients.value.length >= 3 && selectedIngredients.value.length <= 5)
+const ingredientSelectionHint = computed(() => {
+  const count = selectedIngredients.value.length
+  if (count < 3) return `Pick ${3 - count} more to generate.`
+  if (count === 5) return 'Maximum selected. Generate or swap one out.'
+  return `${count} selected. You can add ${5 - count} more.`
+})
 
-async function complete(id) {
+function isPlantMealTask(task) {
+  return Number(task?.id) === 5 || String(task?.title || '').toLowerCase() === 'light emission meal'
+}
+
+function normalizeTask(task) {
+  if (Number(task?.id) !== 5) return task
+  return {
+    ...task,
+    title: 'Light emission meal',
+    desc: 'Have one meal with selected ingredients, which emits lower carbon.',
+  }
+}
+
+function actionLabel(task) {
+  if (task.completed) return 'Done'
+  if (!isPlantMealTask(task)) return 'Complete'
+  if (mealBuilderTaskId.value !== task.id) return 'Choose ingredients'
+  return recipe.value ? 'Complete task' : 'Pick ingredients'
+}
+
+function refreshIngredientOptions() {
+  const pool = plantIngredients
+  const start = (ingredientWindow * 7) % pool.length
+  visibleIngredients.value = Array.from({ length: 10 }, (_, idx) => pool[(start + idx) % pool.length])
+  selectedIngredients.value = selectedIngredients.value.filter(item => visibleIngredients.value.includes(item))
+  if (selectedIngredients.value.length < 3) recipe.value = null
+  ingredientWindow += 1
+}
+
+function openMealBuilder(taskId) {
+  mealBuilderTaskId.value = taskId
+  selectedIngredients.value = []
+  recipe.value = null
+  refreshIngredientOptions()
+}
+
+function toggleIngredient(ingredient) {
+  const current = selectedIngredients.value
+  if (current.includes(ingredient)) {
+    selectedIngredients.value = current.filter(item => item !== ingredient)
+    recipe.value = null
+  } else {
+    if (current.length >= 5) return
+    selectedIngredients.value = [...current, ingredient]
+    recipe.value = null
+  }
+}
+
+function generateRecipe() {
+  if (!canGenerateRecipe.value) return
+  recipe.value = generatePlantBasedRecipe(selectedIngredients.value)
+}
+
+async function complete(id, options = {}) {
   if (completing.value) return
+  const task = tasks.value.find(t => t.id === id)
+  if (isPlantMealTask(task) && !options.force) {
+    if (mealBuilderTaskId.value !== id) {
+      openMealBuilder(id)
+      return
+    }
+    if (!recipe.value) {
+      generateRecipe()
+      return
+    }
+  }
   completing.value = id
   try {
     const res = await completeTask(id)
@@ -114,7 +230,7 @@ function triggerCelebration(task, res) {
 async function loadTasks() {
   loading.value = true
   try {
-    tasks.value = (await getTasks()) || []
+    tasks.value = ((await getTasks()) || []).map(normalizeTask)
   } catch {
     tasks.value = []
   } finally {
@@ -187,6 +303,102 @@ watch(() => props.user?.id || props.user?.username || null, () => {
 .badge      { font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7); }
 .badge.gold { background:rgba(244,196,48,0.15);color:#f4c430; }
 .badge.cyan { background:rgba(0,242,255,0.10);color:#00f2ff; }
+.recipe-helper {
+  margin-top: 4px;
+  padding: 10px;
+  border: 1px solid rgba(82,212,150,.18);
+  border-radius: 10px;
+  background: rgba(82,212,150,.055);
+}
+.recipe-helper__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.recipe-helper__title {
+  font-size: .72rem;
+  font-weight: 800;
+  color: rgba(148,240,200,.95);
+}
+.recipe-helper__hint {
+  font-size: .68rem;
+  color: rgba(255,255,255,.48);
+  line-height: 1.35;
+  margin-bottom: 8px;
+}
+.recipe-helper__generate {
+  border: 1px solid rgba(82,212,150,.3);
+  background: rgba(82,212,150,.12);
+  color: #9df7cf;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 800;
+  padding: 4px 9px;
+  cursor: pointer;
+}
+.ingredient-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding-right: 2px;
+}
+.ingredient-chip {
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.07);
+  color: rgba(255,255,255,.68);
+  border-radius: 999px;
+  font-size: .66rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.ingredient-chip.selected {
+  color: #081c12;
+  background: #9df7cf;
+  border-color: #9df7cf;
+}
+.recipe-action {
+  width: 100%;
+  margin-top: 9px;
+  border: 1px solid rgba(0,242,255,.24);
+  background: rgba(0,242,255,.1);
+  color: #9ff8ff;
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 800;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.recipe-action.primary {
+  border-color: rgba(82,212,150,.42);
+  background: rgba(82,212,150,.2);
+  color: #b9ffdc;
+}
+.recipe-action:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+.recipe-result {
+  margin-top: 9px;
+  font-size: .7rem;
+  color: rgba(255,255,255,.68);
+  line-height: 1.35;
+}
+.recipe-result__title {
+  font-size: .72rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 5px;
+}
+.recipe-result ol {
+  margin: 0;
+  padding-left: 16px;
+}
+.recipe-result li + li {
+  margin-top: 3px;
+}
 .act-btn    { margin-top:auto; align-self:center; padding:8px 16px; border-radius:30px; font-size:.78rem; font-weight:700; border:none; cursor:pointer; transition:all .25s; display:flex; align-items:center; gap:6px; white-space:nowrap; }
 .act-btn.todo { background:rgba(0,242,255,0.12);color:#00f2ff;border:1px solid rgba(0,242,255,0.25); }
 .act-btn.todo:hover:not(:disabled) { background:rgba(0,242,255,0.22);color:#fff; }
