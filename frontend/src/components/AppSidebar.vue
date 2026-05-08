@@ -51,6 +51,7 @@ const navItems = [
   { key: 'tasks',       icon: '✅', label: 'Daily Tasks'  },
   { key: 'scene',       icon: '🌍', label: 'My Scene'     },
   { key: 'quiz',        icon: '📚', label: 'Quiz'         },
+  { key: 'education',   icon: '🎓', label: 'Education'    },
   { key: 'leaderboard', icon: '🏆', label: 'Leaderboard'  },
 ]
 

@@ -32,6 +32,11 @@ Thumbs.db
 # Handoff artifacts (avoid committing large archives)
 *.tar.gz
 *.tgz
+*.zip
+
+# Local Docker files (team uses cloud deployment)
+docker-compose.yml
+**/Dockerfile
 
 # Root lockfile (frontend/server have their own)
 /package-lock.json

@@ -112,13 +112,20 @@ function normalizeDisplayName(name) {
   return v.slice(0, 80);
 }
 
-function publicUserRow(row) {
-  return {
+function publicUserRow(row, opts = {}) {
+  const base = {
     id: row.id,
     username: row.username,
     displayName: row.display_name || "",
     createdAt: row.created_at,
   };
+  if (opts.includeSettings) {
+    base.profilePublic =
+      row.profile_public === undefined || row.profile_public === null
+        ? true
+        : Number(row.profile_public) === 1;
+  }
+  return base;
 }
 
 function setLoggedInSession(req, userId) {
@@ -149,8 +156,8 @@ async function ensureUserState(userId) {
   // and the frontend mistakenly forces users back to ThemeSelect on relogin.
   await ensureUserStateSchema();
   await query(
-    `insert into user_state (user_id)
-     values (?)
+    `insert into user_state (user_id, coins)
+     values (?, 120)
      on duplicate key update user_id = user_id`,
     [userId]
   );
@@ -181,6 +188,74 @@ async function ensureUserStateSchema() {
     }
   })();
   return _schemaEnsured;
+}
+
+let _projectExtensions = null;
+async function ensureProjectExtensions() {
+  if (_projectExtensions) return _projectExtensions;
+  _projectExtensions = (async () => {
+    try {
+      const col = await query(`show columns from users like 'profile_public'`);
+      if (!col.rows || col.rows.length === 0) {
+        await exec(
+          `alter table users add column profile_public tinyint(1) not null default 1`
+        );
+      }
+      await exec(`
+        create table if not exists check_ins (
+          id bigint unsigned not null auto_increment,
+          user_id bigint unsigned not null,
+          checked_on date not null,
+          coins_earned int not null default 10,
+          created_at timestamp not null default current_timestamp,
+          primary key (id),
+          unique key uq_check_user_day (user_id, checked_on),
+          constraint fk_check_ins_user foreign key (user_id) references users(id) on delete cascade
+        )`);
+      await exec(`
+        create table if not exists weekly_progress (
+          user_id bigint unsigned not null,
+          week_start date not null,
+          tasks_completed int not null default 0,
+          goal int not null default 5,
+          reward_claimed tinyint(1) not null default 0,
+          bonus_coins int not null default 40,
+          updated_at timestamp not null default current_timestamp on update current_timestamp,
+          primary key (user_id, week_start),
+          constraint fk_weekly_user foreign key (user_id) references users(id) on delete cascade
+        )`);
+      await exec(`
+        create table if not exists shop_ledger (
+          id bigint unsigned not null auto_increment,
+          user_id bigint unsigned not null,
+          item varchar(32) not null,
+          item_id varchar(80) null,
+          cost int not null,
+          created_at timestamp not null default current_timestamp,
+          primary key (id),
+          key ix_shop_user_time (user_id, created_at),
+          constraint fk_shop_ledger_user foreign key (user_id) references users(id) on delete cascade
+        )`);
+      await exec(`
+        create table if not exists quick_action_logs (
+          id bigint unsigned not null auto_increment,
+          user_id bigint unsigned not null,
+          action_key varchar(64) not null,
+          logged_on date not null,
+          coins_earned int not null default 5,
+          created_at timestamp not null default current_timestamp,
+          primary key (id),
+          unique key uq_quick_user_key_day (user_id, action_key, logged_on),
+          constraint fk_quick_action_user foreign key (user_id) references users(id) on delete cascade
+        )`);
+      return true;
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error({ message: "ensureProjectExtensions failed", error: e?.message, code: e?.code });
+      return false;
+    }
+  })();
+  return _projectExtensions;
 }
 
 async function touchActive(userId) {
@@ -279,13 +354,46 @@ const TASKS = [
   },
   {
     id: 6,
-    title: "Daily check-in",
-    desc: "Log in and review your climate impact for today.",
-    coins: 10,
+    title: "Read a short climate article",
+    desc: "Spend three minutes reading any trusted climate or sustainability article.",
+    coins: 12,
     co2: 0,
-    cat: "habit",
-    icon: "✅",
+    cat: "learning",
+    icon: "📰",
   },
+  {
+    id: 7,
+    title: "Recycle sorted materials",
+    desc: "Sort and place recyclables in the correct bin today.",
+    coins: 18,
+    co2: 150,
+    cat: "lifestyle",
+    icon: "♻️",
+  },
+  {
+    id: 8,
+    title: "Choose local or seasonal food",
+    desc: "Prepare one meal using local or seasonal ingredients.",
+    coins: 22,
+    co2: 320,
+    cat: "food",
+    icon: "🥕",
+  },
+  {
+    id: 9,
+    title: "Learn one energy-saving tip",
+    desc: "Watch or read one practical tip to reduce home energy use.",
+    coins: 14,
+    co2: 0,
+    cat: "learning",
+    icon: "💡",
+  },
+];
+
+const QUICK_ACTION_CATALOG = [
+  { key: "reuse_bag", label: "Bring a reusable bag", coins: 5 },
+  { key: "lights_off_room", label: "Turn off lights when leaving a room", coins: 5 },
+  { key: "short_shower", label: "Take a shorter shower", coins: 5 },
 ];
 
 const QUIZ_BANK = [
@@ -331,10 +439,61 @@ const QUIZ_BANK = [
     ans: 3,
     exp: "Iceland generates ~100% of electricity from renewable geothermal and hydro sources.",
   },
+  {
+    q: "Which home habit usually cuts electricity waste fastest?",
+    opts: ["Leaving chargers plugged in", "Turning off standby devices", "Opening windows all day", "Using brighter bulbs"],
+    ans: 1,
+    exp: "Turning devices fully off (not standby) avoids continuous background electricity use.",
+  },
+  {
+    q: "Why does using a reusable cup help climate action?",
+    opts: ["It always keeps drinks hotter", "It reduces single-use production and waste", "It makes coffee cheaper everywhere", "It removes all transport emissions"],
+    ans: 1,
+    exp: "Reusable cups help lower demand for single-use products and related emissions across production and disposal.",
+  },
+  {
+    q: "Which option is generally lower-carbon for a short urban trip?",
+    opts: ["Solo driving", "Walking or cycling", "Ride-hailing detour", "Idling in traffic"],
+    ans: 1,
+    exp: "Walking and cycling avoid direct fuel emissions for short trips.",
+  },
+  {
+    q: "What is a practical way to reduce food-related emissions?",
+    opts: ["Waste more leftovers", "Choose local and seasonal produce more often", "Only buy imported out-of-season food", "Cook with single-use items every meal"],
+    ans: 1,
+    exp: "Local and seasonal choices can reduce transport/storage impacts and usually support lower-footprint meals.",
+  },
+  {
+    q: "What does daily climate action mostly rely on?",
+    opts: ["One perfect day", "Consistent small habits over time", "Only large donations", "Ignoring personal behavior"],
+    ans: 1,
+    exp: "Sustained small actions compound into meaningful long-term impact.",
+  },
+  {
+    q: "If a quiz answer is wrong in ClimateQuest, what still happens?",
+    opts: ["No record is saved", "The quiz completion is still recorded for the day", "Your account is reset", "You lose all coins"],
+    ans: 1,
+    exp: "The attempt is still recorded, and you get learning feedback even without coin rewards.",
+  },
+  {
+    q: "Which statement best matches 'climate literacy'?",
+    opts: ["Memorizing only one statistic", "Understanding causes, impacts, and practical actions", "Following trends without evidence", "Avoiding all discussions"],
+    ans: 1,
+    exp: "Climate literacy means understanding systems and being able to act on reliable information.",
+  },
+  {
+    q: "What is the main purpose of the Leaderboard in this project?",
+    opts: ["Punish low scores", "Visualize and motivate climate contribution progress", "Replace all education content", "Track private browser tabs"],
+    ans: 1,
+    exp: "The leaderboard is a motivation tool to visualize progress and encourage ongoing climate-friendly actions.",
+  },
 ];
 
 function dayIdx() {
-  return new Date().getDate() % QUIZ_BANK.length;
+  const day = ymdLocal();
+  let hash = 0;
+  for (let i = 0; i < day.length; i++) hash = (hash * 33 + day.charCodeAt(i)) >>> 0;
+  return hash % QUIZ_BANK.length;
 }
 
 /** Single source for shop pricing (used by /api/shop/buy). */
@@ -360,6 +519,109 @@ function shopUnitPurchasePrice(itemKind, itemIdStr) {
     return Number(SHOP_PRICE_BY_ITEM_ID[id]);
   }
   return Number(SHOP_KIND_DEFAULT_PRICE[itemKind] ?? 15);
+}
+
+function mondayWeekStartYmd(d = new Date()) {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const day = x.getDay();
+  const diff = (day + 6) % 7;
+  x.setDate(x.getDate() - diff);
+  return ymdLocal(x);
+}
+
+async function buildActiveDaySet(userId) {
+  const [tasks, quiz, checks] = await Promise.all([
+    query(`select distinct completed_on as d from task_logs where user_id = ?`, [userId]),
+    query(`select distinct completed_on as d from quiz_results where user_id = ?`, [userId]),
+    query(`select distinct checked_on as d from check_ins where user_id = ?`, [userId]),
+  ]);
+  const set = new Set();
+  for (const r of tasks.rows || []) set.add(ymdLocal(new Date(r.d)));
+  for (const r of quiz.rows || []) set.add(ymdLocal(new Date(r.d)));
+  for (const r of checks.rows || []) set.add(ymdLocal(new Date(r.d)));
+  return set;
+}
+
+function streakFromActiveSet(activeSet) {
+  let streak = 0;
+  for (let i = 0; i < 365; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const k = ymdLocal(d);
+    if (activeSet.has(k)) streak += 1;
+    else if (i > 0) break;
+  }
+  return streak;
+}
+
+async function bumpWeeklyTaskCompletion(userId) {
+  const ws = mondayWeekStartYmd();
+  const goal = 5;
+  const bonusCoins = 40;
+  await query(
+    `insert into weekly_progress (user_id, week_start, tasks_completed, goal, reward_claimed, bonus_coins)
+     values (?, ?, 1, ?, 0, ?)
+     on duplicate key update tasks_completed = weekly_progress.tasks_completed + 1`,
+    [userId, ws, goal, bonusCoins]
+  );
+  const r = await query(
+    `select tasks_completed, goal, reward_claimed, bonus_coins
+     from weekly_progress where user_id = ? and week_start = ?`,
+    [userId, ws]
+  );
+  const row = r.rows?.[0];
+  if (!row || Number(row.reward_claimed) === 1) return { awarded: false };
+  if (Number(row.tasks_completed) >= Number(row.goal)) {
+    const b = Number(row.bonus_coins || bonusCoins);
+    await query(`update user_state set coins = coins + ? where user_id = ?`, [b, userId]);
+    await query(`update weekly_progress set reward_claimed = 1 where user_id = ? and week_start = ?`, [
+      userId,
+      ws,
+    ]);
+    await touchActive(userId);
+    return { awarded: true, bonusCoins: b };
+  }
+  return { awarded: false };
+}
+
+async function getStreakForUserId(userId) {
+  const set = await buildActiveDaySet(userId);
+  return streakFromActiveSet(set);
+}
+
+async function getStreakMapForUserIds(userIds) {
+  const ids = Array.from(new Set((userIds || []).map((x) => Number(x)).filter((x) => Number.isFinite(x))));
+  if (!ids.length) return new Map();
+  const placeholders = ids.map(() => "?").join(",");
+  const rows = await query(
+    `select user_id, d from (
+       select user_id, completed_on as d
+       from task_logs
+       where user_id in (${placeholders})
+         and completed_on >= date_sub(curdate(), interval 365 day)
+       union all
+       select user_id, completed_on as d
+       from quiz_results
+       where user_id in (${placeholders})
+         and completed_on >= date_sub(curdate(), interval 365 day)
+       union all
+       select user_id, checked_on as d
+       from check_ins
+       where user_id in (${placeholders})
+         and checked_on >= date_sub(curdate(), interval 365 day)
+     ) x`,
+    [...ids, ...ids, ...ids]
+  );
+  const byUser = new Map();
+  for (const r of rows.rows || []) {
+    const uid = Number(r.user_id);
+    if (!Number.isFinite(uid)) continue;
+    if (!byUser.has(uid)) byUser.set(uid, new Set());
+    byUser.get(uid).add(ymdLocal(new Date(r.d)));
+  }
+  const out = new Map();
+  for (const uid of ids) out.set(uid, streakFromActiveSet(byUser.get(uid) || new Set()));
+  return out;
 }
 
 function adminSecretMatches(provided) {
@@ -481,12 +743,12 @@ app.post("/api/auth/username-register", async (req, res, next) => {
     );
 
     const result = await query(
-      `select id, username, display_name, created_at
+      `select id, username, display_name, created_at, profile_public
        from users
        where username = ?`,
       [username]
     );
-    const user = publicUserRow(result.rows[0] || {});
+    const user = publicUserRow(result.rows[0] || {}, { includeSettings: true });
     await setLoggedInSession(req, user.id);
     await ensureUserState(user.id);
     res.status(201).json({ user });
@@ -508,7 +770,7 @@ app.post("/api/auth/username-signin", async (req, res, next) => {
     }
 
     const existing = await query(
-      `select id, username, display_name, created_at
+      `select id, username, display_name, created_at, profile_public
        from users
        where username = ?
        limit 1`,
@@ -521,7 +783,7 @@ app.post("/api/auth/username-signin", async (req, res, next) => {
     const row = existing.rows[0];
     await setLoggedInSession(req, row.id);
     await ensureUserState(row.id);
-    res.status(200).json({ user: publicUserRow(row) });
+    res.status(200).json({ user: publicUserRow(row, { includeSettings: true }) });
   } catch (err) {
     next(err);
   }
@@ -542,7 +804,7 @@ app.get("/api/auth/me", async (req, res, next) => {
     await ensureUserState(userId);
 
     const result = await query(
-      `select id, username, display_name, created_at
+      `select id, username, display_name, created_at, profile_public
        from users
        where id = ?`,
       [userId]
@@ -553,7 +815,254 @@ app.get("/api/auth/me", async (req, res, next) => {
       return res.status(200).json({ user: null });
     }
 
-    res.json({ user: publicUserRow(result.rows[0]) });
+    res.json({ user: publicUserRow(result.rows[0], { includeSettings: true }) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.patch("/api/auth/profile", async (req, res, next) => {
+  try {
+    const userId = requireAuth(req, res);
+    if (!userId) return;
+    if (typeof req.body?.profilePublic === "boolean") {
+      await query(`update users set profile_public = ? where id = ?`, [
+        req.body.profilePublic ? 1 : 0,
+        userId,
+      ]);
+    }
+    const result = await query(
+      `select id, username, display_name, created_at, profile_public from users where id = ?`,
+      [userId]
+    );
+    res.json({ user: publicUserRow(result.rows?.[0] || {}, { includeSettings: true }) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post("/api/check-in", async (req, res, next) => {
+  try {
+    const userId = requireAuth(req, res);
+    if (!userId) return;
+    await ensureUserState(userId);
+    const today = ymdLocal();
+    const reward = 10;
+    try {
+      await query(`insert into check_ins (user_id, checked_on, coins_earned) values (?, ?, ?)`, [
+        userId,
+        today,
+        reward,
+      ]);
+    } catch (e) {
+      if (e && (e.code === "ER_DUP_ENTRY" || e.code === "ER_DUP_KEY")) {
+        return res.status(409).json({ error: "ALREADY_CHECKED_IN" });
+      }
+      throw e;
+    }
+    await query(`update user_state set coins = coins + ?, xp = xp + 5 where user_id = ?`, [reward, userId]);
+    await touchActive(userId);
+    const active = await buildActiveDaySet(userId);
+    const streak = streakFromActiveSet(active);
+    const st = await query(`select coins from user_state where user_id = ?`, [userId]);
+    res.json({
+      ok: true,
+      coinsEarned: reward,
+      totalCoins: Number(st.rows?.[0]?.coins || 0),
+      streak,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get("/api/home/summary", async (req, res, next) => {
+  try {
+    const userId = requireAuth(req, res);
+    if (!userId) return;
+    await ensureUserState(userId);
+    const today = ymdLocal();
+    const chk = await query(
+      `select 1 as ok from check_ins where user_id = ? and checked_on = ? limit 1`,
+      [userId, today]
+    );
+    const completedToday = (chk.rows || []).length > 0;
+    const ws = mondayWeekStartYmd();
+    const wr = await query(
+      `select tasks_completed, goal, reward_claimed, bonus_coins
+       from weekly_progress where user_id = ? and week_start = ?`,
+      [userId, ws]
+    );
+    const wrow = wr.rows?.[0];
+    const goal = wrow ? Number(wrow.goal) : 5;
+    const progress = wrow ? Number(wrow.tasks_completed) : 0;
+    const completed = wrow && Number(wrow.reward_claimed) === 1;
+    const active = await buildActiveDaySet(userId);
+    const streak = streakFromActiveSet(active);
+    const weekEnd = new Date(`${ws}T12:00:00`);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    res.json({
+      checkIn: { completedToday, rewardCoins: 10 },
+      weeklyChallenge: {
+        title: "Weekly green sprint",
+        description: "Complete five daily tasks between Monday and Sunday.",
+        goal,
+        progress,
+        completed: !!completed,
+        bonusCoins: wrow ? Number(wrow.bonus_coins || 40) : 40,
+        weekRangeLabel: `${ws} — ${ymdLocal(weekEnd)}`,
+      },
+      streak,
+      streakMilestones: { sevenDay: streak >= 7, thirtyDay: streak >= 30 },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get("/api/quick-actions/catalog", (req, res) => {
+  res.json(QUICK_ACTION_CATALOG);
+});
+
+app.post("/api/quick-actions/log", async (req, res, next) => {
+  try {
+    const userId = requireAuth(req, res);
+    if (!userId) return;
+    await ensureUserState(userId);
+    const key = String(req.body?.actionKey || "").trim();
+    const meta = QUICK_ACTION_CATALOG.find((x) => x.key === key);
+    if (!meta) return res.status(400).json({ error: "INVALID_ACTION" });
+    const today = ymdLocal();
+    try {
+      await query(
+        `insert into quick_action_logs (user_id, action_key, logged_on, coins_earned) values (?, ?, ?, ?)`,
+        [userId, key, today, meta.coins]
+      );
+    } catch (e) {
+      if (e && (e.code === "ER_DUP_ENTRY" || e.code === "ER_DUP_KEY")) {
+        return res.status(409).json({ error: "ALREADY_LOGGED_TODAY" });
+      }
+      throw e;
+    }
+    await query(`update user_state set coins = coins + ? where user_id = ?`, [meta.coins, userId]);
+    await touchActive(userId);
+    const st = await query(`select coins from user_state where user_id = ?`, [userId]);
+    res.json({
+      ok: true,
+      coinsEarned: meta.coins,
+      totalCoins: Number(st.rows?.[0]?.coins || 0),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get("/api/rewards/history", async (req, res, next) => {
+  try {
+    const userId = requireAuth(req, res);
+    if (!userId) return;
+    const limit = clampInt(req.query.limit, 1, 200);
+    const events = [];
+
+    const taskRows = await query(
+      `select task_id, completed_on, coins_earned, co2_saved, created_at
+       from task_logs where user_id = ? order by created_at desc limit 400`,
+      [userId]
+    );
+    for (const r of taskRows.rows || []) {
+      const t = TASKS.find((x) => x.id === r.task_id);
+      events.push({
+        kind: "task",
+        sortKey: new Date(r.created_at).getTime(),
+        date: ymdLocal(new Date(r.completed_on)),
+        label: t ? t.title : `Task #${r.task_id}`,
+        coins: Number(r.coins_earned),
+        co2: Number(r.co2_saved),
+      });
+    }
+
+    const quizRows = await query(
+      `select completed_on, coins_earned, correct, created_at
+       from quiz_results where user_id = ? order by created_at desc limit 120`,
+      [userId]
+    );
+    for (const r of quizRows.rows || []) {
+      events.push({
+        kind: "quiz",
+        sortKey: new Date(r.created_at).getTime(),
+        date: ymdLocal(new Date(r.completed_on)),
+        label: Number(r.correct) === 1 ? "Daily quiz (correct)" : "Daily quiz",
+        coins: Number(r.coins_earned),
+        co2: 0,
+      });
+    }
+
+    const ci = await query(
+      `select checked_on, coins_earned, created_at from check_ins where user_id = ? order by created_at desc limit 120`,
+      [userId]
+    );
+    for (const r of ci.rows || []) {
+      events.push({
+        kind: "check_in",
+        sortKey: new Date(r.created_at).getTime(),
+        date: ymdLocal(new Date(r.checked_on)),
+        label: "Daily check-in",
+        coins: Number(r.coins_earned),
+        co2: 0,
+      });
+    }
+
+    const shop = await query(
+      `select item, item_id, cost, created_at from shop_ledger where user_id = ? order by created_at desc limit 200`,
+      [userId]
+    );
+    for (const r of shop.rows || []) {
+      events.push({
+        kind: "shop",
+        sortKey: new Date(r.created_at).getTime(),
+        date: ymdLocal(new Date(r.created_at)),
+        label: `Shop: ${r.item}${r.item_id ? ` (${r.item_id})` : ""}`,
+        coins: -Number(r.cost),
+        co2: 0,
+      });
+    }
+
+    const qk = await query(
+      `select action_key, logged_on, coins_earned, created_at
+       from quick_action_logs where user_id = ? order by created_at desc limit 200`,
+      [userId]
+    );
+    for (const r of qk.rows || []) {
+      const meta = QUICK_ACTION_CATALOG.find((x) => x.key === r.action_key);
+      events.push({
+        kind: "quick_action",
+        sortKey: new Date(r.created_at).getTime(),
+        date: ymdLocal(new Date(r.logged_on)),
+        label: meta ? meta.label : r.action_key,
+        coins: Number(r.coins_earned),
+        co2: 0,
+      });
+    }
+
+    const bonus = await query(
+      `select week_start, bonus_coins, updated_at
+       from weekly_progress where user_id = ? and reward_claimed = 1`,
+      [userId]
+    );
+    for (const r of bonus.rows || []) {
+      events.push({
+        kind: "weekly_bonus",
+        sortKey: new Date(r.updated_at).getTime(),
+        date: ymdLocal(new Date(r.updated_at)),
+        label: "Weekly challenge bonus",
+        coins: Number(r.bonus_coins || 0),
+        co2: 0,
+      });
+    }
+
+    events.sort((a, b) => b.sortKey - a.sortKey);
+    const slim = events.slice(0, limit).map(({ sortKey, ...rest }) => rest);
+    res.json(slim);
   } catch (err) {
     next(err);
   }
@@ -618,31 +1127,16 @@ app.post("/api/tasks/:id/complete", async (req, res, next) => {
     );
     await touchActive(userId);
 
+    const weeklyAward = await bumpWeeklyTaskCompletion(userId);
+
     const st = await query(
       `select coins, xp, scene_progress from user_state where user_id = ?`,
       [userId]
     );
     const state = st.rows?.[0] || {};
 
-    const days = await query(
-      `select distinct completed_on as d
-       from task_logs
-       where user_id = ?
-       order by d desc
-       limit 365`,
-      [userId]
-    );
-    const doneDays = new Set(
-      (days.rows || []).map((r) => ymdLocal(new Date(r.d)))
-    );
-    let streak = 0;
-    for (let i = 0; i < 365; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const k = ymdLocal(d);
-      if (doneDays.has(k)) streak += 1;
-      else if (i > 0) break;
-    }
+    const activeSet = await buildActiveDaySet(userId);
+    const streak = streakFromActiveSet(activeSet);
 
     res.json({
       success: true,
@@ -651,6 +1145,7 @@ app.post("/api/tasks/:id/complete", async (req, res, next) => {
       co2Saved: task.co2,
       sceneProgress: Number(state.scene_progress || 0),
       streak,
+      weeklyChallengeBonus: weeklyAward.awarded ? { coins: weeklyAward.bonusCoins } : null,
     });
   } catch (err) {
     next(err);
@@ -730,6 +1225,11 @@ app.post("/api/game/reset", async (req, res, next) => {
       [userId]
     );
 
+    await query(`delete from check_ins where user_id = ?`, [userId]);
+    await query(`delete from weekly_progress where user_id = ?`, [userId]);
+    await query(`delete from shop_ledger where user_id = ?`, [userId]);
+    await query(`delete from quick_action_logs where user_id = ?`, [userId]);
+
     res.json({ ok: true });
   } catch (err) {
     next(err);
@@ -761,6 +1261,30 @@ function getThemePlacements(byTheme, theme) {
   if (!byTheme[theme] || typeof byTheme[theme] !== "object") byTheme[theme] = { items: [] };
   if (!Array.isArray(byTheme[theme].items)) byTheme[theme].items = [];
   return byTheme[theme];
+}
+
+function getOrInitMySceneMeta(placements) {
+  if (!placements || typeof placements !== "object") return { challenges: {} };
+  if (!placements.meta || typeof placements.meta !== "object") placements.meta = {};
+  if (!placements.meta.myScene || typeof placements.meta.myScene !== "object") placements.meta.myScene = {};
+  if (!placements.meta.myScene.challenges || typeof placements.meta.myScene.challenges !== "object") {
+    placements.meta.myScene.challenges = {};
+  }
+  return placements.meta.myScene;
+}
+
+function computeMySceneMilestones(placements, lastPlaced) {
+  const items = Array.isArray(placements?.items) ? placements.items : [];
+  const trees = items.filter((x) => String(x?.type || "") === "tree").length;
+  const treeSpecies = new Set();
+  for (const it of items) {
+    if (String(it?.type || "") !== "tree") continue;
+    const id = String(it?.itemId || "").trim();
+    if (id) treeSpecies.add(id);
+  }
+  const uniqueSpecies = treeSpecies.size;
+  const placedHome = !!(lastPlaced && String(lastPlaced.itemId || "") === "my_scene_cabin");
+  return { trees, uniqueSpecies, placedHome };
 }
 
 /** Forest-only client: merge placements from legacy scene_type buckets into `forest`. */
@@ -815,6 +1339,7 @@ app.post("/api/scene/place", async (req, res, next) => {
     const theme = s.scene_type || "forest";
     const byTheme = placementsByThemeFromJson(s.placements_json, theme);
     const placements = getThemePlacements(byTheme, theme);
+    const meta = getOrInitMySceneMeta(placements);
 
     const k = `${col},${row}`;
     const exists = placements.items.some(
@@ -830,13 +1355,43 @@ app.post("/api/scene/place", async (req, res, next) => {
       });
     }
 
+    const ms = computeMySceneMilestones(placements, { itemId, type, col, row });
+    const challenges = meta.challenges || {};
+    let toast = null;
+    if (ms.trees >= 5 && !challenges.plant5Trees) {
+      challenges.plant5Trees = true;
+      toast = {
+        title: "Restoration milestone",
+        text: "5 trees planted. Young forests cool cities and create habitat as they grow.",
+      };
+    } else if (ms.trees >= 10 && !challenges.plant10Trees) {
+      challenges.plant10Trees = true;
+      toast = {
+        title: "Canopy unlocked",
+        text: "10 trees planted. Your scene is starting to behave like a real carbon sink — keep going to unlock more species.",
+      };
+    } else if (ms.uniqueSpecies >= 3 && !challenges.biodiversity3) {
+      challenges.biodiversity3 = true;
+      toast = {
+        title: "Biodiversity boost",
+        text: "3 tree species placed. Diversity helps ecosystems handle heatwaves, pests, and drought.",
+      };
+    } else if (ms.placedHome && !challenges.placeHome) {
+      challenges.placeHome = true;
+      toast = {
+        title: "Sustainable living",
+        text: "A tiny home appeared in your restored land. Efficient homes reduce energy demand and emissions over time.",
+      };
+    }
+    meta.challenges = challenges;
+
     await query(
       `update user_state set placements_json = ? where user_id = ?`,
       [JSON.stringify(byTheme), userId]
     );
     await touchActive(userId);
 
-    res.json({ ok: true, placements });
+    res.json({ ok: true, placements, toast });
   } catch (err) {
     next(err);
   }
@@ -948,19 +1503,34 @@ app.get("/api/quiz", async (req, res, next) => {
     const idx = dayIdx();
 
     const done = await query(
-      `select 1 as ok
+      `select quiz_idx, answer, correct
        from quiz_results
        where user_id = ?
          and completed_on = ?
        limit 1`,
       [userId, today]
     );
-    const completed = (done.rows || []).length > 0;
+    const completedRow = done.rows?.[0] || null;
+    const completed = !!completedRow;
     const q = QUIZ_BANK[idx];
+    let completedResult = null;
+    if (completedRow) {
+      const savedIdx = clampInt(completedRow.quiz_idx, 0, QUIZ_BANK.length - 1);
+      const savedQ = QUIZ_BANK[savedIdx];
+      const savedCorrect = Number(completedRow.correct || 0) === 1;
+      completedResult = {
+        correct: savedCorrect,
+        correctAnswer: savedQ.ans,
+        explanation: savedQ.exp,
+        selectedAnswer: clampInt(completedRow.answer, 0, 3),
+        coinsEarned: savedCorrect ? 25 : 0,
+      };
+    }
     res.json({
       question: { q: q.q, opts: q.opts },
       completed,
       idx,
+      completedResult,
     });
   } catch (err) {
     next(err);
@@ -1014,31 +1584,8 @@ app.post("/api/quiz/submit", async (req, res, next) => {
     );
     const state = st.rows?.[0] || {};
 
-    const activeDaysR = await query(
-      `select distinct d from (
-         select distinct completed_on as d
-         from task_logs
-         where user_id = ?
-         union
-         select distinct completed_on as d
-         from quiz_results
-         where user_id = ?
-       ) x
-       order by d desc
-       limit 365`,
-      [userId, userId]
-    );
-    const activeSet = new Set(
-      (activeDaysR.rows || []).map((r) => ymdLocal(new Date(r.d)))
-    );
-    let streak = 0;
-    for (let i = 0; i < 365; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const k = ymdLocal(d);
-      if (activeSet.has(k)) streak += 1;
-      else if (i > 0) break;
-    }
+    const activeSet = await buildActiveDaySet(userId);
+    const streak = streakFromActiveSet(activeSet);
 
     res.json({
       correct,
@@ -1108,35 +1655,34 @@ app.get("/api/progress", async (req, res, next) => {
       week.push({ date: k, label, count: byDay.get(k) || 0 });
     }
 
-    const activeDaysR = await query(
-      `select d from (
-         select distinct completed_on as d
-         from task_logs
-         where user_id = ?
-         union
-         select distinct completed_on as d
-         from quiz_results
-         where user_id = ?
-       ) x
-       order by d desc
-       limit 365`,
-      [userId, userId]
-    );
-    const activeSet = new Set(
-      (activeDaysR.rows || []).map((r) => ymdLocal(new Date(r.d)))
-    );
-    let streak = 0;
-    for (let i = 0; i < 365; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const k = ymdLocal(d);
-      if (activeSet.has(k)) streak += 1;
-      else if (i > 0) break;
-    }
+    const activeSet = await buildActiveDaySet(userId);
+    const streak = streakFromActiveSet(activeSet);
 
     const xp = Number(state.xp || 0);
     const level = Math.floor(xp / 200) + 1;
     const xpInLevel = xp % 200;
+
+    const weekSummaries = [];
+    const curMonStr = mondayWeekStartYmd();
+    const curMonDate = new Date(`${curMonStr}T12:00:00`);
+    for (let i = 7; i >= 0; i--) {
+      const startParse = new Date(curMonDate);
+      startParse.setDate(startParse.getDate() - i * 7);
+      const startStr = ymdLocal(startParse);
+      const endParse = new Date(startParse);
+      endParse.setDate(endParse.getDate() + 6);
+      const endStr = ymdLocal(endParse);
+      const cnt = await query(
+        `select count(*) as c from task_logs
+         where user_id = ? and completed_on >= ? and completed_on <= ?`,
+        [userId, startStr, endStr]
+      );
+      weekSummaries.push({
+        weekStart: startStr,
+        weekEnd: endStr,
+        taskCompletions: Number(cnt.rows?.[0]?.c || 0),
+      });
+    }
 
     res.json({
       coins: Number(state.coins || 0),
@@ -1144,11 +1690,13 @@ app.get("/api/progress", async (req, res, next) => {
       level,
       xpInLevel,
       streak,
+      streakMilestones: { sevenDay: streak >= 7, thirtyDay: streak >= 30 },
       todayDone,
       totalTasks: TASKS.length,
       allTimeTasks,
       co2Saved,
       week,
+      weekSummaries,
     });
   } catch (err) {
     next(err);
@@ -1165,26 +1713,30 @@ app.get("/api/leaderboard", async (req, res, next) => {
     const myUsername = me.rows?.[0]?.username || null;
 
     const r = await query(
-      `select u.username, u.display_name, s.coins, s.xp
+      `select u.id, u.username, u.display_name, s.coins, s.xp
        from user_state s
        join users u on u.id = s.user_id
-       order by s.coins desc, s.xp desc, u.created_at asc
-       limit 20`
+       order by s.coins desc, s.xp desc, u.created_at asc`
     );
 
     const rows = r.rows || [];
-    const board = rows.map((row, i) => {
+    const streakMap = await getStreakMapForUserIds(rows.map((x) => x.id));
+    const board = [];
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
       const xp = Number(row.xp || 0);
-      return {
+      const uid = row.id;
+      const streak = Number(streakMap.get(uid) || 0);
+      board.push({
         rank: i + 1,
         username: row.username,
         displayName: row.display_name || "",
         coins: Number(row.coins || 0),
         level: Math.floor(xp / 200) + 1,
-        streak: 0,
+        streak,
         isYou: myUsername ? row.username === myUsername : false,
-      };
-    });
+      });
+    }
 
     res.json(board);
   } catch (err) {
@@ -1317,6 +1869,13 @@ app.post("/api/shop/buy", async (req, res, next) => {
 
     await touchActive(userId);
 
+    await query(`insert into shop_ledger (user_id, item, item_id, cost) values (?, ?, ?, ?)`, [
+      userId,
+      item,
+      itemId || null,
+      cost,
+    ]);
+
     const r2 = await query(
       `select coins, trees, flowers
        from user_state
@@ -1353,10 +1912,10 @@ app.post("/api/auth/username", async (req, res, next) => {
 
     await query(`update users set username = ? where id = ?`, [username, userId]);
     const result = await query(
-      `select id, username, display_name, created_at from users where id = ?`,
+      `select id, username, display_name, created_at, profile_public from users where id = ?`,
       [userId]
     );
-    res.json({ user: publicUserRow(result.rows[0]) });
+    res.json({ user: publicUserRow(result.rows[0], { includeSettings: true }) });
   } catch (err) {
     if (err && (err.code === "ER_DUP_ENTRY" || err.code === "ER_DUP_KEY")) {
       return res.status(409).json({ error: "USERNAME_TAKEN" });
@@ -1385,6 +1944,7 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, async () => {
   await ensureDbBootstrapped();
+  await ensureProjectExtensions();
   await maybeStartupSetCoins();
   // eslint-disable-next-line no-console
   console.log(`EcoQuest auth server listening on :${PORT}`);

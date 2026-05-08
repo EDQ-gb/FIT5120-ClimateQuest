@@ -21,6 +21,7 @@ body,
   height: 100%;
 }
 
+
 body {
   overflow: hidden;
 }
@@ -226,6 +227,33 @@ body {
   font-size: 0.9rem;
 }
 
+.menu-privacy {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.menu-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+}
+
+.menu-check input {
+  margin-top: 3px;
+  accent-color: #00f2ff;
+}
+
+.menu-hint {
+  margin: 8px 0 0 26px;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.35;
+}
+
 .menu-actions {
   display: grid;
   gap: 10px;
@@ -329,6 +357,7 @@ body {
   width: 100%;
   background-image: none;
   background-color: var(--app-bg, #101416);
+  font-size: 1.08rem;
 }
 
 /* Theme-matched solid backgrounds (no images) */
@@ -340,7 +369,8 @@ body {
 .shell-main {
   --shell-topbar-h: 80px;
   margin-left: 220px;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
@@ -416,9 +446,26 @@ body {
 }
 
 .shell-content {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: calc(100vh - var(--shell-topbar-h));
   padding: calc(24px + var(--shell-topbar-h)) 24px 28px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.shell-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.shell-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.shell-content::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(0, 242, 255, 0.28);
 }
 
 .app-shell.no-sidebar .shell-main {

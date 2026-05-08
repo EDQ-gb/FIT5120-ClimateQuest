@@ -27,6 +27,7 @@
       :toastShow="toast.show"
       :toastTitle="toast.title"
       :toastText="toast.text"
+      :toastActions="toast.actions"
       @back="onNavigate('home')"
       @navigate="onNavClick"
       @login="onLogin"
@@ -38,6 +39,7 @@
       @activity="onActivity"
       @refresh="refreshGameState"
       @toast-dismiss="dismissToast"
+      @toast-action="onToastAction"
     />
 
     <!-- ════════════════════════════════════════════════════
@@ -76,12 +78,14 @@
         <div class="shell-content">
           <AppDashboard
             v-if="currentView === 'dashboard'"
+            :key="`dash-${user?.id || user?.username || 'guest'}-${userViewNonce}`"
             :user="user"
             @navigate="onNavigate"
             @coins-updated="refreshShellStats"
           />
           <AppTasks
             v-else-if="currentView === 'tasks'"
+            :key="`tasks-${user?.id || user?.username || 'guest'}-${userViewNonce}`"
             :user="user"
             :coins="shellCoins"
             @coins-updated="refreshShellStats"
@@ -89,11 +93,14 @@
           <AppScene v-else-if="currentView === 'scene'" :user="user" />
           <AppQuiz
             v-else-if="currentView === 'quiz'"
+            :key="`quiz-${user?.id || user?.username || 'guest'}-${userViewNonce}`"
             :user="user"
             :coins="shellCoins"
             @coins-updated="refreshShellStats"
+            @stay-on-quiz="onStayOnQuiz"
           />
           <AppLeaderboard v-else-if="currentView === 'leaderboard'" :user="user" />
+          <AppEducation v-else-if="currentView === 'education'" />
         </div>
       </div>
     </div>
@@ -166,6 +173,14 @@
               </div>
             </div>
 
+            <div class="menu-privacy">
+              <label class="menu-check">
+                <input v-model="profilePublicLocal" type="checkbox" @change="onProfileVisibilityChange" />
+                <span>Appear on the public leaderboard</span>
+              </label>
+              <p class="menu-hint">When off, your profile is hidden from the Top Champions list.</p>
+            </div>
+
             <div class="menu-actions">
               <button type="button" class="menu-btn" @click="openUsernameModal">Edit username</button>
               <button type="button" class="menu-btn menu-btn-danger" @click="onLogout">Sign out</button>
@@ -207,7 +222,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 
 import AppSidebar from './components/AppSidebar.vue'
 import AppDashboard from './components/AppDashboard.vue'
@@ -215,6 +230,7 @@ import AppTasks from './components/AppTasks.vue'
 import AppScene from './components/AppScene.vue'
 import AppQuiz from './components/AppQuiz.vue'
 import AppLeaderboard from './components/AppLeaderboard.vue'
+import AppEducation from './components/AppEducation.vue'
 import AppLandingV2 from './components/AppLandingV2.vue'
 import SceneBuilderShell from './components/game/SceneBuilderShell.vue'
 import { clearLegacyFeatureStorage, getProgress, setFeatureStorageUser } from './api/features.js'
@@ -239,6 +255,15 @@ const effectiveTheme = computed(() => 'forest')
 function themeKey(username, key) {
   const u = String(username || '').trim()
   return u ? `cq:${u}:${key}` : ''
+}
+
+function setMockUserScope(username) {
+  const scope = String(username || '').trim().toLowerCase() || 'guest'
+  try {
+    localStorage.setItem('cq_user_scope', scope)
+  } catch {
+    // ignore
+  }
 }
 
 function loadThemeCacheForUser(username) {
@@ -281,24 +306,32 @@ function resetThemeState() {
   game.themeLocked = false
 }
 
-const toast = reactive({ show: false, title: '', text: '', key: 0 })
+const toast = reactive({ show: false, title: '', text: '', key: 0, actions: [] })
 let toastTimer = 0
 function dismissToast() {
   clearTimeout(toastTimer)
   toast.show = false
   toast.title = ''
+  toast.actions = []
 }
 
-function showToast(text, title = '', durationMs = 4200) {
+function showToast(text, title = '', durationMs = 4200, actions = []) {
   clearTimeout(toastTimer)
   toast.text = String(text || '')
   toast.title = typeof title === 'string' ? title : ''
+  toast.actions = Array.isArray(actions) ? actions : []
   toast.show = true
   toast.key += 1
   const ms = typeof durationMs === 'number' && durationMs >= 1200 ? durationMs : 4200
   toastTimer = setTimeout(() => {
     dismissToast()
   }, ms)
+}
+
+function onToastAction(actionKey) {
+  dismissToast()
+  if (actionKey === 'go-tasks') onNavigate('tasks')
+  if (actionKey === 'go-quiz') onNavigate('quiz')
 }
 
 const tipState = reactive({
@@ -318,6 +351,38 @@ function isLifePlacement(it) {
   return !!def?.tags?.includes('life')
 }
 
+function isHomeItemId(itemId) {
+  const id = String(itemId || '').trim()
+  if (!id) return false
+  const def = getItemByIdAnyTheme(id)
+  if (def?.tags?.includes('home')) return true
+  // fallback: suburban house ids
+  if (id.startsWith('my_scene_house_')) return true
+  return false
+}
+
+function footprintForItemId(itemId) {
+  const id = String(itemId || '').trim()
+  if (!id) return { w: 1, h: 1 }
+  const def = getItemByIdAnyTheme(id)
+  const w = Number(def?.footprint?.w || 1)
+  const h = Number(def?.footprint?.h || 1)
+  if (!Number.isFinite(w) || !Number.isFinite(h)) return { w: 1, h: 1 }
+  return { w: Math.max(1, Math.min(3, Math.round(w))), h: Math.max(1, Math.min(3, Math.round(h))) }
+}
+
+function cellsForFootprint(col, row, fp) {
+  const out = []
+  const w = Number(fp?.w || 1)
+  const h = Number(fp?.h || 1)
+  for (let dy = 0; dy < h; dy++) {
+    for (let dx = 0; dx < w; dx++) {
+      out.push({ col: col + dx, row: row + dy })
+    }
+  }
+  return out
+}
+
 function maybeEmitPlacementTips(prevPlacements, nextPlacements, lastPlacedItem) {
   const prevItems = Array.isArray(prevPlacements?.items) ? prevPlacements.items : []
   const nextItems = Array.isArray(nextPlacements?.items) ? nextPlacements.items : []
@@ -331,14 +396,15 @@ function maybeEmitPlacementTips(prevPlacements, nextPlacements, lastPlacedItem) 
     const co2RoughYr = Math.round(treeMilestone * 18)
     showToast(
       `Mega — ${treeMilestone} trees standing tall on your map!\nFun fact: roughly ~${co2RoughYr} kg CO₂ sucked in per year (ballpark vibes, not an audit).`,
-      'Forest level up'
+      'Forest level up',
+      9200
     )
     return
   }
 
   // No ground. Keep animal/life tips.
   if (lastPlacedItem && isLifePlacement(lastPlacedItem)) {
-    showToast('Look at that — your patch just got louder with life!', 'Wild friend added')
+    showToast('Look at that — your patch just got louder with life!', 'Wild friend added', 6800)
   }
 }
 
@@ -359,30 +425,61 @@ const pageTitles = {
   scene: 'My Scene',
   quiz: 'Climate Quiz',
   leaderboard: 'Leaderboard',
+  education: 'Education',
 }
+const validViews = new Set(['home', 'dashboard', 'scene', 'game', 'tasks', 'quiz', 'education', 'leaderboard'])
+let navReqId = 0
 
 const shellCoins = ref(0)
 const shellStreak = ref(0)
+const userViewNonce = ref(0)
+const stickyView = ref('')
+
+function bumpUserViewNonce() {
+  userViewNonce.value += 1
+}
 
 function syncShellFromGame() {
   shellCoins.value = game.coins || 0
   shellStreak.value = game.streak || 0
 }
 
+function toFiniteNumberOrNull(v) {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
+async function onProfileVisibilityChange() {
+  if (!user.value) return
+  const prev = user.value.profilePublic !== false
+  try {
+    const data = await api('/api/auth/profile', {
+      method: 'PATCH',
+      body: JSON.stringify({ profilePublic: profilePublicLocal.value }),
+    })
+    user.value = data.user
+  } catch {
+    profilePublicLocal.value = prev
+  }
+}
+
 async function refreshShellStats(payload = null) {
   /** Task/quiz responses already include the new balance; do not let a same-tick /game/state read overwrite with stale data. */
-  const trustPayloadCoins = !!(payload && typeof payload.totalCoins === 'number')
+  const payloadCoins = toFiniteNumberOrNull(payload?.totalCoins)
+  const payloadStreak = toFiniteNumberOrNull(payload?.streak)
+  const payloadSceneProgress = toFiniteNumberOrNull(payload?.sceneProgress)
+  const trustPayloadCoins = payloadCoins != null
 
   if (trustPayloadCoins) {
-    shellCoins.value = payload.totalCoins
-    game.coins = payload.totalCoins
+    shellCoins.value = payloadCoins
+    game.coins = payloadCoins
   }
-  if (payload && typeof payload.streak === 'number') {
-    shellStreak.value = payload.streak
-    game.streak = payload.streak
+  if (payloadStreak != null) {
+    shellStreak.value = payloadStreak
+    game.streak = payloadStreak
   }
-  if (payload && typeof payload.sceneProgress === 'number') {
-    game.sceneProgress = payload.sceneProgress
+  if (payloadSceneProgress != null) {
+    game.sceneProgress = payloadSceneProgress
   }
 
   /** True when `/api/game/state` returned usable coin balance for this refresh. */
@@ -392,27 +489,31 @@ async function refreshShellStats(payload = null) {
     if (user.value) {
       try {
         const gs = await api('/api/game/state', { method: 'GET' })
-        if (typeof gs?.coins === 'number' && !trustPayloadCoins) {
-          game.coins = gs.coins
-          shellCoins.value = gs.coins
+        const gsCoins = toFiniteNumberOrNull(gs?.coins)
+        const gsSceneProgress = toFiniteNumberOrNull(gs?.sceneProgress)
+        if (gsCoins != null && !trustPayloadCoins) {
+          game.coins = gsCoins
+          shellCoins.value = gsCoins
           coinsSyncedFromGameState = true
         }
-        if (typeof gs?.sceneProgress === 'number') game.sceneProgress = gs.sceneProgress
+        if (gsSceneProgress != null) game.sceneProgress = gsSceneProgress
       } catch {
         // keep optimistic / payload totals; avoids localStorage mock zeroing logged-in balances
       }
     }
 
     const p = await getProgress()
-    if (p && typeof p.streak === 'number') {
-      shellStreak.value = p.streak
-      game.streak = p.streak
+    const pStreak = toFiniteNumberOrNull(p?.streak)
+    if (pStreak != null) {
+      shellStreak.value = pStreak
+      game.streak = pStreak
     }
 
     /** Only merge mock/offline `/api/progress` coins when we did not sync from the server wallet. */
-    if (p && typeof p.coins === 'number' && !coinsSyncedFromGameState && !trustPayloadCoins) {
-      game.coins = p.coins
-      shellCoins.value = p.coins
+    const pCoins = toFiniteNumberOrNull(p?.coins)
+    if (pCoins != null && !coinsSyncedFromGameState && !trustPayloadCoins) {
+      game.coins = pCoins
+      shellCoins.value = pCoins
     }
   } catch {
     // ignore — never overwrite with bogus zeros here
@@ -421,25 +522,41 @@ async function refreshShellStats(payload = null) {
   syncShellFromGame()
 }
 
-async function onNavigate(view) {
+async function onNavigate(view, options = {}) {
+  const userAction = !!options.userAction
+  if (!validViews.has(view)) return
+  if (
+    stickyView.value === 'quiz' &&
+    !!user.value &&
+    currentView.value === 'quiz' &&
+    view !== 'quiz' &&
+    !userAction
+  ) return
+  if (userAction && view !== 'quiz') stickyView.value = ''
+  const reqId = ++navReqId
   // Scene builder ("My Scene" from nav or landing CTA as `game`): single forest biome only.
   if (view === 'scene' || view === 'game') {
     if (!user.value) return openAuth()
-    await refreshGameState()
+    // Open Scene immediately, then refresh data in background.
     currentView.value = 'game'
+    syncShellFromGame()
+    await refreshGameState()
+    if (reqId !== navReqId) return
     syncShellFromGame()
     return
   }
   currentView.value = view
-  if (view !== 'home') refreshShellStats()
+  if (view !== 'home') await refreshShellStats()
 }
 
 async function refreshGameState(options = {}) {
   try {
     const gs = await api('/api/game/state', { method: 'GET' })
     game.themeType = 'forest'
-    if (typeof gs?.sceneProgress === 'number') game.sceneProgress = gs.sceneProgress
-    if (typeof gs?.coins === 'number') game.coins = gs.coins
+    const gsSceneProgress = toFiniteNumberOrNull(gs?.sceneProgress)
+    const gsCoins = toFiniteNumberOrNull(gs?.coins)
+    if (gsSceneProgress != null) game.sceneProgress = gsSceneProgress
+    if (gsCoins != null) game.coins = gsCoins
     game.lastActiveAt = typeof gs?.lastActiveAt === 'string' ? gs.lastActiveAt : ''
     if (typeof gs?.trees === 'number') game.trees = gs.trees
     if (typeof gs?.flowers === 'number') game.flowers = gs.flowers
@@ -472,9 +589,12 @@ async function refreshGameState(options = {}) {
 
 function onActivity(payload) {
   // Keep the topbar feeling responsive; refresh will reconcile any mismatch.
-  if (payload && typeof payload.totalCoins === 'number') game.coins = payload.totalCoins
-  if (payload && typeof payload.streak === 'number') game.streak = payload.streak
-  if (payload && typeof payload.sceneProgress === 'number') game.sceneProgress = payload.sceneProgress
+  const payloadCoins = toFiniteNumberOrNull(payload?.totalCoins)
+  const payloadStreak = toFiniteNumberOrNull(payload?.streak)
+  const payloadSceneProgress = toFiniteNumberOrNull(payload?.sceneProgress)
+  if (payloadCoins != null) game.coins = payloadCoins
+  if (payloadStreak != null) game.streak = payloadStreak
+  if (payloadSceneProgress != null) game.sceneProgress = payloadSceneProgress
   syncShellFromGame()
 }
 
@@ -512,6 +632,47 @@ async function onPlace(p) {
     const type = String(p?.type || '')
     if (!itemId || !type) return
 
+    const col0 = Number.isFinite(p?.col) ? p.col : null
+    const row0 = Number.isFinite(p?.row) ? p.row : null
+    const items0 = Array.isArray(game.placements?.items) ? game.placements.items : []
+    const inCell0 = col0 != null && row0 != null ? items0.filter((it) => it && it.col === col0 && it.row === row0) : []
+    const cellHasTree = inCell0.some((it) => kindFromPlacementItem(it) === 'tree')
+    const cellHasHome = inCell0.some((it) => isHomeItemId(it?.itemId))
+    const placingHome = isHomeItemId(itemId)
+
+    // Footprint-aware rule: homes occupy 2–3 tiles; any tile covered by a home is blocked for others.
+    if (col0 != null && row0 != null) {
+      if (placingHome) {
+        const fp = footprintForItemId(itemId)
+        const cells = cellsForFootprint(col0, row0, fp)
+        // require all covered cells to be empty (no trees/decor/flowers) and in bounds
+        const occupied = cells.some(({ col, row }) => {
+          if (col < 0 || row < 0 || col >= 26 || row >= 26) return true
+          return items0.some((it) => it && it.col === col && it.row === row)
+        })
+        if (occupied) {
+          showToast('Homes need a clear 2–3 tile space. Try an emptier patch.')
+          return
+        }
+      } else {
+        // If any home footprint covers this cell, block placement.
+        const blockedByHome = items0.some((it) => {
+          if (!isHomeItemId(it?.itemId)) return false
+          const fp = footprintForItemId(it.itemId)
+          const cells = cellsForFootprint(Number(it.col || 0), Number(it.row || 0), fp)
+          return cells.some((c) => c.col === col0 && c.row === row0)
+        })
+        if (blockedByHome) {
+          showToast('That tile is reserved for a home. Pick a free tile.')
+          return
+        }
+        if (type === 'tree' && cellHasTree) {
+          showToast('Spot taken — only one centerpiece tree fits here.')
+          return
+        }
+      }
+    }
+
     // Placement rule: flowers occupy tile corners, max 4 per tile.
     if (type === 'flower') {
       const items = Array.isArray(game.placements?.items) ? game.placements.items : []
@@ -544,8 +705,8 @@ async function onPlace(p) {
     if (!game.placements || !Array.isArray(game.placements.items)) game.placements = { items: [] }
 
     // Optimistic placement + local coin deduction
-    const col = Number.isFinite(p?.col) ? p.col : null
-    const row = Number.isFinite(p?.row) ? p.row : null
+    const col = col0
+    const row = row0
     const optimisticId = `${Date.now()}_${Math.random().toString(16).slice(2)}`
     const optimisticItem = { itemId, type, col, row, at: new Date().toISOString(), _optimistic: optimisticId }
     const optimisticCost = getItemCostForPlacement(itemId, type)
@@ -556,7 +717,11 @@ async function onPlace(p) {
       showToast(
         'Coin pouch too light for that splurge — swing by Daily Tasks or the Quiz for a refill, then plant away.',
         'Need more coins',
-        6200
+        6200,
+        [
+          { key: 'go-tasks', label: 'Go to Tasks' },
+          { key: 'go-quiz', label: 'Go to Quiz' },
+        ]
       )
       return
     }
@@ -585,15 +750,22 @@ async function onPlace(p) {
         body: JSON.stringify({ item: type, qty: 1, itemId }),
       }).then((r) => r.json())
       if (buyRes?.error) throw new Error(buyRes.error)
-      if (typeof buyRes?.coins === 'number') {
-        game.coins = buyRes.coins
+      const buyCoins = toFiniteNumberOrNull(buyRes?.coins)
+      if (buyCoins != null) {
+        game.coins = buyCoins
         syncShellFromGame()
       }
       const placed = await applyPlacementApi('/api/scene/place', p)
       if (!placed) throw new Error('PLACE_FAILED')
+      if (placed?.toast?.text) {
+        showToast(String(placed.toast.text), String(placed.toast.title || ''), 8400)
+      }
     } else {
       const placed = await applyPlacementApi('/api/scene/place', p)
       if (!placed) throw new Error('PLACE_FAILED')
+      if (placed?.toast?.text) {
+        showToast(String(placed.toast.text), String(placed.toast.title || ''), 8400)
+      }
     }
     // Tips: compare snapshots — game.placements is mutated in place during optimistic UX,
     // so use prevItemsSnapshot (items before this place) vs authoritative server placements.
@@ -602,7 +774,15 @@ async function onPlace(p) {
     rollback?.()
     const msg = String(e?.message || '')
     if (msg === 'INSUFFICIENT_COINS') {
-      showToast('Still short on coins — bag a few from Tasks or the Quiz, then swing back.', 'Need more coins', 6200)
+      showToast(
+        'Still short on coins — bag a few from Tasks or the Quiz, then swing back.',
+        'Need more coins',
+        6200,
+        [
+          { key: 'go-tasks', label: 'Go to Tasks' },
+          { key: 'go-quiz', label: 'Go to Quiz' },
+        ]
+      )
     } else {
       showToast(String(msg || 'That plant did not stick — quick retry?'), 'Heads-up')
     }
@@ -623,10 +803,11 @@ const navLinks = [
   { label: 'My Scene', key: 'scene' },
   { label: 'Tasks', key: 'tasks' },
   { label: 'Quiz', key: 'quiz' },
+  { label: 'Education', key: 'education' },
   { label: 'Leaderboard', key: 'leaderboard' },
 ]
 
-const viewsWithoutSidebar = new Set(['dashboard', 'tasks', 'quiz', 'leaderboard'])
+const viewsWithoutSidebar = new Set(['dashboard', 'tasks', 'quiz', 'leaderboard', 'education'])
 const showSidebar = computed(() => !viewsWithoutSidebar.has(currentView.value))
 
 const titleLines = ['The Climate is Changing', 'So Can You']
@@ -642,6 +823,16 @@ const menuOpen = ref(false)
 const usernameOpen = ref(false)
 const newUsername = ref('')
 const usernameError = ref('')
+const profilePublicLocal = ref(true)
+
+watch(
+  () => user.value,
+  (u) => {
+    if (u && typeof u.profilePublic === 'boolean') profilePublicLocal.value = u.profilePublic
+    else if (!u) profilePublicLocal.value = true
+  },
+  { immediate: true }
+)
 
 const form = reactive({ username: '', displayName: '' })
 
@@ -682,9 +873,13 @@ async function api(path, options = {}) {
 }
 
 async function refreshMe() {
+  const prevIdentity = user.value?.id || user.value?.username || null
   try {
     const data = await api('/api/auth/me', { method: 'GET' })
     user.value = data.user
+    setMockUserScope(data?.user?.username || 'guest')
+    const nextIdentity = user.value?.id || user.value?.username || null
+    if (prevIdentity !== nextIdentity) bumpUserViewNonce()
     if (data.user) {
       setFeatureStorageUser(data.user?.username)
       clearLegacyFeatureStorage()
@@ -702,14 +897,21 @@ async function refreshMe() {
   } catch {
     setFeatureStorageUser('')
     user.value = null
+    setMockUserScope('guest')
+    if (prevIdentity !== null) bumpUserViewNonce()
     currentView.value = 'home'
   }
 }
 
 function onNavClick(key) {
-  if (key === 'home') return onNavigate('home')
+  if (!validViews.has(key)) return
+  if (key === 'home') return onNavigate('home', { userAction: true })
   if (!user.value) return openAuth()
-  onNavigate(key === 'home' ? 'home' : key === 'scene' ? 'scene' : key)
+  onNavigate(key, { userAction: true })
+}
+
+function onStayOnQuiz() {
+  stickyView.value = 'quiz'
 }
 
 function openAuth() {
@@ -733,8 +935,13 @@ async function submitRegister() {
       body: JSON.stringify({ username: form.username, displayName: form.displayName }),
     })
     user.value = data.user
+<<<<<<< HEAD
     setFeatureStorageUser(data.user?.username)
     clearLegacyFeatureStorage()
+=======
+    setMockUserScope(data?.user?.username || 'guest')
+    bumpUserViewNonce()
+>>>>>>> origin/main
     closeAuth()
     resetThemeState()
     clearThemeCacheForUser(data.user?.username)
@@ -762,8 +969,13 @@ async function submitSignin() {
       body: JSON.stringify({ username: form.username }),
     })
     user.value = data.user
+<<<<<<< HEAD
     setFeatureStorageUser(data.user?.username)
     clearLegacyFeatureStorage()
+=======
+    setMockUserScope(data?.user?.username || 'guest')
+    bumpUserViewNonce()
+>>>>>>> origin/main
     closeAuth()
     resetThemeState()
     loadThemeCacheForUser(data.user?.username)
@@ -795,6 +1007,8 @@ async function onLogout() {
     setFeatureStorageUser('')
     resetThemeState()
     user.value = null
+    setMockUserScope('guest')
+    bumpUserViewNonce()
     menuOpen.value = false
     onNavigate('home')
     shellCoins.value = 0
@@ -857,12 +1071,56 @@ function onKeydown(e) {
   if (authOpen.value) return closeAuth()
 }
 
+let liveSyncTimer = 0
+
+function stopLiveSync() {
+  if (liveSyncTimer) {
+    clearInterval(liveSyncTimer)
+    liveSyncTimer = 0
+  }
+}
+
+function runLiveSyncNow() {
+  if (!user.value) return
+  if (currentView.value === 'home') return
+  if (currentView.value === 'game') {
+    refreshGameState({ skipForestEnsure: true })
+    return
+  }
+  refreshShellStats()
+}
+
+function startLiveSync() {
+  stopLiveSync()
+  if (!user.value) return
+  if (currentView.value === 'home') return
+  liveSyncTimer = window.setInterval(() => {
+    if (document.hidden) return
+    runLiveSyncNow()
+  }, 8000)
+}
+
+function onVisibilityChange() {
+  if (!document.hidden) runLiveSyncNow()
+}
+
+watch(
+  () => [user.value?.id || user.value?.username || null, currentView.value],
+  () => {
+    startLiveSync()
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
   await refreshMe()
   window.addEventListener('keydown', onKeydown)
+  document.addEventListener('visibilitychange', onVisibilityChange)
 })
 
 onUnmounted(() => {
+  stopLiveSync()
   window.removeEventListener('keydown', onKeydown)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 </script>

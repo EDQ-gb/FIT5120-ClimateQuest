@@ -33,17 +33,6 @@
               <span class="word-quest">QUEST</span>
             </div>
           </div>
-
-          <div class="landing2-hero-right">
-            <p class="landing2-lead land-in-lead">
-              Do tiny green wins in real life, pocket shiny Climate Coins, and watch your own patch of rainforest burst to life. Smart daily quiz + tasks show how much CO₂ you have helped keep out of the sky.
-            </p>
-            <ul class="landing2-pills land-in-pills" aria-label="Highlights">
-              <li>Quest-style daily eco challenges</li>
-              <li>Boss-level quiz = coin jackpot</li>
-              <li>Earn every tree, flower &amp; cute critter</li>
-            </ul>
-          </div>
         </div>
       </div>
 
@@ -53,8 +42,23 @@
           Hop in, tick off a feel-good action (or crush the quiz), then hit <strong>My Scene</strong> to drop goodies on the map. Peek in often — your jungle loves the attention.
         </p>
         <button type="button" class="btn-start" @click="$emit('start')">Start Your Quest →</button>
+        <button v-if="!showGuidePanel" type="button" class="home-guide-reopen home-guide-reopen--inline" @click="reopenGuidePanel">How to use this site</button>
       </div>
     </div>
+
+    <aside v-if="showGuidePanel" class="home-guide-panel" role="note" aria-label="How to play ClimateQuest">
+      <div class="home-guide-title">How this helps climate action</div>
+      <p class="home-guide-text">
+        ClimateQuest turns daily low-carbon choices into visible progress so players keep taking action in real life.
+      </p>
+      <ol class="home-guide-steps">
+        <li>Start your quest and open Dashboard.</li>
+        <li>Earn coins in Daily Tasks and Daily Quiz.</li>
+        <li>Use coins in My Scene to grow your world.</li>
+        <li>Check Leaderboard to compare climate contribution.</li>
+      </ol>
+      <button type="button" class="home-guide-close" @click="dismissGuidePanel">Got it</button>
+    </aside>
   </div>
 </template>
 
@@ -72,7 +76,26 @@ defineProps({
 defineEmits(['start', 'login', 'navigate'])
 
 const bg = ref(null)
+const showGuidePanel = ref(true)
 let raf = 0
+
+function dismissGuidePanel() {
+  showGuidePanel.value = false
+  try {
+    localStorage.setItem('cq_home_guide_hidden', '1')
+  } catch {
+    // ignore
+  }
+}
+
+function reopenGuidePanel() {
+  showGuidePanel.value = true
+  try {
+    localStorage.removeItem('cq_home_guide_hidden')
+  } catch {
+    // ignore
+  }
+}
 
 // Low‑poly globe landing (ported from climatequest_v2.html).
 // The globe is drawn onto the same full‑screen canvas as the starfield, and
@@ -160,6 +183,11 @@ function fitCanvas(canvas) {
 }
 
 onMounted(() => {
+  try {
+    showGuidePanel.value = localStorage.getItem('cq_home_guide_hidden') !== '1'
+  } catch {
+    showGuidePanel.value = true
+  }
   const canvas = bg.value
   if (!canvas) return
 
@@ -570,6 +598,79 @@ onMounted(() => {
   display: block;
 }
 
+.home-guide-panel {
+  position: fixed;
+  top: calc(var(--landing2-nav-h) + 16px);
+  right: 16px;
+  width: min(440px, calc(100vw - 20px));
+  z-index: 6;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 242, 255, 0.28);
+  background: rgba(10, 26, 22, 0.86);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 16px 18px;
+  color: rgba(255, 255, 255, 0.86);
+}
+.home-guide-title {
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(148, 240, 200, 0.95);
+  margin-bottom: 6px;
+}
+.home-guide-text {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.home-guide-steps {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+.home-guide-steps li {
+  margin-bottom: 4px;
+}
+.home-guide-close {
+  margin-top: 8px;
+  width: 100%;
+  border: 1px solid rgba(82, 212, 150, 0.35);
+  background: rgba(82, 212, 150, 0.12);
+  color: rgba(200, 255, 224, 0.95);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+@media (max-width: 720px) {
+  .home-guide-panel {
+    right: 8px;
+    top: calc(var(--landing2-nav-h) + 8px);
+  }
+}
+.home-guide-reopen {
+  border-radius: 50px;
+  border: 1px solid rgba(0, 242, 255, 0.32);
+  background: rgba(0, 242, 255, 0.12);
+  color: rgba(215, 252, 255, 0.95);
+  padding: 11px 36px;
+  font-family: 'Fredoka', Nunito, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 400;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  line-height: 1.15;
+  cursor: pointer;
+}
+.home-guide-reopen--inline {
+  margin-top: 8px;
+  pointer-events: auto;
+}
+
 .landing2-nav {
   position: fixed;
   top: 0;
@@ -860,25 +961,14 @@ onMounted(() => {
 
 @media (min-width: 980px) {
   .landing2-top {
-    max-width: min(1100px, 100%);
-    text-align: left;
+    max-width: min(620px, 100%);
+    text-align: center;
   }
   .landing2-hero-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: clamp(22px, 4vw, 52px);
+    display: block;
+  }
+  .landing2-hero-left {
     align-items: center;
-  }
-  .landing2-hero-left,
-  .landing2-hero-right {
-    align-items: flex-start;
-  }
-  .landing2-lead {
-    margin-top: 0;
-    max-width: 56ch;
-  }
-  .landing2-pills {
-    justify-content: flex-start;
   }
 }
 </style>

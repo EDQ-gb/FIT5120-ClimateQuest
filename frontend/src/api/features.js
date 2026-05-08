@@ -22,12 +22,15 @@
 // ── Static mock data ──────────────────────────────────────────────────────────
 
 export const TASKS = [
-  { id:1, title:'Walk or cycle a trip',      desc:'Replace at least one car trip with walking or cycling today.',   coins:30, co2:340, cat:'transport', icon:'🚶' },
-  { id:2, title:'Use public transport',       desc:'Take a bus, tram or train instead of driving.',                  coins:25, co2:280, cat:'transport', icon:'🚌' },
-  { id:3, title:'Bring a reusable cup',       desc:'Use your own cup for coffee or drinks — no single-use today.',  coins:20, co2:80,  cat:'habit',     icon:'☕' },
-  { id:4, title:'Turn off standby devices',  desc:'Switch off devices fully instead of leaving them on standby.',   coins:20, co2:120, cat:'energy',    icon:'🔌' },
-  { id:5, title:'Plant-based meal',           desc:'Have at least one fully plant-based meal today.',                coins:25, co2:500, cat:'food',      icon:'🥗' },
-  { id:6, title:'Daily check-in',             desc:'Log in and review your climate impact for today.',               coins:10, co2:0,   cat:'habit',     icon:'✅' },
+  { id: 1, title: 'Walk or cycle a trip', desc: 'Replace at least one car trip with walking or cycling today.', coins: 30, co2: 340, cat: 'transport', icon: '🚶' },
+  { id: 2, title: 'Use public transport', desc: 'Take a bus, tram or train instead of driving.', coins: 25, co2: 280, cat: 'transport', icon: '🚌' },
+  { id: 3, title: 'Bring a reusable cup', desc: 'Use your own cup for coffee or drinks — no single-use today.', coins: 20, co2: 80, cat: 'habit', icon: '☕' },
+  { id: 4, title: 'Turn off standby devices', desc: 'Switch off devices fully instead of leaving them on standby.', coins: 20, co2: 120, cat: 'energy', icon: '🔌' },
+  { id: 5, title: 'Plant-based meal', desc: 'Have at least one fully plant-based meal today.', coins: 25, co2: 500, cat: 'food', icon: '🥗' },
+  { id: 6, title: 'Read a short climate article', desc: 'Spend three minutes reading any trusted climate or sustainability article.', coins: 12, co2: 0, cat: 'learning', icon: '📰' },
+  { id: 7, title: 'Recycle sorted materials', desc: 'Sort and place recyclables in the correct bin today.', coins: 18, co2: 150, cat: 'lifestyle', icon: '♻️' },
+  { id: 8, title: 'Choose local or seasonal food', desc: 'Prepare one meal using local or seasonal ingredients.', coins: 22, co2: 320, cat: 'food', icon: '🥕' },
+  { id: 9, title: 'Learn one energy-saving tip', desc: 'Watch or read one practical tip to reduce home energy use.', coins: 14, co2: 0, cat: 'learning', icon: '💡' },
 ]
 
 export const QUIZ_BANK = [
@@ -52,11 +55,40 @@ export const QUIZ_BANK = [
   { q:'Iceland generates nearly all its electricity from:',
     opts:['Coal','Natural gas','Nuclear','Renewables (geothermal/hydro)'], ans:3,
     exp:'Iceland generates ~100% of electricity from renewable geothermal and hydro sources.' },
+  { q:'Which home habit usually cuts electricity waste fastest?',
+    opts:['Leaving chargers plugged in','Turning off standby devices','Opening windows all day','Using brighter bulbs'], ans:1,
+    exp:'Turning devices fully off (not standby) avoids continuous background electricity use.' },
+  { q:'Why does using a reusable cup help climate action?',
+    opts:['It always keeps drinks hotter','It reduces single-use production and waste','It makes coffee cheaper everywhere','It removes all transport emissions'], ans:1,
+    exp:'Reusable cups help lower demand for single-use products and related emissions across production and disposal.' },
+  { q:'Which option is generally lower-carbon for a short urban trip?',
+    opts:['Solo driving','Walking or cycling','Ride-hailing detour','Idling in traffic'], ans:1,
+    exp:'Walking and cycling avoid direct fuel emissions for short trips.' },
+  { q:'What is a practical way to reduce food-related emissions?',
+    opts:['Waste more leftovers','Choose local and seasonal produce more often','Only buy imported out-of-season food','Cook with single-use items every meal'], ans:1,
+    exp:'Local and seasonal choices can reduce transport/storage impacts and usually support lower-footprint meals.' },
+  { q:'What does daily climate action mostly rely on?',
+    opts:['One perfect day','Consistent small habits over time','Only large donations','Ignoring personal behavior'], ans:1,
+    exp:'Sustained small actions compound into meaningful long-term impact.' },
+  { q:'If a quiz answer is wrong in ClimateQuest, what still happens?',
+    opts:['No record is saved','The quiz completion is still recorded for the day','Your account is reset','You lose all coins'], ans:1,
+    exp:'The attempt is still recorded, and you get learning feedback even without coin rewards.' },
+  { q:'Which statement best matches "climate literacy"?',
+    opts:['Memorizing only one statistic','Understanding causes, impacts, and practical actions','Following trends without evidence','Avoiding all discussions'], ans:1,
+    exp:'Climate literacy means understanding systems and being able to act on reliable information.' },
+  { q:'What is the main purpose of the Leaderboard in this project?',
+    opts:['Punish low scores','Visualize and motivate climate contribution progress','Replace all education content','Track private browser tabs'], ans:1,
+    exp:'The leaderboard is a motivation tool to visualize progress and encourage ongoing climate-friendly actions.' },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function today() { return new Date().toISOString().split('T')[0] }
-function dayIdx() { return new Date().getDate() % QUIZ_BANK.length }
+function dayIdx() {
+  const day = today()
+  let hash = 0
+  for (let i = 0; i < day.length; i++) hash = (hash * 33 + day.charCodeAt(i)) >>> 0
+  return hash % QUIZ_BANK.length
+}
 
 async function req(path, options = {}) {
   const res = await fetch(path, {
@@ -75,10 +107,12 @@ const K = {
   completions: 'cq_completions',  // { 'YYYY-MM-DD': [taskId,...] }
   scene:       'cq_scene',        // { type, progress }
   quizLog:     'cq_quiz_log',     // { 'YYYY-MM-DD': true }
+  quizResult:  'cq_quiz_result',  // { 'YYYY-MM-DD': { correct, correctAnswer, explanation, selectedAnswer, coinsEarned } }
   coins:       'cq_coins',        // number
   xp:          'cq_xp',           // number
 }
 
+<<<<<<< HEAD
 let activeStorageUser = ''
 
 function storageScope() {
@@ -107,11 +141,43 @@ function get(key, def) {
   catch { return def }
 }
 function set(key, val) { localStorage.setItem(scopedKey(key), JSON.stringify(val)) }
+=======
+function currentMockScope() {
+  try {
+    const raw = localStorage.getItem('cq_user_scope')
+    const v = String(raw || 'guest').trim().toLowerCase()
+    return v || 'guest'
+  } catch {
+    return 'guest'
+  }
+}
+
+function scopedKey(baseKey) {
+  return `${baseKey}::${currentMockScope()}`
+}
+
+function get(key, def) {
+  const sk = scopedKey(key)
+  try {
+    const raw = localStorage.getItem(sk)
+    return JSON.parse(raw ?? 'null') ?? def
+  }
+  catch { return def }
+}
+function set(key, val) {
+  try {
+    localStorage.setItem(scopedKey(key), JSON.stringify(val))
+  } catch {
+    // ignore storage quota/privacy mode issues in mock fallback
+  }
+}
+>>>>>>> origin/main
 
 function getCompletions() { return get(K.completions, {}) }
 function getSceneState()  { return get(K.scene, { type: 'forest', progress: 0 }) }
 function getQuizLog()     { return get(K.quizLog, {}) }
-function getCoins()       { return get(K.coins, 0) }
+function getQuizResultLog(){ return get(K.quizResult, {}) }
+function getCoins()       { return get(K.coins, 120) }
 function getXp()          { return get(K.xp, 0) }
 
 function calcStreak(completions) {
@@ -208,7 +274,20 @@ export async function getProgress() {
       const k = d.toISOString().split('T')[0]
       week.push({ date: k, label: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()], count: (completions[k]||[]).length })
     }
-    return { coins, xp, level: Math.floor(xp/200)+1, xpInLevel: xp%200, streak: calcStreak(completions), todayDone: done, totalTasks: TASKS.length, allTimeTasks: tasks, co2Saved: co2, week }
+    return {
+      coins,
+      xp,
+      level: Math.floor(xp / 200) + 1,
+      xpInLevel: xp % 200,
+      streak: calcStreak(completions),
+      streakMilestones: { sevenDay: calcStreak(completions) >= 7, thirtyDay: calcStreak(completions) >= 30 },
+      todayDone: done,
+      totalTasks: TASKS.length,
+      allTimeTasks: tasks,
+      co2Saved: co2,
+      week,
+      weekSummaries: [],
+    }
   }
 }
 
@@ -218,7 +297,9 @@ export async function getQuiz() {
     if (String(e?.message || '') !== 'NOT_FOUND') throw e
     const idx = dayIdx()
     const q = { ...QUIZ_BANK[idx] }; delete q.ans; delete q.exp
-    return { question: q, completed: !!getQuizLog()[today()], idx }
+    const completed = !!getQuizLog()[today()]
+    const completedResult = completed ? (getQuizResultLog()[today()] || null) : null
+    return { question: q, completed, idx, completedResult }
   }
 }
 
@@ -232,6 +313,15 @@ export async function submitQuiz(idx, answer) {
     log[today()] = true; set(K.quizLog, log)
     const q       = QUIZ_BANK[idx]
     const correct = answer === q.ans
+    const quizResultLog = getQuizResultLog()
+    quizResultLog[today()] = {
+      correct,
+      correctAnswer: q.ans,
+      explanation: q.exp,
+      selectedAnswer: answer,
+      coinsEarned: correct ? 25 : 0,
+    }
+    set(K.quizResult, quizResultLog)
     if (correct) {
       set(K.coins, getCoins() + 25); set(K.xp, getXp() + 25)
       const scene = getSceneState(); scene.progress = Math.min(100, scene.progress+3); set(K.scene, scene)
@@ -255,4 +345,34 @@ export async function getLeaderboard() {
     if (String(e?.message || '') !== 'NOT_FOUND') throw e
     return [] // No mock for leaderboard — needs real backend data
   }
+}
+
+export async function getHomeSummary() {
+  return await req('/api/home/summary')
+}
+
+export async function postCheckIn() {
+  return await req('/api/check-in', { method: 'POST', body: JSON.stringify({}) })
+}
+
+export async function patchProfile({ profilePublic }) {
+  return await req('/api/auth/profile', {
+    method: 'PATCH',
+    body: JSON.stringify({ profilePublic }),
+  })
+}
+
+export async function getRewardHistory(limit = 80) {
+  return await req(`/api/rewards/history?limit=${encodeURIComponent(limit)}`)
+}
+
+export async function getQuickActionsCatalog() {
+  return await req('/api/quick-actions/catalog')
+}
+
+export async function logQuickAction(actionKey) {
+  return await req('/api/quick-actions/log', {
+    method: 'POST',
+    body: JSON.stringify({ actionKey }),
+  })
 }
