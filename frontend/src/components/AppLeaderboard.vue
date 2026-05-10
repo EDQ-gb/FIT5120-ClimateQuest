@@ -38,8 +38,49 @@
             {{ (u.displayName || u.username || '?').slice(0, 2).toUpperCase() }}
           </div>
           <div class="lb-name">
-            {{ u.displayName || u.username }}
+            <span class="lb-name-text">{{ u.displayName || u.username }}</span>
             <span v-if="u.isYou" class="you-tag">You</span>
+            <div class="lb-honors" aria-label="Honors and badges">
+              <template v-if="u.honors?.coinKing">
+                <span
+                  class="lb-honor-chip lb-honor-chip--meta"
+                  :class="'chip-' + u.honors.coinKing.badgeClass"
+                >
+                  <span class="lb-badge-dot" :class="u.honors.coinKing.badgeClass" aria-hidden="true"></span>
+                  <span class="lb-honor-text">{{ u.honors.coinKing.title }}</span>
+                </span>
+              </template>
+              <template v-if="u.honors?.levelKing">
+                <span
+                  class="lb-honor-chip lb-honor-chip--meta"
+                  :class="'chip-' + u.honors.levelKing.badgeClass"
+                >
+                  <span class="lb-badge-dot" :class="u.honors.levelKing.badgeClass" aria-hidden="true"></span>
+                  <span class="lb-honor-text">{{ u.honors.levelKing.title }}</span>
+                </span>
+              </template>
+              <template v-if="u.honors?.activityStreakKing">
+                <span
+                  class="lb-honor-chip lb-honor-chip--meta"
+                  :class="'chip-' + u.honors.activityStreakKing.badgeClass"
+                >
+                  <span class="lb-badge-dot" :class="u.honors.activityStreakKing.badgeClass" aria-hidden="true"></span>
+                  <span class="lb-honor-text">{{ u.honors.activityStreakKing.title }}</span>
+                </span>
+              </template>
+              <template v-if="u.honors?.streak">
+                <span class="lb-honor-chip lb-honor-chip--task">
+                  <span class="lb-badge-dot" :class="u.honors.streak.badgeClass" aria-hidden="true"></span>
+                  <span class="lb-honor-text">{{ u.honors.streak.title }}</span>
+                </span>
+              </template>
+              <template v-if="u.honors?.decoration">
+                <span class="lb-honor-chip lb-honor-chip--task">
+                  <span class="lb-badge-dot" :class="u.honors.decoration.badgeClass" aria-hidden="true"></span>
+                  <span class="lb-honor-text">{{ u.honors.decoration.title }}</span>
+                </span>
+              </template>
+            </div>
           </div>
           <span class="badge" style="font-size:.7rem;">Lv {{ u.level || 1 }}</span>
           <span class="cyan text-sm" style="min-width:58px;text-align:right;">🔥 {{ u.streak || 0 }}d</span>
@@ -58,8 +99,50 @@
       <div class="info-title gold">🏆 How to climb the board</div>
       <p class="sub-text">
         Complete daily tasks, check in from the home strip, finish the weekly sprint, and answer the quiz for bonus
-        coins. Only members who opt in to a public profile are listed here.
+        coins. Badges below appear next to names for everyone on this list to see. Only public profiles are ranked
+        here.
       </p>
+
+      <div class="legend-divider" />
+
+      <div class="info-title gold legend-subtitle">✨ Badges &amp; titles</div>
+      <p class="sub-text legend-lead">
+        English titles; ties share the same badge. <strong>Activity streak</strong> is the 🔥 day count (tasks,
+        quiz, or check-in each day).
+      </p>
+
+      <div class="legend-section-label">Leaderboard supremacy</div>
+      <ul class="legend-list">
+        <li v-for="row in legendSupremacy" :key="row.title" class="legend-item">
+          <span class="lb-badge-dot legend-dot" :class="row.badgeClass" aria-hidden="true"></span>
+          <div class="legend-copy">
+            <span class="legend-name">{{ row.title }}</span>
+            <span class="legend-rule">{{ row.rule }}</span>
+          </div>
+        </li>
+      </ul>
+
+      <div class="legend-section-label">Task commitment streak</div>
+      <ul class="legend-list">
+        <li v-for="row in legendTaskStreak" :key="row.title" class="legend-item">
+          <span class="lb-badge-dot legend-dot" :class="row.badgeClass" aria-hidden="true"></span>
+          <div class="legend-copy">
+            <span class="legend-name">{{ row.title }}</span>
+            <span class="legend-rule">{{ row.rule }}</span>
+          </div>
+        </li>
+      </ul>
+
+      <div class="legend-section-label">Scene mastery</div>
+      <ul class="legend-list">
+        <li v-for="row in legendScene" :key="row.title" class="legend-item">
+          <span class="lb-badge-dot legend-dot" :class="row.badgeClass" aria-hidden="true"></span>
+          <div class="legend-copy">
+            <span class="legend-name">{{ row.title }}</span>
+            <span class="legend-rule">{{ row.rule }}</span>
+          </div>
+        </li>
+      </ul>
     </div>
   </div>
 </template>
@@ -71,6 +154,71 @@ import { getLeaderboard } from '../api/features.js'
 const props = defineProps({
   user: { type: Object, default: null },
 })
+
+/** Keep in sync with server/src/index.js LEADERBOARD_* constants. */
+const legendSupremacy = [
+  {
+    badgeClass: 'meta-coins',
+    title: 'Treasury Titan',
+    rule: 'Most coins among all users shown on this leaderboard.',
+  },
+  {
+    badgeClass: 'meta-level',
+    title: 'Summit Sentinel',
+    rule: 'Highest scene level (Lv) on the board — earned from trees placed in your scene. Awarded only when the top level is 2 or higher.',
+  },
+  {
+    badgeClass: 'meta-streak',
+    title: 'Unbroken Flame',
+    rule: 'Longest activity streak (🔥) on the board — consecutive days with at least one task, quiz, or check-in.',
+  },
+]
+
+const legendTaskStreak = [
+  {
+    badgeClass: 'streak-t1',
+    title: 'Daily Spark',
+    rule: '3+ consecutive calendar days with at least one task completed.',
+  },
+  {
+    badgeClass: 'streak-t2',
+    title: 'Week Warrior',
+    rule: '7+ consecutive task days.',
+  },
+  {
+    badgeClass: 'streak-t3',
+    title: 'Monthly Marathoner',
+    rule: '30+ consecutive task days.',
+  },
+  {
+    badgeClass: 'streak-t4',
+    title: 'Evergreen Legend',
+    rule: '365+ consecutive task days.',
+  },
+]
+
+const legendScene = [
+  {
+    badgeClass: 'decor-tree',
+    title: 'Canopy Champion',
+    rule: 'Most tree placements among everyone on this leaderboard.',
+  },
+  {
+    badgeClass: 'decor-flower',
+    title: 'Bloom Sovereign',
+    rule: 'Most flower placements on this leaderboard.',
+  },
+  {
+    badgeClass: 'decor-ground',
+    title: 'Groundwork Guru',
+    rule: 'Most ground / path tiles on this leaderboard.',
+  },
+  {
+    badgeClass: 'decor-decor',
+    title: 'Curator Supreme',
+    rule: 'Most décor pieces on this leaderboard.',
+  },
+]
 
 const board = ref([])
 const loading = ref(true)
@@ -300,14 +448,194 @@ watch(
   flex-shrink: 0;
 }
 
+.lb-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: min(42vw, 240px);
+}
+
 .lb-name {
   flex: 1;
+  min-width: 0;
   font-weight: 600;
   font-size: .92rem;
   color: #fff;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px 8px;
+}
+
+.lb-honors {
+  flex: 1 1 160px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.lb-honor-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.lb-honor-chip--meta {
+  padding: 4px 11px 4px 9px;
+  border-radius: 999px;
+  background: rgba(6, 10, 16, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.lb-honor-chip--meta.chip-meta-coins {
+  border: 1px solid rgba(255, 215, 120, 0.5);
+  box-shadow:
+    0 0 22px rgba(255, 190, 60, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.lb-honor-chip--meta.chip-meta-level {
+  border: 1px solid rgba(52, 211, 153, 0.48);
+  box-shadow:
+    0 0 22px rgba(16, 185, 129, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.lb-honor-chip--meta.chip-meta-streak {
+  border: 1px solid rgba(251, 146, 60, 0.52);
+  box-shadow:
+    0 0 22px rgba(249, 115, 22, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.lb-honor-chip--meta .lb-honor-text {
+  font-size: .73rem;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 14px rgba(255, 230, 160, 0.35);
+}
+
+.lb-honor-chip--meta.chip-meta-level .lb-honor-text {
+  text-shadow: 0 0 14px rgba(110, 231, 183, 0.35);
+}
+
+.lb-honor-chip--meta.chip-meta-streak .lb-honor-text {
+  text-shadow: 0 0 14px rgba(253, 186, 116, 0.4);
+}
+
+.lb-honor-chip--task {
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  background: rgba(0, 242, 255, 0.06);
+  border: 1px solid rgba(0, 242, 255, 0.2);
+  box-shadow: 0 0 14px rgba(0, 242, 255, 0.08);
+}
+
+.lb-honor-text {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.88);
+  text-transform: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lb-badge-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(0, 242, 255, 0.35);
+}
+
+.lb-badge-dot.streak-t1 {
+  background: linear-gradient(145deg, #00c8cc, #007a7d);
+  box-shadow: 0 0 10px rgba(0, 242, 255, 0.45);
+}
+
+.lb-badge-dot.streak-t2 {
+  background: linear-gradient(145deg, #00f2ff, #0099aa);
+  animation: honorPulse 2.2s ease-in-out infinite;
+}
+
+.lb-badge-dot.streak-t3 {
+  background: linear-gradient(145deg, #ffd700, #ff8c00);
+  box-shadow: 0 0 14px rgba(255, 200, 80, 0.65), 0 0 4px rgba(0, 242, 255, 0.5);
+}
+
+.lb-badge-dot.streak-t4 {
+  background: conic-gradient(from 220deg, #ff00aa, #ffd700, #00f2ff, #a855f7, #ff00aa);
+  box-shadow: 0 0 16px rgba(255, 215, 0, 0.75), 0 0 8px rgba(0, 242, 255, 0.55);
+  animation: honorSpin 5s linear infinite;
+}
+
+.lb-badge-dot.decor-tree {
+  background: linear-gradient(145deg, #22c55e, #166534);
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.55);
+}
+
+.lb-badge-dot.decor-flower {
+  background: linear-gradient(145deg, #f472b6, #be185d);
+  box-shadow: 0 0 10px rgba(244, 114, 182, 0.55);
+}
+
+.lb-badge-dot.decor-ground {
+  background: linear-gradient(145deg, #a8a29e, #57534e);
+  box-shadow: 0 0 10px rgba(168, 162, 158, 0.45);
+}
+
+.lb-badge-dot.decor-decor {
+  background: linear-gradient(145deg, #a855f7, #6366f1);
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.55);
+}
+
+.lb-badge-dot.meta-coins {
+  width: 11px;
+  height: 11px;
+  background: linear-gradient(145deg, #fff8dc, #ffd700 40%, #b8860b);
+  box-shadow:
+    0 0 16px rgba(255, 215, 0, 0.85),
+    0 0 4px rgba(255, 255, 255, 0.45);
+  animation: honorPulse 2.6s ease-in-out infinite;
+}
+
+.lb-badge-dot.meta-level {
+  width: 11px;
+  height: 11px;
+  background: linear-gradient(145deg, #6ee7b7, #059669 55%, #34d399);
+  box-shadow: 0 0 16px rgba(52, 211, 153, 0.65);
+}
+
+.lb-badge-dot.meta-streak {
+  width: 11px;
+  height: 11px;
+  background: linear-gradient(145deg, #fdba74, #ea580c 45%, #fb923c);
+  box-shadow: 0 0 16px rgba(251, 146, 60, 0.72);
+  animation: honorPulse 2s ease-in-out infinite;
+}
+
+@keyframes honorPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.08);
+    filter: brightness(1.15);
+  }
+}
+
+@keyframes honorSpin {
+  to {
+    filter: hue-rotate(360deg);
+  }
 }
 
 .you-tag {
@@ -345,6 +673,76 @@ watch(
   font-size: .9rem;
   font-weight: 700;
   margin-bottom: 8px;
+}
+
+.legend-subtitle {
+  margin-top: 4px;
+}
+
+.legend-lead {
+  margin-bottom: 14px;
+}
+
+.legend-divider {
+  height: 1px;
+  margin: 16px 0 14px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(244, 196, 48, 0.35) 20%,
+    rgba(244, 196, 48, 0.35) 80%,
+    transparent
+  );
+}
+
+.legend-section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(244, 196, 48, 0.75);
+  margin: 14px 0 8px;
+}
+
+.legend-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.legend-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.legend-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.legend-rule {
+  font-size: 0.76rem;
+  color: rgba(255, 255, 255, 0.48);
+  line-height: 1.45;
 }
 
 .lb-pagination {

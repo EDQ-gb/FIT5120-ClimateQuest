@@ -161,7 +161,23 @@
       <template v-else>
         <div v-for="task in tasks.slice(0,3)" :key="task.id"
              class="task-row" :class="{ done: task.completed }">
-          <div class="task-icon">{{ task.icon }}</div>
+          <div
+            class="task-icon"
+            :class="[
+              { 'task-icon--emoji': !taskCardImageUrl(task.id) },
+              taskCardMediaTintClass(task.id),
+            ]"
+          >
+            <img
+              v-if="taskCardImageUrl(task.id)"
+              class="task-card-img"
+              :class="{ 'task-card-img--contain': taskCardUsesContainFit(task.id) }"
+              :src="taskCardImageUrl(task.id)"
+              :alt="task.title"
+              loading="lazy"
+            />
+            <span v-else class="task-icon-fallback" aria-hidden="true">{{ task.icon }}</span>
+          </div>
           <div class="task-info">
             <div class="task-title">{{ task.title }}</div>
             <div style="display:flex;gap:6px;margin-top:4px;">
@@ -193,6 +209,11 @@ import {
   getQuickActionsCatalog,
   logQuickAction,
 } from '../api/features.js'
+import {
+  taskCardImageUrl,
+  taskCardUsesContainFit,
+  taskCardMediaTintClass,
+} from '../utils/taskCardImages.js'
 
 const props = defineProps({ user: Object })
 const emit  = defineEmits(['navigate', 'coins-updated'])
@@ -435,7 +456,12 @@ onMounted(async () => {
 .task-row    { display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid rgba(255,255,255,0.06);transition:opacity .3s; }
 .task-row:last-child { border-bottom:none; }
 .task-row.done { opacity:.5; }
-.task-icon   { width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0; }
+.task-icon   { width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden; }
+.task-icon.task-media--tint-energy-tip { background: #dcedc8; }
+.task-icon--emoji { background:rgba(255,255,255,0.08); }
+.task-card-img { width:100%; height:100%; object-fit:cover; object-position:center; display:block; }
+.task-card-img--contain { object-fit:contain; }
+.task-icon-fallback { line-height:1; }
 .task-info   { flex:1; }
 .task-title  { font-size:.92rem;font-weight:600;color:#fff; }
 .badge       { font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:99px; }
