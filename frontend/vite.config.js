@@ -1,7 +1,8 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 // https://vite.dev/config/
+<<<<<<< HEAD
 export default defineConfig({
   plugins: [vue()],
   server: {
@@ -15,7 +16,26 @@ export default defineConfig({
         // Keep existing app/auth APIs on the deployed backend with its database.
         target: 'https://fit5120-climatequest.onrender.com',
         changeOrigin: true,
+=======
+// Local dev: create `.env.development.local` with
+//   VITE_API_PROXY=http://127.0.0.1:8080
+// so `/api` hits your machine (newest server code, e.g. leaderboard honors).
+// If unset, `/api` goes to Render (must redeploy server there for honors to appear).
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  const apiTarget =
+    env.VITE_API_PROXY || 'https://fit5120-climatequest.onrender.com'
+
+  return {
+    plugins: [vue()],
+    server: {
+      proxy: {
+        '/api': {
+          target: apiTarget,
+          changeOrigin: true,
+        },
+>>>>>>> origin/main
       },
     },
-  },
+  }
 })

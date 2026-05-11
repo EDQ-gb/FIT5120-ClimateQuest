@@ -244,7 +244,26 @@ export function createSceneBuilderCore(opts) {
   function warmupPlacementSprites() {
     if (typeof getPreloadSrcs !== 'function') return
     const urls = [...new Set(getPreloadSrcs().filter(Boolean))]
-    for (const src of urls) getImage(src)
+    if (!urls.length) return
+
+    // Spread out decoding work to avoid long main-thread stalls.
+    let i = 0
+    const step = () => {
+      const start = performance.now()
+      while (i < urls.length && performance.now() - start < 6) {
+        getImage(urls[i])
+        i += 1
+      }
+      if (i < urls.length) schedule(step)
+    }
+
+    const schedule = (fn) => {
+      const ric = window.requestIdleCallback
+      if (typeof ric === 'function') return ric(fn, { timeout: 700 })
+      return setTimeout(fn, 16)
+    }
+
+    schedule(step)
   }
 
   function getSpriteAnchor(src, img) {
@@ -306,7 +325,7 @@ export function createSceneBuilderCore(opts) {
     return col >= 0 && row >= 0 && col < gridSize && row < gridSize
   }
 
-  // Hover (for highlight preview)
+  // Hover for highlight preview
   let hoverCell = null
 
   function resize() {
@@ -489,7 +508,7 @@ export function createSceneBuilderCore(opts) {
     const img = getImageForDef(def)
     if (!img || !img.complete) return
     const { x, y } = gridToScreen(col, row, offsetX, offsetY, zoom)
-    // Keep aspect ratio for ground sprites too (some kits are square previews).
+    // Keep aspect ratio for ground sprites too some kits are square previews.
     const nat = getNaturalSize(img)
     const ratio = nat.w && nat.h ? nat.w / nat.h : IMG_W / IMG_H
     const drawH = IMG_H * zoom
@@ -858,6 +877,11 @@ export function createSceneBuilderCore(opts) {
 
   function render() {
     raf = requestAnimationFrame(render)
+    // Throttle to ~30fps for smoother UX on mid laptops.
+    const now = performance.now()
+    if (!render._last) render._last = now
+    if (now - render._last < 33) return
+    render._last = now
 
     // Background: sky + sunlight + clouds
     ctx.clearRect(0, 0, W, H)

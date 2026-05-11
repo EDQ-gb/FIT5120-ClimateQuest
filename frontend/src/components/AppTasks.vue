@@ -31,8 +31,18 @@
       <div class="tasks-grid">
         <article v-for="task in tasks" :key="task.id" class="task-card" :class="{ done: task.completed }">
           <div class="task-layout">
-            <div class="task-media">
-              <div class="task-icon">{{ task.icon }}</div>
+            <div class="task-media" :class="taskCardMediaTintClass(task.id)">
+              <div class="task-icon" :class="{ 'task-icon--emoji': !taskCardImageUrl(task.id) }">
+                <img
+                  v-if="taskCardImageUrl(task.id)"
+                  class="task-card-img"
+                  :class="{ 'task-card-img--contain': taskCardUsesContainFit(task.id) }"
+                  :src="taskCardImageUrl(task.id)"
+                  :alt="task.title"
+                  loading="lazy"
+                />
+                <span v-else class="task-icon-fallback" aria-hidden="true">{{ task.icon }}</span>
+              </div>
             </div>
             <div class="task-main">
               <div class="task-title">{{ task.title }}</div>
@@ -103,8 +113,17 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+<<<<<<< HEAD
 import { getTasks, completeTask, generateRecipeFromModel } from '../api/features.js'
 import { PLANT_BASED_INGREDIENTS, generatePlantBasedRecipe } from '../api/recipeGenerator.js'
+=======
+import { getTasks, completeTask } from '../api/features.js'
+import {
+  taskCardImageUrl,
+  taskCardUsesContainFit,
+  taskCardMediaTintClass,
+} from '../utils/taskCardImages.js'
+>>>>>>> origin/main
 // We emit the *resulting* totals so the shell can update immediately
 // without waiting for a separate refresh roundtrip.
 const emit = defineEmits(['coins-updated'])
@@ -316,16 +335,38 @@ watch(() => props.user?.id || props.user?.username || null, () => {
 .tasks-grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; }
 .task-card  { display:flex; flex-direction:column; gap:10px; padding:14px 14px 12px; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); border-radius:14px; transition:opacity .3s; min-height:210px; }
 .task-card.done { opacity:.55; border-color:rgba(255,255,255,0.06); }
-.task-layout { display:grid; grid-template-columns: 38% 1fr; gap:10px; align-items:stretch; min-height:142px; }
+.task-layout { display:grid; grid-template-columns: 38% 1fr; gap:10px; align-items:stretch; min-height:142px; min-width:0; }
 .task-media {
   border-radius:12px;
   border:1px solid rgba(255,255,255,0.14);
-  background:rgba(255,255,255,0.08);
+  overflow:hidden;
+  min-height:0;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+}
+.task-media--tint-energy-tip {
+  /* energy-saving infographic — pale green field */
+  background: #dcedc8;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+.task-icon {
+  flex:1;
+  width:100%;
+  min-height:0;
   display:flex;
   align-items:center;
   justify-content:center;
+  overflow:hidden;
 }
-.task-icon  { width:64px; height:64px; border-radius:14px; background:rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; font-size:2rem; flex-shrink:0; }
+.task-icon--emoji {
+  border-radius:12px;
+  background:rgba(255,255,255,0.12);
+  font-size:2rem;
+}
+.task-card-img { width:100%; height:100%; object-fit:cover; object-position:center; display:block; }
+.task-card-img--contain { object-fit:contain; }
+.task-icon-fallback { line-height:1; }
 .task-main { display:flex; flex-direction:column; gap:8px; }
 .task-title { font-size:.9rem; font-weight:700; color:#fff; line-height:1.2; }
 .task-desc  { font-size:.74rem; color:rgba(255,255,255,0.56); line-height:1.42; min-height:44px; }
