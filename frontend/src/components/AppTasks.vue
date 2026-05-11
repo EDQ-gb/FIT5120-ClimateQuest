@@ -87,6 +87,7 @@
                   <ol>
                     <li v-for="step in recipe.steps" :key="step">{{ step }}</li>
                   </ol>
+                  <p v-if="recipe.seasoningNote" class="recipe-result__seasoning">{{ recipe.seasoningNote }}</p>
                   <button class="recipe-action primary" type="button" @click="complete(task.id, { force: true })">
                     Complete task
                   </button>
@@ -113,17 +114,19 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-<<<<<<< HEAD
 import { getTasks, completeTask, generateRecipeFromModel } from '../api/features.js'
-import { PLANT_BASED_INGREDIENTS, generatePlantBasedRecipe } from '../api/recipeGenerator.js'
-=======
-import { getTasks, completeTask } from '../api/features.js'
+import {
+  getBalancedIngredientBatch,
+  generatePlantBasedRecipe,
+  sanitizeModelSteps,
+  augmentModelStepsIfNeeded,
+  buildSeasoningGuidance,
+} from '../api/recipeGenerator.js'
 import {
   taskCardImageUrl,
   taskCardUsesContainFit,
   taskCardMediaTintClass,
 } from '../utils/taskCardImages.js'
->>>>>>> origin/main
 // We emit the *resulting* totals so the shell can update immediately
 // without waiting for a separate refresh roundtrip.
 const emit = defineEmits(['coins-updated'])
@@ -136,7 +139,6 @@ const tasks      = ref([])
 const loading    = ref(true)
 const completing = ref(null)
 const celebration = ref(null)
-const plantIngredients = PLANT_BASED_INGREDIENTS
 const visibleIngredients = ref([])
 const selectedIngredients = ref([])
 const mealBuilderTaskId = ref(null)
@@ -178,9 +180,8 @@ function actionLabel(task) {
 }
 
 function refreshIngredientOptions() {
-  const pool = plantIngredients
-  const start = (ingredientWindow * 7) % pool.length
-  visibleIngredients.value = Array.from({ length: 10 }, (_, idx) => pool[(start + idx) % pool.length])
+  const nextBatch = getBalancedIngredientBatch(ingredientWindow)
+  visibleIngredients.value = nextBatch
   selectedIngredients.value = selectedIngredients.value.filter(item => visibleIngredients.value.includes(item))
   if (selectedIngredients.value.length < 3) recipe.value = null
   ingredientWindow += 1
@@ -208,8 +209,10 @@ function toggleIngredient(ingredient) {
 }
 
 function localRecipe(sourceLabel = 'Template fallback') {
+  const base = generatePlantBasedRecipe(selectedIngredients.value)
   return {
-    ...generatePlantBasedRecipe(selectedIngredients.value),
+    ...base,
+    seasoningNote: buildSeasoningGuidance(selectedIngredients.value),
     sourceLabel,
   }
 }
@@ -220,13 +223,20 @@ async function generateRecipe() {
   recipeError.value = ''
   try {
     const modelRecipe = await generateRecipeFromModel(selectedIngredients.value)
+    const rawSteps = Array.isArray(modelRecipe?.steps) && modelRecipe.steps.length
+      ? modelRecipe.steps
+      : String(modelRecipe?.text || '').split('.').map(s => s.trim()).filter(Boolean)
+    const sanitizedSteps = sanitizeModelSteps(rawSteps, selectedIngredients.value)
+    const { steps: finalSteps, augmented } = augmentModelStepsIfNeeded(
+      sanitizedSteps,
+      selectedIngredients.value,
+    )
     recipe.value = {
       title: modelRecipe?.title || 'Model-generated meal',
       ingredients: modelRecipe?.ingredients || selectedIngredients.value,
-      steps: Array.isArray(modelRecipe?.steps) && modelRecipe.steps.length
-        ? modelRecipe.steps
-        : String(modelRecipe?.text || '').split('.').map(s => s.trim()).filter(Boolean).map(s => `${s}.`),
-      sourceLabel: 'Transformer model',
+      steps: finalSteps,
+      seasoningNote: buildSeasoningGuidance(selectedIngredients.value),
+      sourceLabel: augmented ? 'Transformer model · clarity edits' : 'Transformer model',
     }
   } catch (e) {
     recipe.value = localRecipe()
@@ -480,6 +490,16 @@ watch(() => props.user?.id || props.user?.username || null, () => {
 }
 .recipe-result li + li {
   margin-top: 3px;
+}
+.recipe-result__seasoning {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: .65rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(82, 212, 150, 0.08);
+  border: 1px solid rgba(82, 212, 150, 0.2);
 }
 .act-btn    { margin-top:auto; align-self:center; padding:8px 16px; border-radius:30px; font-size:.78rem; font-weight:700; border:none; cursor:pointer; transition:all .25s; display:flex; align-items:center; gap:6px; white-space:nowrap; }
 .act-btn.todo { background:rgba(0,242,255,0.12);color:#00f2ff;border:1px solid rgba(0,242,255,0.25); }

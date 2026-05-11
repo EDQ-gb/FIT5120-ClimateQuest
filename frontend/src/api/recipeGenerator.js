@@ -1,15 +1,17 @@
-export const PLANT_BASED_INGREDIENTS = [
-  'rice',
-  'pasta',
-  'potato',
-  'bread',
-  'oats',
+const SELECTABLE_CARBS = ['rice', 'pasta', 'potato', 'bread', 'oats', 'corn']
+const SELECTABLE_PROTEINS = [
   'tofu',
   'beans',
   'chickpeas',
   'lentils',
-  'corn',
-  'pea',
+  'egg',
+  'chicken breast',
+  'ground beef',
+  'pork',
+  'tuna',
+  'shrimp',
+]
+const SELECTABLE_VEGETABLES = [
   'tomato',
   'onion',
   'garlic',
@@ -21,14 +23,27 @@ export const PLANT_BASED_INGREDIENTS = [
   'spinach',
   'lettuce',
   'celery',
-  'soy sauce',
-  'olive oil',
-  'lemon juice',
-  'chili powder',
-  'parsley',
+]
+const PANTRY_STAPLES = ['soy sauce', 'olive oil', 'lemon juice', 'chili powder', 'parsley']
+
+export const PLANT_BASED_INGREDIENTS = [
+  ...SELECTABLE_CARBS,
+  ...SELECTABLE_PROTEINS,
+  ...SELECTABLE_VEGETABLES,
 ]
 
-const PROTEINS = new Set(['tofu', 'beans', 'chickpeas', 'lentils'])
+const PROTEINS = new Set([
+  'tofu',
+  'beans',
+  'chickpeas',
+  'lentils',
+  'egg',
+  'chicken breast',
+  'ground beef',
+  'pork',
+  'tuna',
+  'shrimp',
+])
 const CARBS = new Set(['rice', 'pasta', 'potato', 'bread', 'oats'])
 const VEGETABLES = new Set([
   'tomato',
@@ -45,8 +60,29 @@ const VEGETABLES = new Set([
   'corn',
   'pea',
 ])
-const SEASONINGS = new Set(['soy sauce', 'olive oil', 'lemon juice', 'chili powder', 'parsley'])
+const SEASONINGS = new Set(PANTRY_STAPLES)
 const LEAFY_GREENS = new Set(['lettuce', 'spinach', 'cabbage'])
+
+function pickCycle(items, start, count) {
+  const out = []
+  if (!items.length || count <= 0) return out
+  for (let i = 0; i < count; i += 1) {
+    out.push(items[(start + i) % items.length])
+  }
+  return out
+}
+
+function uniqueList(items) {
+  return [...new Set(items)]
+}
+
+export function getBalancedIngredientBatch(windowIndex = 0) {
+  const base = Math.max(0, Number(windowIndex) || 0)
+  const carbs = pickCycle(SELECTABLE_CARBS, base * 2, 3)
+  const proteins = pickCycle(SELECTABLE_PROTEINS, base * 3, 3)
+  const vegetables = pickCycle(SELECTABLE_VEGETABLES, base * 4, 4)
+  return uniqueList([...carbs, ...proteins, ...vegetables]).slice(0, 10)
+}
 
 function pick(items, fallback) {
   return items.length ? items[0] : fallback
@@ -94,7 +130,7 @@ function makeContext(selectedIngredients) {
   const mainCarb = carbs[0] || ''
   const mainVegetable = vegetables[0] || firstSelected(selected, [VEGETABLES, PROTEINS, CARBS], 'vegetables')
   const vegetableText = joinList(vegetables.slice(0, 4))
-  const seasoningText = joinList(seasonings.length ? seasonings : ['olive oil', 'lemon juice'])
+  const seasoningText = joinList(seasonings.length ? seasonings : PANTRY_STAPLES.slice(0, 2))
 
   return {
     selected,
@@ -119,6 +155,7 @@ function chooseTemplate(ctx) {
   if (hasAny(selected, ['lettuce', 'cabbage', 'spinach']) && hasAny(selected, ['lemon juice', 'olive oil'])) return saladTemplate
   if (selected.includes('rice') && selected.includes('soy sauce')) return stirFryTemplate
   if (hasAny(selected, ['lentils', 'beans', 'chickpeas']) && hasAny(selected, ['tomato', 'carrot', 'celery'])) return stewTemplate
+  if (carbs.includes('rice') && proteins.length && vegetables.length) return riceBowlTemplate
   if (proteins.length && vegetables.length >= 2) return sauteTemplate
   if (carbs.length) return grainTemplate
   return vegetableTemplate
@@ -264,6 +301,21 @@ function grainTemplate(ctx) {
   }
 }
 
+function riceBowlTemplate(ctx) {
+  const protein = ctx.mainProtein
+  const veg = ctx.vegetableText || ctx.mainVegetable
+  return {
+    title: titleCase(`${protein} rice bowl`),
+    steps: [
+      'Cook the rice until tender and keep it loosely covered.',
+      `In a wide pan over medium heat, cook ${protein} in a little ${pick(ctx.seasonings, 'olive oil')} until nearly done.`,
+      `Add ${veg} and cook until tender or wilted.`,
+      `Fold in the rice, splash in a tablespoon of water if it looks dry, then season with ${ctx.seasoningText}.`,
+      'Serve warm.',
+    ],
+  }
+}
+
 function vegetableTemplate(ctx) {
   const veg = ctx.vegetableText || ctx.mainVegetable
   return {
@@ -288,4 +340,154 @@ export function generatePlantBasedRecipe(selectedIngredients) {
     ingredients: ctx.selected,
     steps: uniqueSteps(recipe.steps),
   }
+}
+
+function escapeRegExp(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function stepMentions(step, phrase) {
+  return new RegExp(`\\b${escapeRegExp(phrase)}\\b`, 'i').test(String(step))
+}
+
+function dedupePhraseRepeatsInStep(step) {
+  let cleaned = String(step || '').trim()
+  cleaned = cleaned.replace(/\b([a-z][a-z ]+?)\s+and\s+\1\b/gi, '$1')
+  cleaned = cleaned.replace(/\b(\w+)\s*,\s*\1\b/gi, '$1')
+  cleaned = cleaned.replace(/\b(\w+)\s+and\s+\1\b/gi, '$1')
+  cleaned = cleaned.replace(/\s+/g, ' ').trim()
+  return cleaned
+}
+
+function normalizeModelStepSentence(step) {
+  const s = String(step || '').trim().replace(/\s+/g, ' ')
+  if (!s) return ''
+  const noTrail = s.replace(/[.?!]+$/g, '')
+  const capitalized = noTrail.charAt(0).toUpperCase() + noTrail.slice(1)
+  return `${capitalized}.`
+}
+
+function isGenericCookStep(step) {
+  const t = String(step || '').trim()
+  if (!t) return true
+  const lower = t.toLowerCase().replace(/[.?!]+$/g, '')
+  if (/^(cook|simmer|bake|fry|heat)\s+(until\s+)?(it'?s\s+)?done$/.test(lower)) return true
+  if (/^cook\s+until\s+done$/.test(lower)) return true
+  if (lower === 'cook until done') return true
+  if (lower.length < 22 && /\buntil done\b/.test(lower) && /^(cook|simmer)\b/.test(lower)) return true
+  return false
+}
+
+/**
+ * Light cleanup for transformer output: phrase repeats, near-duplicate lines,
+ * generic "cook until done", and redundant "add …" steps that repeat ingredients
+ * already used earlier.
+ */
+export function sanitizeModelSteps(rawSteps, selectedIngredients) {
+  const selected = [...new Set((selectedIngredients || []).map((x) => String(x).trim()).filter(Boolean))]
+  const selectedWords = new Set(selected.map((x) => x.toLowerCase()))
+  const input = Array.isArray(rawSteps) ? rawSteps : []
+  const cleaned = input
+    .map(dedupePhraseRepeatsInStep)
+    .map(normalizeModelStepSentence)
+    .filter(Boolean)
+
+  const unique = []
+  const seen = new Set()
+  for (const step of cleaned) {
+    const key = step.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim()
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    unique.push(step)
+  }
+
+  const mentioned = new Set()
+  const filtered = []
+  for (const step of unique) {
+    if (isGenericCookStep(step)) continue
+
+    const lower = step.toLowerCase()
+    const ingInStep = selected.filter((ing) => stepMentions(step, ing))
+    if (/\badd\b/.test(lower) && ingInStep.length && ingInStep.every((ing) => mentioned.has(ing.toLowerCase()))) {
+      continue
+    }
+
+    filtered.push(step)
+    for (const ing of selected) {
+      if (stepMentions(step, ing)) mentioned.add(ing.toLowerCase())
+    }
+  }
+
+  if (filtered.length >= 3) {
+    const first = filtered[0].toLowerCase()
+    if (first.startsWith('wash ') || first.startsWith('wash and ')) {
+      const hasIngredientHint = [...selectedWords].some((word) => first.includes(word))
+      if (!hasIngredientHint) filtered.shift()
+    }
+  }
+
+  return filtered
+}
+
+function templateStepsForSelection(selectedIngredients) {
+  const ctx = makeContext(selectedIngredients)
+  const template = chooseTemplate(ctx)
+  return template(ctx).steps
+}
+
+function avgStepLength(steps) {
+  if (!steps.length) return 0
+  return steps.reduce((a, s) => a + String(s).length, 0) / steps.length
+}
+
+/**
+ * When the model returns very short or vague steps, append missing template lines
+ * so the user still gets a usable recipe (without retraining the model).
+ */
+export function augmentModelStepsIfNeeded(modelSteps, selectedIngredients) {
+  const safe = (Array.isArray(modelSteps) ? modelSteps : [])
+    .map((s) => normalizeModelStepSentence(dedupePhraseRepeatsInStep(s)))
+    .filter(Boolean)
+    .filter((s) => !isGenericCookStep(s))
+  const useful = safe.filter((s) => String(s).length >= 28)
+  const blob = safe.join(' ').toLowerCase()
+  const tooFew = safe.length < 4 || useful.length < 3 || avgStepLength(safe) < 38
+
+  if (!tooFew) {
+    return { steps: safe, augmented: false }
+  }
+
+  const extras = templateStepsForSelection(selectedIngredients)
+  const additions = extras.filter((line) => {
+    const head = String(line)
+      .toLowerCase()
+      .split(/\s+/)
+      .slice(0, 5)
+      .join(' ')
+    return head.length >= 8 && !blob.includes(head.slice(0, Math.min(24, head.length)))
+  })
+
+  const merged = uniqueSteps([...safe, ...additions])
+  return { steps: merged, augmented: additions.length > 0 }
+}
+
+/**
+ * Pantry / seasoning hints (seasonings are not selectable chips — explain that here).
+ */
+export function buildSeasoningGuidance(selectedIngredients) {
+  const ctx = makeContext(selectedIngredients)
+  const staples = ctx.seasonings.length ? ctx.seasonings : PANTRY_STAPLES.slice(0, 3)
+  const list = joinList(staples)
+  let hint =
+    ' Start with a little salt, then add acid or aromatics in small amounts and taste as you go.'
+
+  if (ctx.carbs.includes('rice') && ctx.proteins.length) {
+    hint =
+      ' For rice bowls, soy sauce (or tamari), a neutral oil, and a pinch of pepper usually land well—add soy at the end of cooking so it does not scorch.'
+  } else if (ctx.vegetables.some((v) => LEAFY_GREENS.has(v))) {
+    hint =
+      ' Leafy greens like a little fat (olive oil) plus acid (lemon) or a fresh herb (parsley) so they do not taste flat.'
+  }
+
+  return `Pantry & seasoning: try ${list}.${hint} These are suggestions only—use what you already have.`
 }

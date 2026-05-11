@@ -97,7 +97,21 @@ Suggested changes:
 | LR | 3e-4 | keep 3e-4 first |
 | Eval | subset test | full test plus fixed 100-sample qualitative set |
 
-Recommended next run:
+Recommended next run (implemented in `code_32124112_spicy1.ipynb` as **v3**):
+
+```text
+Model: transformer_copy_v3
+Encoder/decoder layers: 4 / 4 (was 3 / 3)
+Epochs: 25 (early stopping patience: 4)
+Dropout: 0.12
+Learning rate: 2.5e-4 (OneCycleLR, pct_start=0.10)
+Label smoothing: 0.08
+Coverage loss weight: 0.5 (See et al.; train only — dev loss remains plain NLL)
+AdamW weight_decay: 0.01
+Checkpoint: best_transformer_copy_v3.pt
+```
+
+Previous v2 recipe (still valid for A/B comparison):
 
 ```text
 Model: transformer_copy_v2

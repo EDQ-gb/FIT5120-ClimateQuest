@@ -2,21 +2,6 @@ import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 // https://vite.dev/config/
-<<<<<<< HEAD
-export default defineConfig({
-  plugins: [vue()],
-  server: {
-    proxy: {
-      '/api/recipes': {
-        // Local-only model prototype endpoint.
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
-      '/api': {
-        // Keep existing app/auth APIs on the deployed backend with its database.
-        target: 'https://fit5120-climatequest.onrender.com',
-        changeOrigin: true,
-=======
 // Local dev: create `.env.development.local` with
 //   VITE_API_PROXY=http://127.0.0.1:8080
 // so `/api` hits your machine (newest server code, e.g. leaderboard honors).
@@ -25,16 +10,20 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiTarget =
     env.VITE_API_PROXY || 'https://fit5120-climatequest.onrender.com'
+  const recipeTarget = env.VITE_RECIPE_PROXY || 'http://localhost:8080'
 
   return {
     plugins: [vue()],
     server: {
       proxy: {
+        '/api/recipes': {
+          target: recipeTarget,
+          changeOrigin: true,
+        },
         '/api': {
           target: apiTarget,
           changeOrigin: true,
         },
->>>>>>> origin/main
       },
     },
   }
