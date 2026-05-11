@@ -6,6 +6,7 @@ const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
+const { spawn } = require("child_process");
 
 const { FRONTEND_ORIGIN, NODE_ENV, PORT, SESSION_SECRET } = require("./config");
 const { getPool, query, exec } = require("./db");
@@ -58,6 +59,26 @@ async function ensureDbBootstrapped() {
 
 const mysqlPool = getPool();
 const MySQLStore = MySQLStoreFactory(session);
+const noDatabaseMode = !mysqlPool;
+const demoUsers = new Map();
+let demoUserSeq = 1;
+
+function demoPublicUser(row) {
+  return {
+    id: row.id,
+    username: row.username,
+    displayName: row.displayName || "",
+    createdAt: row.createdAt,
+    profilePublic: true,
+  };
+}
+
+function getDemoUserById(id) {
+  for (const user of demoUsers.values()) {
+    if (Number(user.id) === Number(id)) return user;
+  }
+  return null;
+}
 
 app.use(
   session({
@@ -304,6 +325,71 @@ function clampInt(n, lo, hi) {
   const v = Number.isFinite(n) ? Math.trunc(n) : parseInt(n, 10);
   const vv = Number.isFinite(v) ? v : 0;
   return Math.max(lo, Math.min(hi, vv));
+}
+
+function runRecipeModel(ingredients) {
+  return new Promise((resolve, reject) => {
+    const pythonExe = process.env.RECIPE_PYTHON || process.env.PYTHON || "python";
+    const scriptPath =
+      process.env.RECIPE_MODEL_SCRIPT ||
+      path.join(__dirname, "recipe_model_infer.py");
+    const checkpointPath =
+      process.env.RECIPE_CHECKPOINT ||
+      path.join(
+        __dirname,
+        "..",
+        "..",
+        "AI Development",
+        "Cooking_Dataset",
+        "best_transformer_copy_v2.pt"
+      );
+    const child = spawn(
+      pythonExe,
+      [
+        scriptPath,
+        "--ingredients",
+        ingredients.join(", "),
+        "--checkpoint",
+        checkpointPath,
+      ],
+      {
+        windowsHide: true,
+      }
+    );
+
+    let stdout = "";
+    let stderr = "";
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error("RECIPE_MODEL_TIMEOUT"));
+    }, Number(process.env.RECIPE_MODEL_TIMEOUT_MS || 120000));
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString("utf8");
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString("utf8");
+    });
+    child.on("error", (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (code !== 0) {
+        const err = new Error("RECIPE_MODEL_FAILED");
+        err.detail = stderr || stdout;
+        reject(err);
+        return;
+      }
+      try {
+        resolve(JSON.parse(stdout.trim()));
+      } catch (e) {
+        e.detail = stdout;
+        reject(e);
+      }
+    });
+  });
 }
 
 const TASKS = [
@@ -728,6 +814,25 @@ app.post("/api/auth/username-register", async (req, res, next) => {
       return res.status(400).json({ error: "INVALID_USERNAME" });
     }
 
+    if (noDatabaseMode) {
+      if (demoUsers.has(username)) {
+        return res.status(409).json({ error: "USERNAME_TAKEN" });
+      }
+      const row = {
+        id: demoUserSeq++,
+        username,
+        displayName,
+        createdAt: new Date().toISOString(),
+        completedTasks: new Set(),
+        coins: 120,
+        xp: 0,
+        sceneProgress: 0,
+      };
+      demoUsers.set(username, row);
+      await setLoggedInSession(req, row.id);
+      return res.status(201).json({ user: demoPublicUser(row) });
+    }
+
     const existing = await query(`select id from users where username = ? limit 1`, [username]);
     if (existing.rows && existing.rows.length > 0) {
       return res.status(409).json({ error: "USERNAME_TAKEN" });
@@ -769,6 +874,13 @@ app.post("/api/auth/username-signin", async (req, res, next) => {
       return res.status(400).json({ error: "INVALID_USERNAME" });
     }
 
+    if (noDatabaseMode) {
+      const row = demoUsers.get(username);
+      if (!row) return res.status(404).json({ error: "USER_NOT_FOUND" });
+      await setLoggedInSession(req, row.id);
+      return res.status(200).json({ user: demoPublicUser(row) });
+    }
+
     const existing = await query(
       `select id, username, display_name, created_at, profile_public
        from users
@@ -801,6 +913,13 @@ app.get("/api/auth/me", async (req, res, next) => {
   try {
     const userId = req.session.userId;
     if (!userId) return res.status(200).json({ user: null });
+
+    if (noDatabaseMode) {
+      const row = getDemoUserById(userId);
+      if (!row) return res.status(200).json({ user: null });
+      return res.json({ user: demoPublicUser(row) });
+    }
+
     await ensureUserState(userId);
 
     const result = await query(
@@ -922,6 +1041,23 @@ app.get("/api/home/summary", async (req, res, next) => {
 
 app.get("/api/quick-actions/catalog", (req, res) => {
   res.json(QUICK_ACTION_CATALOG);
+});
+
+app.post("/api/recipes/generate", async (req, res, next) => {
+  try {
+    // Prototype endpoint: keep this independent from auth/DB so the local
+    // trained model can be validated even when MySQL is not configured.
+    const ingredients = Array.isArray(req.body?.ingredients)
+      ? req.body.ingredients.map((x) => String(x || "").trim()).filter(Boolean)
+      : [];
+    if (ingredients.length < 3 || ingredients.length > 5) {
+      return res.status(400).json({ error: "INGREDIENT_COUNT_MUST_BE_3_TO_5" });
+    }
+    const result = await runRecipeModel(ingredients);
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
 });
 
 app.post("/api/quick-actions/log", async (req, res, next) => {
@@ -1076,6 +1212,13 @@ app.get("/api/tasks", async (req, res, next) => {
   try {
     const userId = requireAuth(req, res);
     if (!userId) return;
+
+    if (noDatabaseMode) {
+      const row = getDemoUserById(userId);
+      const doneSet = row?.completedTasks || new Set();
+      return res.json(TASKS.map((t) => ({ ...t, completed: doneSet.has(t.id) })));
+    }
+
     await ensureUserState(userId);
 
     const today = ymdLocal();
@@ -1097,11 +1240,33 @@ app.post("/api/tasks/:id/complete", async (req, res, next) => {
   try {
     const userId = requireAuth(req, res);
     if (!userId) return;
-    await ensureUserState(userId);
 
     const id = parseInt(req.params.id, 10);
     const task = TASKS.find((t) => t.id === id);
     if (!task) return res.status(404).json({ error: "TASK_NOT_FOUND" });
+
+    if (noDatabaseMode) {
+      const row = getDemoUserById(userId);
+      if (!row) return res.status(401).json({ error: "UNAUTHORIZED" });
+      if (row.completedTasks.has(task.id)) {
+        return res.status(409).json({ error: "ALREADY_COMPLETED_TODAY" });
+      }
+      row.completedTasks.add(task.id);
+      row.coins += task.coins;
+      row.xp += task.coins;
+      row.sceneProgress = Math.min(100, row.sceneProgress + 2);
+      return res.json({
+        success: true,
+        coinsEarned: task.coins,
+        totalCoins: row.coins,
+        co2Saved: task.co2,
+        sceneProgress: row.sceneProgress,
+        streak: row.completedTasks.size > 0 ? 1 : 0,
+        weeklyChallengeBonus: null,
+      });
+    }
+
+    await ensureUserState(userId);
 
     const today = ymdLocal();
     try {

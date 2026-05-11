@@ -6,8 +6,13 @@ export default defineConfig({
   plugins: [vue()],
   server: {
     proxy: {
+      '/api/recipes': {
+        // Local-only model prototype endpoint.
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
       '/api': {
-        // Dev: proxy to cloud backend (match Vercel rewrites).
+        // Keep existing app/auth APIs on the deployed backend with its database.
         target: 'https://fit5120-climatequest.onrender.com',
         changeOrigin: true,
       },

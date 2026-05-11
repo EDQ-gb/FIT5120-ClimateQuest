@@ -366,3 +366,10 @@ export async function logQuickAction(actionKey) {
     body: JSON.stringify({ actionKey }),
   })
 }
+
+export async function generateRecipeFromModel(ingredients) {
+  return await req('/api/recipes/generate', {
+    method: 'POST',
+    body: JSON.stringify({ ingredients }),
+  })
+}

@@ -65,13 +65,15 @@
                 <button
                   class="recipe-action"
                   type="button"
-                  :disabled="!canGenerateRecipe"
+                  :disabled="!canGenerateRecipe || recipeLoading"
                   @click="generateRecipe"
                 >
-                  Generate meal idea
+                  {{ recipeLoading ? 'Generating...' : 'Generate meal idea' }}
                 </button>
+                <div v-if="recipeError" class="recipe-error">{{ recipeError }}</div>
                 <div v-if="recipe" class="recipe-result">
                   <div class="recipe-result__title">{{ recipe.title }}</div>
+                  <div class="recipe-result__source">{{ recipe.sourceLabel }}</div>
                   <ol>
                     <li v-for="step in recipe.steps" :key="step">{{ step }}</li>
                   </ol>
@@ -101,7 +103,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { getTasks, completeTask } from '../api/features.js'
+import { getTasks, completeTask, generateRecipeFromModel } from '../api/features.js'
 import { PLANT_BASED_INGREDIENTS, generatePlantBasedRecipe } from '../api/recipeGenerator.js'
 // We emit the *resulting* totals so the shell can update immediately
 // without waiting for a separate refresh roundtrip.
@@ -120,6 +122,8 @@ const visibleIngredients = ref([])
 const selectedIngredients = ref([])
 const mealBuilderTaskId = ref(null)
 const recipe = ref(null)
+const recipeLoading = ref(false)
+const recipeError = ref('')
 let ingredientWindow = 0
 let celebrationTimer = 0
 
@@ -175,16 +179,42 @@ function toggleIngredient(ingredient) {
   if (current.includes(ingredient)) {
     selectedIngredients.value = current.filter(item => item !== ingredient)
     recipe.value = null
+    recipeError.value = ''
   } else {
     if (current.length >= 5) return
     selectedIngredients.value = [...current, ingredient]
     recipe.value = null
+    recipeError.value = ''
   }
 }
 
-function generateRecipe() {
+function localRecipe(sourceLabel = 'Template fallback') {
+  return {
+    ...generatePlantBasedRecipe(selectedIngredients.value),
+    sourceLabel,
+  }
+}
+
+async function generateRecipe() {
   if (!canGenerateRecipe.value) return
-  recipe.value = generatePlantBasedRecipe(selectedIngredients.value)
+  recipeLoading.value = true
+  recipeError.value = ''
+  try {
+    const modelRecipe = await generateRecipeFromModel(selectedIngredients.value)
+    recipe.value = {
+      title: modelRecipe?.title || 'Model-generated meal',
+      ingredients: modelRecipe?.ingredients || selectedIngredients.value,
+      steps: Array.isArray(modelRecipe?.steps) && modelRecipe.steps.length
+        ? modelRecipe.steps
+        : String(modelRecipe?.text || '').split('.').map(s => s.trim()).filter(Boolean).map(s => `${s}.`),
+      sourceLabel: 'Transformer model',
+    }
+  } catch (e) {
+    recipe.value = localRecipe()
+    recipeError.value = 'Model API unavailable, showing template fallback.'
+  } finally {
+    recipeLoading.value = false
+  }
 }
 
 async function complete(id, options = {}) {
@@ -196,7 +226,7 @@ async function complete(id, options = {}) {
       return
     }
     if (!recipe.value) {
-      generateRecipe()
+      await generateRecipe()
       return
     }
   }
@@ -391,6 +421,17 @@ watch(() => props.user?.id || props.user?.username || null, () => {
   font-weight: 800;
   color: #fff;
   margin-bottom: 5px;
+}
+.recipe-result__source {
+  font-size: .64rem;
+  color: rgba(148,240,200,.72);
+  margin-bottom: 6px;
+}
+.recipe-error {
+  margin-top: 7px;
+  font-size: .66rem;
+  color: rgba(255,210,120,.9);
+  line-height: 1.35;
 }
 .recipe-result ol {
   margin: 0;
