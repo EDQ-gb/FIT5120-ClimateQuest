@@ -2065,6 +2065,7 @@ app.get("/api/leaderboard", async (req, res, next) => {
         username: row.username,
         displayName: row.display_name || "",
         coins: Number(row.coins || 0),
+        xp: Number(row.xp || 0),
         level: treeLevel,
         streak,
         honors: {
