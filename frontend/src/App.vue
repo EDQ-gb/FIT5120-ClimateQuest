@@ -1,4 +1,5 @@
 <template>
+  <Analytics />
   <!-- ─── ROOT WRAPPER (needed to hold both landing + app pages) ─── -->
   <div class="app-root">
     <!-- ════════════════════════════════════════════════════
@@ -223,6 +224,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { Analytics } from '@vercel/analytics/vue'
 
 import AppSidebar from './components/AppSidebar.vue'
 import AppDashboard from './components/AppDashboard.vue'
