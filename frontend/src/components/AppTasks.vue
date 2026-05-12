@@ -3,7 +3,7 @@
     <div class="row-between mb12">
       <h3 class="page-h3">Daily Green Actions</h3>
       <div class="header-right">
-        <span class="coins-pill">馃獧 {{ coinText }}</span>
+        <span class="coins-pill">🪙 {{ coinText }}</span>
         <span class="sub-text">{{ doneCount }} / {{ tasks.length }} completed</span>
       </div>
     </div>
@@ -11,7 +11,7 @@
 
     <div class="tasks-guide" role="note">
       <strong>Real science, real loot:</strong>
-      each win uses official Aussie carbon math, so your totals mean something 鈥?not just made-up points.
+      each win uses official Aussie carbon math, so your totals mean something — not just made-up points.
       Give a task a minute now, then sprint to My Scene while the win still feels warm.
     </div>
 
@@ -21,10 +21,10 @@
       <transition name="celebrate-pop">
         <div v-if="celebration" class="celebrate-toast">
           <div class="celebrate-firework"></div>
-          <div class="celebrate-title">馃帀 Congratulations!</div>
+          <div class="celebrate-title">🎉 Congratulations!</div>
           <div class="celebrate-text">
             You completed <strong>{{ celebration.title }}</strong> and saved
-            <strong>{{ celebration.co2 }}</strong> g CO鈧?
+            <strong>{{ celebration.co2 }}</strong> g CO₂e
           </div>
         </div>
       </transition>
@@ -106,8 +106,8 @@
     </template>
 
     <div class="info-card">
-      <div class="info-title">馃挕 About these tasks</div>
-      <p class="info-body">Every mission is hooked to real-world CO鈧?vibes (think walk-instead-of-drive 鈮?340 g saved). Numbers come from Australia鈥檚 official emission recipe book 鈥?not fluff. Need tree money? Knock out a few tasks, spin the quiz if it is open, then spoil your map.</p>
+      <div class="info-title">💡 About these tasks</div>
+      <p class="info-body">Every mission is hooked to real-world CO₂e vibes (think walk-instead-of-drive ≈ 340 g saved). Numbers come from Australia's official emission recipe book — not fluff. Need tree money? Knock out a few tasks, spin the quiz if it is open, then spoil your map.</p>
     </div>
   </div>
 </template>

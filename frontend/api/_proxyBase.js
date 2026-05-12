@@ -20,9 +20,10 @@ function getTailAndQuery(req, prefix) {
   return { tail, qs: qs ? `?${qs}` : '' }
 }
 
-export async function proxyWithPrefix(req, res, prefix) {
+export async function proxyWithPrefix(req, res, prefix, backendBaseOverride) {
   try {
-    if (!BACKEND_BASE) {
+    const base = backendBaseOverride ?? BACKEND_BASE
+    if (!base) {
       res.statusCode = 500
       res.setHeader('content-type', 'application/json')
       res.end(JSON.stringify({ error: 'MISSING_BACKEND_BASE' }))
@@ -30,7 +31,7 @@ export async function proxyWithPrefix(req, res, prefix) {
     }
 
     const { tail, qs } = getTailAndQuery(req, prefix)
-    const url = `${BACKEND_BASE}/api/${prefix}${tail ? `/${tail}` : ''}${qs}`
+    const url = `${base.replace(/\/$/, '')}/api/${prefix}${tail ? `/${tail}` : ''}${qs}`
 
     const headers = {}
     for (const [k, v] of Object.entries(req.headers || {})) {

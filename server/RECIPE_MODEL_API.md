@@ -40,3 +40,11 @@ If `RECIPE_PYTHON` is not set, the server tries `python` from PATH.
 ## Frontend Fallback
 
 The Tasks UI first calls the model API. If the model API is unavailable, it falls back to the lightweight frontend template generator and labels the output as `Template fallback`.
+
+## Vercel
+
+When the site is deployed with **Root Directory = `frontend`**, `/api/recipes/*` must be implemented as a serverless proxy (see `frontend/api/recipes/[...path].js`). Set **`BACKEND_BASE`** (same as other API routes) so requests forward to your Node server; that server must have Python + PyTorch and the checkpoint available.
+
+If the main Render app does **not** run the recipe model, deploy a backend that does and set **`RECIPE_BACKEND_BASE`** on Vercel to that URL only for recipe routes.
+
+Recipe inference can exceed default function timeouts; the recipes proxy sets **`maxDuration`**: upgrade the Vercel plan if requests still time out.
