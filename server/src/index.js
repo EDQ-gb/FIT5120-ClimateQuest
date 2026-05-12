@@ -393,7 +393,11 @@ function runRecipeModel(ingredients) {
       clearTimeout(timer);
       if (code !== 0) {
         const err = new Error("RECIPE_MODEL_FAILED");
-        err.detail = stderr || stdout;
+        const tail = (stderr || stdout || "").trim();
+        err.detail = tail
+          ? tail.slice(0, 1200)
+          : `Python 进程退出码 ${code}，且 stderr/stdout 为空（可能被宿主杀掉或启动即崩溃）。`;
+        err.exitCode = code;
         reject(err);
         return;
       }
@@ -401,7 +405,10 @@ function runRecipeModel(ingredients) {
         resolve(JSON.parse(stdout.trim()));
       } catch {
         const err = new Error("RECIPE_MODEL_FAILED");
-        err.detail = stdout.slice(0, 800);
+        const out = stdout.trim();
+        err.detail =
+          (stderr && stderr.trim()) ||
+          (out ? `stdout 非合法 JSON（前 400 字）：${out.slice(0, 400)}` : "stdout 为空，无法解析 JSON");
         reject(err);
       }
     });
@@ -1213,11 +1220,14 @@ app.post("/api/recipes/generate", async (req, res, next) => {
         code === "ENOENT"
           ? "找不到 python 可执行文件。请在 Render 设置 RECIPE_PYTHON 为带 torch 的 Python 绝对路径。"
           : "模型不可用。详见 server/RECIPE_MODEL_API.md。";
+      const exitCode =
+        e?.exitCode != null && Number.isFinite(Number(e.exitCode)) ? Number(e.exitCode) : undefined;
       return res.status(503).json({
         error: "RECIPE_MODEL_UNAVAILABLE",
         reason: msg,
         hint: hints[msg] || hintDefault,
         ...(detailSnippet ? { detail: detailSnippet } : {}),
+        ...(exitCode != null ? { exitCode } : {}),
       });
     }
     next(e);

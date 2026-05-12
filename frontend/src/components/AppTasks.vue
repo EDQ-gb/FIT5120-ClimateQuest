@@ -242,9 +242,10 @@ async function generateRecipe() {
     recipe.value = localRecipe()
     const hint = e?.hint || e?.reason
     const detail = e?.detail ? String(e.detail) : ''
+    const exitPart = e?.exitCode != null ? `（退出码 ${e.exitCode}）` : ''
     const detailSuffix = detail ? ` 详情：${detail}` : ''
     recipeError.value = hint
-      ? `模型服务不可用（${e.status || '?'}）：${hint}${detailSuffix}`
+      ? `模型服务不可用（${e.status || '?'}）${exitPart}：${hint}${detailSuffix}`
       : 'Model API unavailable, showing template fallback.'
   } finally {
     recipeLoading.value = false

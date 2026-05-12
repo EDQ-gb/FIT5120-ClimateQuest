@@ -381,6 +381,7 @@ export async function generateRecipeFromModel(ingredients) {
     err.reason = data?.reason
     err.hint = data?.hint
     err.detail = data?.detail
+    err.exitCode = data?.exitCode
     throw err
   }
   return data

@@ -78,9 +78,12 @@ Render’s default Node image usually **does not** include PyTorch or your `.pt`
 说明 Python 已经启动，但进程**非零退出**或**标准输出不是合法 JSON**。请按顺序排查：
 
 1. **响应体里的 `detail`**（若有）：为截取后的 **stderr**，常见内容如 `No module named 'torch'`、`CUDA out of memory`、版本不兼容等。  
-2. **Render 控制台 → 你的 Web Service →「日志」**：查看同一时间段的完整报错。  
-3. 确认 **`RECIPE_PYTHON`** 指向的 Python 已执行过 `pip install torch`（且与 CPU/GPU 版本一致；Render 免费实例一般为 **CPU 版 torch**）。  
-4. 确认 **`RECIPE_CHECKPOINT`** 与当前 `recipe_model_infer.py` 的模型结构一致（同一训练管线导出的 `.pt`）。
+2. **`exitCode`**（若有）：非 0 表示进程异常结束；若 `detail` 说明「退出码且 stderr 为空」，多为实例内存不足被系统终止，请到 Render **「日志」**查看。  
+3. **Render 控制台 → 你的 Web Service →「日志」**：查看同一时间段的完整报错。  
+4. 确认 **`RECIPE_PYTHON`** 指向的 Python 已执行过 `pip install torch`（且与 CPU/GPU 版本一致；Render 免费实例一般为 **CPU 版 torch**）。  
+5. 确认 **`RECIPE_CHECKPOINT`** 与当前 `recipe_model_infer.py` 的模型结构一致（同一训练管线导出的 `.pt`）。
+
+若 **`hint` 仍是英文**且没有 **`detail`** 字段，说明线上跑的还是**旧版 Node 代码**，请在 Render 上重新部署包含最新 `server/src/index.js` 的提交。
 
 
 The Tasks UI first calls the model API. If the model API is unavailable (network error or 503), it falls back to the lightweight frontend template generator and labels the output as `Template fallback`.
