@@ -368,8 +368,20 @@ export async function logQuickAction(actionKey) {
 }
 
 export async function generateRecipeFromModel(ingredients) {
-  return await req('/api/recipes/generate', {
+  const res = await fetch('/api/recipes/generate', {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ ingredients }),
   })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const err = new Error(data?.error || `HTTP_${res.status}`)
+    err.status = res.status
+    err.reason = data?.reason
+    err.hint = data?.hint
+    err.detail = data?.detail
+    throw err
+  }
+  return data
 }

@@ -54,8 +54,33 @@ Render’s default Node image usually **does not** include PyTorch or your `.pt`
 - Set **`RECIPE_CHECKPOINT`** to an **absolute path** on the instance where the weight file actually exists (do not rely on a relative path if your deploy root omits `AI Development/`).
 - If inference is intentionally off, set **`RECIPE_MODEL_DISABLED=1`**; the API returns **503** with `RECIPE_MODEL_UNAVAILABLE` and the Tasks UI uses the template fallback.
 
-When setup is wrong (missing script or checkpoint), the server returns **503** with `reason: RECIPE_MODEL_SETUP_INCOMPLETE` so you can see it in the browser Network tab.
+### 查看 503 / 错误响应（浏览器为中文界面时）
 
-## Frontend Fallback
+部署后的页面上，生成菜谱失败时也会用红字显示服务端返回的 **`hint`**。若要在开发者工具里核对 JSON：
+
+**Chrome / Microsoft Edge（界面语言为简体中文）**
+
+1. 按 **`F12`**，或 **`Ctrl + Shift + I`**（Mac：**`Cmd + Option + I`**）打开**开发者工具**。  
+2. 点击顶部的 **「网络」**（若界面为英文则为 **Network**）。  
+3. 建议勾选 **「保留日志」**，再在页面里点一次「生成菜谱」，避免请求被刷新冲掉。  
+4. 在下方请求列表里找到 **`recipes`** / **`generate`** 或 URL 含 **`/api/recipes/generate`** 的那一条，单击选中。  
+5. 在右侧找到 **「响应」** 或 **「预览」**（英文界面为 **Response** / **Preview**），即可看到 JSON 中的 **`error`**、**`reason`**、**`hint`**。
+
+**Mozilla Firefox（简体中文）**
+
+1. **`Ctrl + Shift + E`**（Mac：**`Cmd + Option + E`**）打开**网络**，或菜单 **「工具」→「浏览器工具」→「网络」**。  
+2. 选中对应请求，在详情中查看 **「响应」**。
+
+当脚本或权重缺失时，常见为 **`reason`: `RECIPE_MODEL_SETUP_INCOMPLETE`**，请对照上文 Render 环境变量与路径配置。
+
+### `reason` 为 `RECIPE_MODEL_FAILED` 时
+
+说明 Python 已经启动，但进程**非零退出**或**标准输出不是合法 JSON**。请按顺序排查：
+
+1. **响应体里的 `detail`**（若有）：为截取后的 **stderr**，常见内容如 `No module named 'torch'`、`CUDA out of memory`、版本不兼容等。  
+2. **Render 控制台 → 你的 Web Service →「日志」**：查看同一时间段的完整报错。  
+3. 确认 **`RECIPE_PYTHON`** 指向的 Python 已执行过 `pip install torch`（且与 CPU/GPU 版本一致；Render 免费实例一般为 **CPU 版 torch**）。  
+4. 确认 **`RECIPE_CHECKPOINT`** 与当前 `recipe_model_infer.py` 的模型结构一致（同一训练管线导出的 `.pt`）。
+
 
 The Tasks UI first calls the model API. If the model API is unavailable (network error or 503), it falls back to the lightweight frontend template generator and labels the output as `Template fallback`.

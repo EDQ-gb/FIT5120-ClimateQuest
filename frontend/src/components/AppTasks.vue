@@ -240,7 +240,12 @@ async function generateRecipe() {
     }
   } catch (e) {
     recipe.value = localRecipe()
-    recipeError.value = 'Model API unavailable, showing template fallback.'
+    const hint = e?.hint || e?.reason
+    const detail = e?.detail ? String(e.detail) : ''
+    const detailSuffix = detail ? ` 详情：${detail}` : ''
+    recipeError.value = hint
+      ? `模型服务不可用（${e.status || '?'}）：${hint}${detailSuffix}`
+      : 'Model API unavailable, showing template fallback.'
   } finally {
     recipeLoading.value = false
   }
