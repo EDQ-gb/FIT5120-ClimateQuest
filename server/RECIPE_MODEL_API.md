@@ -37,14 +37,25 @@ $env:RECIPE_MODEL_TIMEOUT_MS="120000"
 
 If `RECIPE_PYTHON` is not set, the server tries `python` from PATH.
 
-## Frontend Fallback
-
-The Tasks UI first calls the model API. If the model API is unavailable, it falls back to the lightweight frontend template generator and labels the output as `Template fallback`.
-
 ## Vercel
 
-When the site is deployed with **Root Directory = `frontend`**, `/api/recipes/*` must be implemented as a serverless proxy (see `frontend/api/recipes/[...path].js`). Set **`BACKEND_BASE`** (same as other API routes) so requests forward to your Node server; that server must have Python + PyTorch and the checkpoint available.
+When the site is deployed with **Root Directory = `frontend`**:
 
-If the main Render app does **not** run the recipe model, deploy a backend that does and set **`RECIPE_BACKEND_BASE`** on Vercel to that URL only for recipe routes.
+1. **`vercel.json`** must **not** send `/api/recipes/*` straight to Render in a single catch-all, or the `frontend/api/recipes/[...path].js` proxy (with `maxDuration: 120`) may never run and requests can time out. This repo uses a rewrite that excludes `recipes` so `/api/recipes/*` hits the serverless handler first.
+2. Set **`BACKEND_BASE`** to your Render URL (same as other APIs). The handler forwards recipe requests to that Node server, which must run Python + PyTorch and have the checkpoint file on disk.
 
-Recipe inference can exceed default function timeouts; the recipes proxy sets **`maxDuration`**: upgrade the Vercel plan if requests still time out.
+If the main Render app does **not** run the recipe model, deploy a backend that does and set **`RECIPE_BACKEND_BASE`** on Vercel so only recipe traffic goes there.
+
+## Render (production Node)
+
+Render’s default Node image usually **does not** include PyTorch or your `.pt` file unless you add them:
+
+- Set **`RECIPE_PYTHON`** to a Python binary that has **PyTorch** installed (often a custom build or Docker).
+- Set **`RECIPE_CHECKPOINT`** to an **absolute path** on the instance where the weight file actually exists (do not rely on a relative path if your deploy root omits `AI Development/`).
+- If inference is intentionally off, set **`RECIPE_MODEL_DISABLED=1`**; the API returns **503** with `RECIPE_MODEL_UNAVAILABLE` and the Tasks UI uses the template fallback.
+
+When setup is wrong (missing script or checkpoint), the server returns **503** with `reason: RECIPE_MODEL_SETUP_INCOMPLETE` so you can see it in the browser Network tab.
+
+## Frontend Fallback
+
+The Tasks UI first calls the model API. If the model API is unavailable (network error or 503), it falls back to the lightweight frontend template generator and labels the output as `Template fallback`.

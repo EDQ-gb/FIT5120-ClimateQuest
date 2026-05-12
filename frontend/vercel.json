@@ -1,7 +1,7 @@
 {
   "rewrites": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/((?!recipes(?:/|$)).*)",
       "destination": "https://fit5120-climatequest.onrender.com/api/$1"
     },
     { "source": "/front.html", "destination": "/index.html" },

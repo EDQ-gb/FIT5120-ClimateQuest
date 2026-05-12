@@ -328,21 +328,33 @@ function clampInt(n, lo, hi) {
 }
 
 function runRecipeModel(ingredients) {
+  if (String(process.env.RECIPE_MODEL_DISABLED || "").trim() === "1") {
+    return Promise.reject(new Error("RECIPE_MODEL_DISABLED"));
+  }
+
+  const pythonExe = process.env.RECIPE_PYTHON || process.env.PYTHON || "python";
+  const scriptPath =
+    process.env.RECIPE_MODEL_SCRIPT ||
+    path.join(__dirname, "recipe_model_infer.py");
+  const checkpointPath =
+    process.env.RECIPE_CHECKPOINT ||
+    path.join(
+      __dirname,
+      "..",
+      "..",
+      "AI Development",
+      "Cooking_Dataset",
+      "best_transformer_copy_v2.pt"
+    );
+
+  if (!fs.existsSync(scriptPath)) {
+    return Promise.reject(new Error("RECIPE_MODEL_SETUP_INCOMPLETE"));
+  }
+  if (!fs.existsSync(checkpointPath)) {
+    return Promise.reject(new Error("RECIPE_MODEL_SETUP_INCOMPLETE"));
+  }
+
   return new Promise((resolve, reject) => {
-    const pythonExe = process.env.RECIPE_PYTHON || process.env.PYTHON || "python";
-    const scriptPath =
-      process.env.RECIPE_MODEL_SCRIPT ||
-      path.join(__dirname, "recipe_model_infer.py");
-    const checkpointPath =
-      process.env.RECIPE_CHECKPOINT ||
-      path.join(
-        __dirname,
-        "..",
-        "..",
-        "AI Development",
-        "Cooking_Dataset",
-        "best_transformer_copy_v2.pt"
-      );
     const child = spawn(
       pythonExe,
       [
@@ -372,7 +384,10 @@ function runRecipeModel(ingredients) {
     });
     child.on("error", (err) => {
       clearTimeout(timer);
-      reject(err);
+      const wrap = new Error("RECIPE_MODEL_FAILED");
+      wrap.cause = err;
+      wrap.detail = err && err.message ? String(err.message) : "";
+      reject(wrap);
     });
     child.on("close", (code) => {
       clearTimeout(timer);
@@ -384,9 +399,10 @@ function runRecipeModel(ingredients) {
       }
       try {
         resolve(JSON.parse(stdout.trim()));
-      } catch (e) {
-        e.detail = stdout;
-        reject(e);
+      } catch {
+        const err = new Error("RECIPE_MODEL_FAILED");
+        err.detail = stdout.slice(0, 800);
+        reject(err);
       }
     });
   });
@@ -1162,6 +1178,31 @@ app.post("/api/recipes/generate", async (req, res, next) => {
     const result = await runRecipeModel(ingredients);
     res.json(result);
   } catch (e) {
+    const msg = String(e?.message || e);
+    const code = e?.code;
+    const modelDown =
+      msg === "RECIPE_MODEL_DISABLED" ||
+      msg === "RECIPE_MODEL_TIMEOUT" ||
+      msg === "RECIPE_MODEL_FAILED" ||
+      msg === "RECIPE_MODEL_SETUP_INCOMPLETE" ||
+      code === "ENOENT";
+    if (modelDown) {
+      // eslint-disable-next-line no-console
+      console.error({
+        route: "POST /api/recipes/generate",
+        code: msg,
+        errno: code,
+        detail: e?.detail ? String(e.detail).slice(0, 500) : undefined,
+      });
+      return res.status(503).json({
+        error: "RECIPE_MODEL_UNAVAILABLE",
+        reason: msg,
+        hint:
+          msg === "RECIPE_MODEL_SETUP_INCOMPLETE"
+            ? "Server is missing recipe_model_infer.py or the .pt checkpoint. On Render set RECIPE_CHECKPOINT to an absolute path and RECIPE_PYTHON to a Python that has PyTorch installed."
+            : "Python inference failed or is not installed on this host. See server/RECIPE_MODEL_API.md.",
+      });
+    }
     next(e);
   }
 });
