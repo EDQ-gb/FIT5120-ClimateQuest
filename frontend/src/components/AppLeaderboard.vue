@@ -17,7 +17,7 @@
     <div v-else-if="board.length === 0" class="glass-card center-pad">
       <div style="font-size:2.2rem;margin-bottom:12px;">🌱</div>
       <div class="fw7 white">Be the first on the board!</div>
-      <div class="sub-text mt8">Plant trees in My Scene to climb the board. XP shown is your account experience.<br>If it stays quiet, double-check your connection — the scoreboard loves good Wi-Fi.</div>
+      <div class="sub-text mt8">Plant trees in My Scene to climb the board. The number on each row is your tree count — the same value used for ranking.<br>If it stays quiet, double-check your connection — the scoreboard loves good Wi-Fi.</div>
     </div>
 
     <template v-else>
@@ -84,7 +84,7 @@
           </div>
           <span class="badge" style="font-size:.7rem;">Lv {{ u.level || 1 }}</span>
           <span class="cyan text-sm" style="min-width:58px;text-align:right;">🔥 {{ u.streak || 0 }}d</span>
-          <span class="cyan fw7 text-sm" style="min-width:88px;text-align:right;" title="Experience points">⭐ {{ (u.xp || 0).toLocaleString() }} XP</span>
+          <span class="fw7 text-sm lb-tree-col" title="Trees planted in My Scene">🌳 {{ (u.trees || 0).toLocaleString() }}</span>
         </div>
       </div>
 
@@ -98,10 +98,9 @@
     <div class="info-card mt20">
       <div class="info-title gold">🏆 How to climb the board</div>
       <p class="sub-text">
-        The list is ordered by <strong>trees planted</strong> in My Scene (then coins and XP as tie-breakers). The
-        number on the right is your <strong>experience (XP)</strong>, not coins. Complete tasks, check-ins, and the
-        quiz to earn XP. Badges below appear next to names for everyone on this list. Only public profiles are ranked
-        here.
+        The list is ordered by <strong>trees planted</strong> in My Scene. The number on the right is that same tree
+        count. Ties are broken on the server using coins, then other stored stats. Badges below appear next to names for
+        everyone on this list. Only public profiles are ranked here.
       </p>
 
       <div class="legend-divider" />
@@ -356,6 +355,13 @@ watch(
 
 .text-sm {
   font-size: .88rem;
+}
+
+.lb-tree-col {
+  min-width: 72px;
+  text-align: right;
+  flex-shrink: 0;
+  color: #6ee7b7;
 }
 
 .glass-card {
