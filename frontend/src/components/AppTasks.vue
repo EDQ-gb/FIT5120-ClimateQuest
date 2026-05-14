@@ -208,7 +208,7 @@
             </div>
           </div>
           <button class="act-btn" :class="task.completed ? 'done' : 'todo'"
-                  :disabled="task.completed || completing===task.id || ((isRecycleTask(task) || isClimateArticleTask(task) || isStandbyTask(task) || isProduceTask(task)) && !aiState(task.id).verified)"
+                  :disabled="task.completed || completing===task.id || (isAiVisionTask(task) && !aiState(task.id).verified)"
                   @click="complete(task.id)">
             <div v-if="completing===task.id" class="spin sm"></div>
             <span v-else>{{ actionLabel(task) }}</span>
@@ -541,11 +541,7 @@ function normalizeTask(task) {
 function actionLabel(task) {
   if (task.completed) return 'Done'
   if (isAiVisionTask(task)) {
-    if (isRecycleTask(task)) return aiState(task.id).verified ? 'Complete task' : 'Verify both photos'
-    if (isClimateArticleTask(task)) return aiState(task.id).verified ? 'Complete task' : 'Analyze article first'
-    if (isStandbyTask(task)) return aiState(task.id).verified ? 'Complete task' : 'Verify off-state first'
-    if (isProduceTask(task)) return aiState(task.id).verified ? 'Complete task' : 'Detect produce first'
-    return aiState(task.id).verified ? 'Complete task' : 'AI verify first'
+    return 'Complete task'
   }
   if (!isPlantMealTask(task)) return 'Complete'
   if (mealBuilderTaskId.value !== task.id) return 'Choose ingredients'

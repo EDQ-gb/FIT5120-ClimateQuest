@@ -1,7 +1,7 @@
 const AI_TASK_TARGETS = {
   1: {
-    labels: ['bicycle'],
-    hint: 'Upload a photo containing a bicycle.',
+    labels: ['person', 'bicycle'],
+    hint: 'Upload a photo containing a walking person (or bicycle).',
   },
   2: {
     labels: ['bus', 'train'],
