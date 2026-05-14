@@ -69,13 +69,15 @@
                       </span>
                     </div>
                     <label class="vision-upload">
-                      <span>Upload bin photo</span>
                       <input
+                        class="vision-upload__input"
                         type="file"
                         accept="image/*"
                         :disabled="task.completed || aiState(task.id).recycle.bin.analyzing || completing===task.id"
                         @change="onRecycleBinFileChange(task, $event)"
                       />
+                      <span class="vision-upload__btn">Upload bin photo</span>
+                      <span class="vision-upload__name">{{ aiState(task.id).recycle.bin.fileName || 'No file selected' }}</span>
                     </label>
                     <div v-if="aiState(task.id).recycle.bin.previewUrl" class="vision-preview-wrap">
                       <img class="vision-preview" :src="aiState(task.id).recycle.bin.previewUrl" :alt="`${task.title} bin proof`" />
@@ -93,13 +95,15 @@
                       </span>
                     </div>
                     <label class="vision-upload">
-                      <span>Upload recyclable photo</span>
                       <input
+                        class="vision-upload__input"
                         type="file"
                         accept="image/*"
                         :disabled="task.completed || aiState(task.id).recycle.item.analyzing || completing===task.id"
                         @change="onRecycleItemFileChange(task, $event)"
                       />
+                      <span class="vision-upload__btn">Upload recyclable photo</span>
+                      <span class="vision-upload__name">{{ aiState(task.id).recycle.item.fileName || 'No file selected' }}</span>
                     </label>
                     <div v-if="aiState(task.id).recycle.item.previewUrl" class="vision-preview-wrap">
                       <img class="vision-preview" :src="aiState(task.id).recycle.item.previewUrl" :alt="`${task.title} recyclable proof`" />
@@ -123,13 +127,15 @@
                 </div>
                 <template v-else>
                   <label class="vision-upload">
-                    <span>Upload photo</span>
                     <input
+                      class="vision-upload__input"
                       type="file"
                       accept="image/*"
                       :disabled="task.completed || aiState(task.id).analyzing || completing===task.id"
                       @change="onAiFileChange(task, $event)"
                     />
+                    <span class="vision-upload__btn">Upload photo</span>
+                    <span class="vision-upload__name">{{ aiState(task.id).fileName || 'No file selected' }}</span>
                   </label>
                   <div v-if="aiState(task.id).previewUrl" class="vision-preview-wrap">
                     <img class="vision-preview" :src="aiState(task.id).previewUrl" :alt="`${task.title} evidence`" />
@@ -308,6 +314,7 @@ function createAiState() {
     matchedScore: 0,
     predictions: [],
     previewUrl: '',
+    fileName: '',
     message: '',
     error: '',
     matchedKeywords: [],
@@ -318,6 +325,7 @@ function createAiState() {
         analyzing: false,
         verified: false,
         previewUrl: '',
+        fileName: '',
         message: '',
         error: '',
         yellowRatio: 0,
@@ -326,6 +334,7 @@ function createAiState() {
         analyzing: false,
         verified: false,
         previewUrl: '',
+        fileName: '',
         predictions: [],
         matchedLabel: '',
         matchedScore: 0,
@@ -376,6 +385,7 @@ async function onAiFileChange(task, event) {
   const state = getAiState(id)
   clearAiPreview(state)
   state.previewUrl = URL.createObjectURL(file)
+  state.fileName = String(file?.name || '')
   state.analyzing = true
   state.verified = false
   state.matchedLabel = ''
@@ -457,6 +467,7 @@ async function onRecycleBinFileChange(task, event) {
   const binState = state.recycle.bin
   if (binState.previewUrl) URL.revokeObjectURL(binState.previewUrl)
   binState.previewUrl = URL.createObjectURL(file)
+  binState.fileName = String(file?.name || '')
   binState.analyzing = true
   binState.verified = false
   binState.message = ''
@@ -488,6 +499,7 @@ async function onRecycleItemFileChange(task, event) {
   const itemState = state.recycle.item
   if (itemState.previewUrl) URL.revokeObjectURL(itemState.previewUrl)
   itemState.previewUrl = URL.createObjectURL(file)
+  itemState.fileName = String(file?.name || '')
   itemState.analyzing = true
   itemState.verified = false
   itemState.predictions = []
@@ -752,6 +764,7 @@ watch(() => props.user?.id || props.user?.username || null, () => {
   min-width:0;
   display:flex;
   flex-direction:column;
+  height: 132px;
 }
 .task-media--tint-energy-tip {
   /* energy-saving infographic — pale green field */
@@ -772,7 +785,14 @@ watch(() => props.user?.id || props.user?.username || null, () => {
   background:rgba(255,255,255,0.12);
   font-size:2rem;
 }
-.task-card-img { width:100%; height:100%; object-fit:cover; object-position:center; display:block; }
+.task-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+  background: rgba(0, 0, 0, 0.16);
+}
 .task-card-img--contain { object-fit:contain; }
 .task-icon-fallback { line-height:1; }
 .task-main { display:flex; flex-direction:column; gap:8px; }
@@ -788,6 +808,7 @@ watch(() => props.user?.id || props.user?.username || null, () => {
   border: 1px solid rgba(0, 242, 255, 0.2);
   border-radius: 10px;
   background: rgba(0, 242, 255, 0.06);
+  overflow: hidden;
 }
 .vision-helper__head {
   display: flex;
@@ -851,29 +872,53 @@ watch(() => props.user?.id || props.user?.username || null, () => {
   background: rgba(82,212,150,.12);
 }
 .vision-upload {
-  display: inline-flex;
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
-  font-size: .66rem;
-  color: rgba(255,255,255,.75);
+  gap: 7px;
+  width: 100%;
+  font-size: .64rem;
+  color: rgba(255,255,255,.7);
   border: 1px solid rgba(255,255,255,.16);
-  border-radius: 999px;
-  padding: 4px 9px;
+  border-radius: 10px;
+  padding: 6px 8px;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.vision-upload__input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
   cursor: pointer;
 }
-.vision-upload input[type="file"] {
-  max-width: 140px;
-  font-size: .6rem;
+.vision-upload__btn {
+  border: 1px solid rgba(0,242,255,.24);
+  background: rgba(0,242,255,.12);
+  color: rgba(159,248,255,.96);
+  border-radius: 999px;
+  font-size: .62rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+.vision-upload__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(255,255,255,.65);
 }
 .vision-preview-wrap {
   margin-top: 8px;
 }
 .vision-preview {
   width: 100%;
-  max-height: 92px;
-  object-fit: cover;
+  height: 96px;
+  object-fit: contain;
   border-radius: 8px;
   border: 1px solid rgba(255,255,255,.16);
+  background: rgba(0, 0, 0, 0.18);
 }
 .vision-note {
   margin-top: 8px;
