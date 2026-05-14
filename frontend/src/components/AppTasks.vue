@@ -52,6 +52,38 @@
                 <span class="badge">{{ task.cat }}</span>
               </div>
               <div class="task-desc">{{ task.desc }}</div>
+              <section v-if="isAiVisionTask(task)" class="vision-helper" aria-label="AI image verification">
+                <div class="vision-helper__head">
+                  <span class="vision-helper__title">AI image verification</span>
+                  <span class="vision-helper__status" :class="{ ok: aiState(task.id).verified }">
+                    {{ aiState(task.id).verified ? 'AI verified' : 'Awaiting proof' }}
+                  </span>
+                </div>
+                <div class="vision-helper__hint">{{ aiHint(task) }}</div>
+                <label class="vision-upload">
+                  <span>Upload photo</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    :disabled="task.completed || aiState(task.id).analyzing || completing===task.id"
+                    @change="onAiFileChange(task, $event)"
+                  />
+                </label>
+                <div v-if="aiState(task.id).previewUrl" class="vision-preview-wrap">
+                  <img class="vision-preview" :src="aiState(task.id).previewUrl" :alt="`${task.title} evidence`" />
+                </div>
+                <div v-if="aiState(task.id).analyzing" class="vision-note">AI is analysing your image...</div>
+                <div v-else-if="aiState(task.id).matchedLabel" class="vision-note">
+                  Detected: {{ aiState(task.id).matchedLabel }} ({{ formatConfidence(aiState(task.id).matchedScore) }})
+                </div>
+                <div v-if="aiState(task.id).predictions.length" class="vision-preds">
+                  <span v-for="pred in aiState(task.id).predictions.slice(0, 3)" :key="`${task.id}-${pred.label}`" class="vision-pill">
+                    {{ pred.label }} {{ formatConfidence(pred.score) }}
+                  </span>
+                </div>
+                <div v-if="aiState(task.id).message" class="vision-ok">{{ aiState(task.id).message }}</div>
+                <div v-if="aiState(task.id).error" class="vision-error">{{ aiState(task.id).error }}</div>
+              </section>
               <section v-if="isPlantMealTask(task) && mealBuilderTaskId === task.id" class="recipe-helper" aria-label="Light emission meal helper">
                 <div class="recipe-helper__head">
                   <span class="recipe-helper__title">Choose 3-5 ingredients</span>
@@ -113,7 +145,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { getTasks, completeTask, generateRecipeFromModel } from '../api/features.js'
 import {
   getBalancedIngredientBatch,
@@ -127,6 +159,11 @@ import {
   taskCardUsesContainFit,
   taskCardMediaTintClass,
 } from '../utils/taskCardImages.js'
+import {
+  aiTaskHint,
+  isAiVisionTask as isAiVisionTaskId,
+  verifyTaskImage,
+} from '../api/imageRecognition.js'
 // We emit the *resulting* totals so the shell can update immediately
 // without waiting for a separate refresh roundtrip.
 const emit = defineEmits(['coins-updated'])
@@ -145,6 +182,7 @@ const mealBuilderTaskId = ref(null)
 const recipe = ref(null)
 const recipeLoading = ref(false)
 const recipeError = ref('')
+const aiChecks = ref({})
 let ingredientWindow = 0
 let celebrationTimer = 0
 
@@ -163,6 +201,86 @@ function isPlantMealTask(task) {
   return Number(task?.id) === 5 || String(task?.title || '').toLowerCase() === 'light emission meal'
 }
 
+function isAiVisionTask(task) {
+  return isAiVisionTaskId(Number(task?.id))
+}
+
+function createAiState() {
+  return {
+    analyzing: false,
+    verified: false,
+    matchedLabel: '',
+    matchedScore: 0,
+    predictions: [],
+    previewUrl: '',
+    message: '',
+    error: '',
+  }
+}
+
+function getAiState(taskId) {
+  const id = Number(taskId)
+  if (!aiChecks.value[id]) aiChecks.value[id] = createAiState()
+  return aiChecks.value[id]
+}
+
+function aiState(taskId) {
+  return getAiState(taskId)
+}
+
+function clearAiPreview(state) {
+  if (state?.previewUrl) URL.revokeObjectURL(state.previewUrl)
+}
+
+function resetAiStates() {
+  Object.values(aiChecks.value).forEach((state) => clearAiPreview(state))
+  aiChecks.value = {}
+}
+
+function aiHint(task) {
+  return aiTaskHint(task?.id) || 'Upload a photo as proof for AI verification.'
+}
+
+function formatConfidence(score) {
+  return `${Math.round(Number(score || 0) * 100)}%`
+}
+
+async function onAiFileChange(task, event) {
+  const id = Number(task?.id)
+  const file = event?.target?.files?.[0]
+  if (!file || !isAiVisionTaskId(id)) return
+
+  const state = getAiState(id)
+  clearAiPreview(state)
+  state.previewUrl = URL.createObjectURL(file)
+  state.analyzing = true
+  state.verified = false
+  state.matchedLabel = ''
+  state.matchedScore = 0
+  state.predictions = []
+  state.message = ''
+  state.error = ''
+
+  try {
+    const result = await verifyTaskImage(id, file, { minScore: 0.45 })
+    state.predictions = result.predictions || []
+    state.verified = Boolean(result?.match?.verified)
+    state.matchedLabel = result?.match?.matchedLabel || ''
+    state.matchedScore = Number(result?.match?.matchedScore || 0)
+    if (state.verified) {
+      state.message = `AI verified: detected ${state.matchedLabel} (${formatConfidence(state.matchedScore)}).`
+    } else {
+      const target = (result?.match?.expectedLabels || []).join(' / ')
+      state.error = `No matching object found. Expected: ${target || 'target object'}.`
+    }
+  } catch (e) {
+    state.error = `AI detection failed: ${String(e?.message || 'Unknown error')}`
+  } finally {
+    state.analyzing = false
+    if (event?.target) event.target.value = ''
+  }
+}
+
 function normalizeTask(task) {
   if (Number(task?.id) !== 5) return task
   return {
@@ -174,6 +292,9 @@ function normalizeTask(task) {
 
 function actionLabel(task) {
   if (task.completed) return 'Done'
+  if (isAiVisionTask(task)) {
+    return aiState(task.id).verified ? 'Complete task' : 'AI verify first'
+  }
   if (!isPlantMealTask(task)) return 'Complete'
   if (mealBuilderTaskId.value !== task.id) return 'Choose ingredients'
   return recipe.value ? 'Complete task' : 'Pick ingredients'
@@ -265,11 +386,23 @@ async function complete(id, options = {}) {
       return
     }
   }
+  if (isAiVisionTask(task) && !options.forceAi) {
+    const state = getAiState(id)
+    if (!state.verified) {
+      state.error = 'Please upload an image and pass AI verification first.'
+      return
+    }
+  }
   completing.value = id
   try {
     const res = await completeTask(id)
     if (!res?.error) {
       tasks.value = tasks.value.map(t => t.id===id ? {...t, completed:true} : t)
+      if (isAiVisionTask(task)) {
+        const state = getAiState(id)
+        state.message = 'AI verified and task completed.'
+        state.error = ''
+      }
       const completedTask = tasks.value.find(t => t.id === id)
       triggerCelebration(completedTask, res)
       emit('coins-updated', {
@@ -305,8 +438,14 @@ async function loadTasks() {
 
 onMounted(loadTasks)
 
+onUnmounted(() => {
+  clearTimeout(celebrationTimer)
+  resetAiStates()
+})
+
 watch(() => props.user?.id || props.user?.username || null, () => {
   tasks.value = []
+  resetAiStates()
   loadTasks()
 })
 </script>
@@ -390,6 +529,97 @@ watch(() => props.user?.id || props.user?.username || null, () => {
 .badge      { font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7); }
 .badge.gold { background:rgba(244,196,48,0.15);color:#f4c430; }
 .badge.cyan { background:rgba(0,242,255,0.10);color:#00f2ff; }
+.vision-helper {
+  margin-top: 4px;
+  padding: 10px;
+  border: 1px solid rgba(0, 242, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(0, 242, 255, 0.06);
+}
+.vision-helper__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+.vision-helper__title {
+  font-size: .72rem;
+  font-weight: 800;
+  color: rgba(165, 247, 255, .95);
+}
+.vision-helper__status {
+  font-size: .62rem;
+  border-radius: 999px;
+  padding: 2px 8px;
+  border: 1px solid rgba(255, 255, 255, .15);
+  color: rgba(255, 255, 255, .64);
+}
+.vision-helper__status.ok {
+  color: #9df7cf;
+  border-color: rgba(82, 212, 150, .35);
+  background: rgba(82, 212, 150, .12);
+}
+.vision-helper__hint {
+  font-size: .66rem;
+  color: rgba(255, 255, 255, .52);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+.vision-upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .66rem;
+  color: rgba(255,255,255,.75);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 999px;
+  padding: 4px 9px;
+  cursor: pointer;
+}
+.vision-upload input[type="file"] {
+  max-width: 140px;
+  font-size: .6rem;
+}
+.vision-preview-wrap {
+  margin-top: 8px;
+}
+.vision-preview {
+  width: 100%;
+  max-height: 92px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.16);
+}
+.vision-note {
+  margin-top: 8px;
+  font-size: .66rem;
+  color: rgba(255,255,255,.72);
+}
+.vision-preds {
+  margin-top: 7px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.vision-pill {
+  font-size: .62rem;
+  color: rgba(255,255,255,.72);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+.vision-ok {
+  margin-top: 7px;
+  font-size: .66rem;
+  color: #9df7cf;
+}
+.vision-error {
+  margin-top: 7px;
+  font-size: .66rem;
+  color: #ffd8a8;
+  line-height: 1.35;
+}
 .recipe-helper {
   margin-top: 4px;
   padding: 10px;
