@@ -2,7 +2,7 @@
   <div class="page">
     <div class="row-between mb20">
       <h3 class="page-h3">Top Eco-Champions</h3>
-      <span class="sub-text">Ranked by Climate Action Coins</span>
+      <span class="sub-text">Ranked by trees planted</span>
     </div>
 
     <div v-if="user && user.profilePublic === false" class="privacy-banner">
@@ -17,7 +17,7 @@
     <div v-else-if="board.length === 0" class="glass-card center-pad">
       <div style="font-size:2.2rem;margin-bottom:12px;">🌱</div>
       <div class="fw7 white">Be the first on the board!</div>
-      <div class="sub-text mt8">Rack up coins from tasks and quizzes to light this board up.<br>If it stays quiet, double-check your connection — the scoreboard loves good Wi-Fi.</div>
+      <div class="sub-text mt8">Plant trees in My Scene to climb the board. The number on each row is your tree count — the same value used for ranking.<br>If it stays quiet, double-check your connection — the scoreboard loves good Wi-Fi.</div>
     </div>
 
     <template v-else>
@@ -84,7 +84,7 @@
           </div>
           <span class="badge" style="font-size:.7rem;">Lv {{ u.level || 1 }}</span>
           <span class="cyan text-sm" style="min-width:58px;text-align:right;">🔥 {{ u.streak || 0 }}d</span>
-          <span class="gold fw7 text-sm" style="min-width:80px;text-align:right;">🪙 {{ (u.coins || 0).toLocaleString() }}</span>
+          <span class="fw7 text-sm lb-tree-col" title="Trees planted in My Scene">🌳 {{ (u.trees || 0).toLocaleString() }}</span>
         </div>
       </div>
 
@@ -98,17 +98,17 @@
     <div class="info-card mt20">
       <div class="info-title gold">🏆 How to climb the board</div>
       <p class="sub-text">
-        Complete daily tasks, check in from the home strip, finish the weekly sprint, and answer the quiz for bonus
-        coins. Badges below appear next to names for everyone on this list to see. Only public profiles are ranked
-        here.
+        The list is ordered by <strong>trees planted</strong> in My Scene. The number on the right is that same tree
+        count. Ties are broken on the server using coins, then other stored stats. Badges below appear next to names for
+        everyone on this list. Only public profiles are ranked here.
       </p>
 
       <div class="legend-divider" />
 
       <div class="info-title gold legend-subtitle">✨ Badges &amp; titles</div>
       <p class="sub-text legend-lead">
-        English titles; ties share the same badge. <strong>Activity streak</strong> is the 🔥 day count (tasks,
-        quiz, or check-in each day).
+        English titles; ties share the same badge. Rows are ranked by <strong>trees</strong>. <strong>Activity
+        streak</strong> is the 🔥 day count (tasks, quiz, or check-in each day).
       </p>
 
       <div class="legend-section-label">Leaderboard supremacy</div>
@@ -355,6 +355,13 @@ watch(
 
 .text-sm {
   font-size: .88rem;
+}
+
+.lb-tree-col {
+  min-width: 72px;
+  text-align: right;
+  flex-shrink: 0;
+  color: #6ee7b7;
 }
 
 .glass-card {

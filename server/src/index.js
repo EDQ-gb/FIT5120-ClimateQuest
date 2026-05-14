@@ -328,21 +328,33 @@ function clampInt(n, lo, hi) {
 }
 
 function runRecipeModel(ingredients) {
+  if (String(process.env.RECIPE_MODEL_DISABLED || "").trim() === "1") {
+    return Promise.reject(new Error("RECIPE_MODEL_DISABLED"));
+  }
+
+  const pythonExe = process.env.RECIPE_PYTHON || process.env.PYTHON || "python";
+  const scriptPath =
+    process.env.RECIPE_MODEL_SCRIPT ||
+    path.join(__dirname, "recipe_model_infer.py");
+  const checkpointPath =
+    process.env.RECIPE_CHECKPOINT ||
+    path.join(
+      __dirname,
+      "..",
+      "..",
+      "AI Development",
+      "Cooking_Dataset",
+      "best_transformer_copy_v2.pt"
+    );
+
+  if (!fs.existsSync(scriptPath)) {
+    return Promise.reject(new Error("RECIPE_MODEL_SETUP_INCOMPLETE"));
+  }
+  if (!fs.existsSync(checkpointPath)) {
+    return Promise.reject(new Error("RECIPE_MODEL_SETUP_INCOMPLETE"));
+  }
+
   return new Promise((resolve, reject) => {
-    const pythonExe = process.env.RECIPE_PYTHON || process.env.PYTHON || "python";
-    const scriptPath =
-      process.env.RECIPE_MODEL_SCRIPT ||
-      path.join(__dirname, "recipe_model_infer.py");
-    const checkpointPath =
-      process.env.RECIPE_CHECKPOINT ||
-      path.join(
-        __dirname,
-        "..",
-        "..",
-        "AI Development",
-        "Cooking_Dataset",
-        "best_transformer_copy_v2.pt"
-      );
     const child = spawn(
       pythonExe,
       [
@@ -372,21 +384,32 @@ function runRecipeModel(ingredients) {
     });
     child.on("error", (err) => {
       clearTimeout(timer);
-      reject(err);
+      const wrap = new Error("RECIPE_MODEL_FAILED");
+      wrap.cause = err;
+      wrap.detail = err && err.message ? String(err.message) : "";
+      reject(wrap);
     });
     child.on("close", (code) => {
       clearTimeout(timer);
       if (code !== 0) {
         const err = new Error("RECIPE_MODEL_FAILED");
-        err.detail = stderr || stdout;
+        const tail = (stderr || stdout || "").trim();
+        err.detail = tail
+          ? tail.slice(0, 1200)
+          : `Python 进程退出码 ${code}，且 stderr/stdout 为空（可能被宿主杀掉或启动即崩溃）。`;
+        err.exitCode = code;
         reject(err);
         return;
       }
       try {
         resolve(JSON.parse(stdout.trim()));
-      } catch (e) {
-        e.detail = stdout;
-        reject(e);
+      } catch {
+        const err = new Error("RECIPE_MODEL_FAILED");
+        const out = stdout.trim();
+        err.detail =
+          (stderr && stderr.trim()) ||
+          (out ? `stdout 非合法 JSON（前 400 字）：${out.slice(0, 400)}` : "stdout 为空，无法解析 JSON");
+        reject(err);
       }
     });
   });
@@ -1162,6 +1185,51 @@ app.post("/api/recipes/generate", async (req, res, next) => {
     const result = await runRecipeModel(ingredients);
     res.json(result);
   } catch (e) {
+    const msg = String(e?.message || e);
+    const code = e?.code;
+    const modelDown =
+      msg === "RECIPE_MODEL_DISABLED" ||
+      msg === "RECIPE_MODEL_TIMEOUT" ||
+      msg === "RECIPE_MODEL_FAILED" ||
+      msg === "RECIPE_MODEL_SETUP_INCOMPLETE" ||
+      code === "ENOENT";
+    if (modelDown) {
+      const detailSnippet =
+        e?.detail != null
+          ? String(e.detail)
+              .replace(/\s+/g, " ")
+              .trim()
+              .slice(0, 450)
+          : undefined;
+      // eslint-disable-next-line no-console
+      console.error({
+        route: "POST /api/recipes/generate",
+        code: msg,
+        errno: code,
+        detail: detailSnippet,
+      });
+      const hints = {
+        RECIPE_MODEL_SETUP_INCOMPLETE:
+          "服务器上缺少 recipe_model_infer.py 或 .pt 权重。请在 Render 设置 RECIPE_CHECKPOINT（磁盘上的绝对路径）和 RECIPE_PYTHON（已安装 PyTorch 的 Python）。",
+        RECIPE_MODEL_FAILED:
+          "Python 已运行但推理失败。常见原因：① 该解释器未安装 torch / PyTorch；② torch 与权重或 Python 版本不兼容；③ 内存不足(OOM)。请查看本响应中的 detail（stderr 片段）及 Render 服务「日志」。",
+        RECIPE_MODEL_TIMEOUT: "推理超过 RECIPE_MODEL_TIMEOUT_MS（默认 120s）。可尝试调大超时，或换更小权重/CPU 推理。",
+        RECIPE_MODEL_DISABLED: "已在服务器设置 RECIPE_MODEL_DISABLED=1，菜谱模型已关闭。",
+      };
+      const hintDefault =
+        code === "ENOENT"
+          ? "找不到 python 可执行文件。请在 Render 设置 RECIPE_PYTHON 为带 torch 的 Python 绝对路径。"
+          : "模型不可用。详见 server/RECIPE_MODEL_API.md。";
+      const exitCode =
+        e?.exitCode != null && Number.isFinite(Number(e.exitCode)) ? Number(e.exitCode) : undefined;
+      return res.status(503).json({
+        error: "RECIPE_MODEL_UNAVAILABLE",
+        reason: msg,
+        hint: hints[msg] || hintDefault,
+        ...(detailSnippet ? { detail: detailSnippet } : {}),
+        ...(exitCode != null ? { exitCode } : {}),
+      });
+    }
     next(e);
   }
 });
@@ -2065,6 +2133,7 @@ app.get("/api/leaderboard", async (req, res, next) => {
         username: row.username,
         displayName: row.display_name || "",
         coins: Number(row.coins || 0),
+        trees: Number(row.trees || 0),
         level: treeLevel,
         streak,
         honors: {

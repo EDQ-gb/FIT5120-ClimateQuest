@@ -151,50 +151,6 @@
       </div>
     </div>
 
-    <!-- Quick tasks -->
-    <div class="glass-card">
-      <div class="row-between mb12">
-        <div class="card-title">Quick Actions</div>
-        <button class="link-btn" @click="$emit('navigate', 'tasks')">View all →</button>
-      </div>
-      <div v-if="taskLoading" class="center-pad"><div class="spin"></div></div>
-      <template v-else>
-        <div v-for="task in tasks.slice(0,3)" :key="task.id"
-             class="task-row" :class="{ done: task.completed }">
-          <div
-            class="task-icon"
-            :class="[
-              { 'task-icon--emoji': !taskCardImageUrl(task.id) },
-              taskCardMediaTintClass(task.id),
-            ]"
-          >
-            <img
-              v-if="taskCardImageUrl(task.id)"
-              class="task-card-img"
-              :class="{ 'task-card-img--contain': taskCardUsesContainFit(task.id) }"
-              :src="taskCardImageUrl(task.id)"
-              :alt="task.title"
-              loading="lazy"
-            />
-            <span v-else class="task-icon-fallback" aria-hidden="true">{{ task.icon }}</span>
-          </div>
-          <div class="task-info">
-            <div class="task-title">{{ task.title }}</div>
-            <div style="display:flex;gap:6px;margin-top:4px;">
-              <span class="badge gold">+{{ task.coins }} coins</span>
-              <span class="badge cyan" v-if="task.co2 > 0">{{ task.co2 }}g CO₂</span>
-            </div>
-          </div>
-          <button class="act-btn" :class="task.completed ? 'done' : 'todo'"
-                  :disabled="task.completed || completing===task.id"
-                  @click="complete(task.id)">
-            <div v-if="completing===task.id" class="spin sm"></div>
-            <span v-else>{{ task.completed ? '✓ Done' : 'Complete' }}</span>
-          </button>
-        </div>
-      </template>
-    </div>
-
   </div>
 </template>
 
@@ -202,27 +158,17 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   getProgress,
-  getTasks,
-  completeTask,
   getScene,
   getRewardHistory,
   getQuickActionsCatalog,
   logQuickAction,
 } from '../api/features.js'
-import {
-  taskCardImageUrl,
-  taskCardUsesContainFit,
-  taskCardMediaTintClass,
-} from '../utils/taskCardImages.js'
 
 const props = defineProps({ user: Object })
 const emit  = defineEmits(['navigate', 'coins-updated'])
 
 const p           = ref({})
-const tasks       = ref([])
 const scene       = ref({ progress: 0 })
-const taskLoading = ref(true)
-const completing  = ref(null)
 const history = ref([])
 const historyLoading = ref(false)
 const quickCat = ref([])
@@ -248,36 +194,9 @@ const maxWeekBar = computed(() => {
 })
 
 async function load() {
-  taskLoading.value = true
-  const [prog, t, s] = await Promise.all([getProgress(), getTasks(), getScene()])
-  p.value     = prog || {}
-  tasks.value = t    || []
-  scene.value = s    || { progress: 0 }
-  taskLoading.value = false
-}
-
-async function complete(id) {
-  if (completing.value) return
-  completing.value = id
-  try {
-    const res = await completeTask(id)
-    if (res?.error) return
-    tasks.value = tasks.value.map(t => t.id === id ? { ...t, completed: true } : t)
-    p.value.coins     = res.totalCoins
-    p.value.streak    = res.streak
-    p.value.todayDone = (p.value.todayDone||0) + 1
-    scene.value.progress = res.sceneProgress
-    emit('coins-updated', {
-      totalCoins: res.totalCoins,
-      streak: res.streak,
-      sceneProgress: res.sceneProgress,
-    })
-    if (res?.weeklyChallengeBonus?.coins) {
-      window.alert(`Weekly challenge complete! +${res.weeklyChallengeBonus.coins} bonus coins.`)
-    }
-    await load()
-    await loadHistory()
-  } finally { completing.value = null }
+  const [prog, s] = await Promise.all([getProgress(), getScene()])
+  p.value = prog || {}
+  scene.value = s || { progress: 0 }
 }
 
 async function loadHistory() {
@@ -453,25 +372,6 @@ onMounted(async () => {
 .week-bar    { width:100%;border-radius:4px 4px 0 0;min-height:4px;background:rgba(255,255,255,0.12);transition:height .4s; }
 .week-bar.active { background:#52d496; }
 .week-label  { font-size:.62rem;color:rgba(255,255,255,0.4); }
-.task-row    { display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid rgba(255,255,255,0.06);transition:opacity .3s; }
-.task-row:last-child { border-bottom:none; }
-.task-row.done { opacity:.5; }
-.task-icon   { width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden; }
-.task-icon.task-media--tint-energy-tip { background: #dcedc8; }
-.task-icon--emoji { background:rgba(255,255,255,0.08); }
-.task-card-img { width:100%; height:100%; object-fit:cover; object-position:center; display:block; }
-.task-card-img--contain { object-fit:contain; }
-.task-icon-fallback { line-height:1; }
-.task-info   { flex:1; }
-.task-title  { font-size:.92rem;font-weight:600;color:#fff; }
-.badge       { font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:99px; }
-.badge.gold  { background:rgba(244,196,48,0.15);color:#f4c430; }
-.badge.cyan  { background:rgba(0,242,255,0.10);color:#00f2ff; }
-.act-btn     { padding:8px 16px;border-radius:30px;font-size:.8rem;font-weight:700;border:none;cursor:pointer;transition:all .25s;display:flex;align-items:center;gap:6px; }
-.act-btn.todo { background:rgba(0,242,255,0.12);color:#00f2ff;border:1px solid rgba(0,242,255,0.25); }
-.act-btn.todo:hover:not(:disabled) { background:rgba(0,242,255,0.22);color:#fff; }
-.act-btn.done { background:transparent;color:rgba(255,255,255,0.3);pointer-events:none; }
-.act-btn:disabled { opacity:.5;cursor:not-allowed; }
 .link-btn    { background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);padding:6px 14px;border-radius:8px;cursor:pointer;font-size:.82rem;transition:all .2s; }
 .link-btn:hover { color:#fff;border-color:rgba(255,255,255,0.45); }
 .mi-inline { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
@@ -492,7 +392,6 @@ onMounted(async () => {
 .hist-coins.neg { color:#ff8a8a; }
 .center-pad  { text-align:center;padding:24px; }
 .spin        { width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,0.1);border-top-color:#00f2ff;animation:spin .7s linear infinite;margin:auto; }
-.spin.sm     { width:14px;height:14px;border-width:2px; }
 @keyframes spin { to { transform:rotate(360deg); } }
 @media(max-width:900px){ .grid-4{grid-template-columns:1fr 1fr;} .grid-2{grid-template-columns:1fr;} }
 @media(max-width:900px){ .quick-nav-grid{grid-template-columns:1fr;} }

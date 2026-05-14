@@ -52,6 +52,118 @@
                 <span class="badge">{{ task.cat }}</span>
               </div>
               <div class="task-desc">{{ task.desc }}</div>
+              <section v-if="isAiVisionTask(task)" class="vision-helper" aria-label="AI image verification">
+                <div class="vision-helper__head">
+                  <span class="vision-helper__title">AI image verification</span>
+                  <span class="vision-helper__status" :class="{ ok: aiState(task.id).verified }">
+                    {{ aiState(task.id).verified ? 'AI verified' : 'Awaiting proof' }}
+                  </span>
+                </div>
+                <div class="vision-helper__hint">{{ aiHint(task) }}</div>
+                <div v-if="isRecycleTask(task)" class="recycle-proof">
+                  <div class="recycle-step">
+                    <div class="recycle-step__head">
+                      <strong>Step 1</strong>
+                      <span :class="['recycle-step__status', { ok: aiState(task.id).recycle.bin.verified }]">
+                        {{ aiState(task.id).recycle.bin.verified ? 'Passed' : 'Pending' }}
+                      </span>
+                    </div>
+                    <label class="vision-upload">
+                      <input
+                        class="vision-upload__input"
+                        type="file"
+                        accept="image/*"
+                        :disabled="task.completed || aiState(task.id).recycle.bin.analyzing || completing===task.id"
+                        @change="onRecycleBinFileChange(task, $event)"
+                      />
+                      <span class="vision-upload__btn">Upload bin photo</span>
+                      <span class="vision-upload__name">{{ aiState(task.id).recycle.bin.fileName || 'No file selected' }}</span>
+                    </label>
+                    <div v-if="aiState(task.id).recycle.bin.previewUrl" class="vision-preview-wrap">
+                      <img class="vision-preview" :src="aiState(task.id).recycle.bin.previewUrl" :alt="`${task.title} bin proof`" />
+                    </div>
+                    <div v-if="aiState(task.id).recycle.bin.analyzing" class="vision-note">Checking yellow-bin color...</div>
+                    <div v-if="aiState(task.id).recycle.bin.message" class="vision-ok">{{ aiState(task.id).recycle.bin.message }}</div>
+                    <div v-if="aiState(task.id).recycle.bin.error" class="vision-error">{{ aiState(task.id).recycle.bin.error }}</div>
+                  </div>
+
+                  <div class="recycle-step">
+                    <div class="recycle-step__head">
+                      <strong>Step 2</strong>
+                      <span :class="['recycle-step__status', { ok: aiState(task.id).recycle.item.verified }]">
+                        {{ aiState(task.id).recycle.item.verified ? 'Passed' : 'Pending' }}
+                      </span>
+                    </div>
+                    <label class="vision-upload">
+                      <input
+                        class="vision-upload__input"
+                        type="file"
+                        accept="image/*"
+                        :disabled="task.completed || aiState(task.id).recycle.item.analyzing || completing===task.id"
+                        @change="onRecycleItemFileChange(task, $event)"
+                      />
+                      <span class="vision-upload__btn">Upload recyclable photo</span>
+                      <span class="vision-upload__name">{{ aiState(task.id).recycle.item.fileName || 'No file selected' }}</span>
+                    </label>
+                    <div v-if="aiState(task.id).recycle.item.previewUrl" class="vision-preview-wrap">
+                      <img class="vision-preview" :src="aiState(task.id).recycle.item.previewUrl" :alt="`${task.title} recyclable proof`" />
+                    </div>
+                    <div v-if="aiState(task.id).recycle.item.analyzing" class="vision-note">Detecting recyclable item...</div>
+                    <div v-if="aiState(task.id).recycle.item.matchedLabel" class="vision-note">
+                      Detected: {{ aiState(task.id).recycle.item.matchedLabel }} ({{ formatConfidence(aiState(task.id).recycle.item.matchedScore) }})
+                    </div>
+                    <div v-if="aiState(task.id).recycle.item.predictions.length" class="vision-preds">
+                      <span
+                        v-for="(pred, idx) in aiState(task.id).recycle.item.predictions.slice(0, 3)"
+                        :key="`${task.id}-recycle-pred-${idx}-${pred.label}`"
+                        class="vision-pill"
+                      >
+                        {{ pred.label }} {{ formatConfidence(pred.score) }}
+                      </span>
+                    </div>
+                    <div v-if="aiState(task.id).recycle.item.message" class="vision-ok">{{ aiState(task.id).recycle.item.message }}</div>
+                    <div v-if="aiState(task.id).recycle.item.error" class="vision-error">{{ aiState(task.id).recycle.item.error }}</div>
+                  </div>
+                </div>
+                <template v-else>
+                  <label class="vision-upload">
+                    <input
+                      class="vision-upload__input"
+                      type="file"
+                      accept="image/*"
+                      :disabled="task.completed || aiState(task.id).analyzing || completing===task.id"
+                      @change="onAiFileChange(task, $event)"
+                    />
+                    <span class="vision-upload__btn">Upload photo</span>
+                    <span class="vision-upload__name">{{ aiState(task.id).fileName || 'No file selected' }}</span>
+                  </label>
+                  <div v-if="aiState(task.id).previewUrl" class="vision-preview-wrap">
+                    <img class="vision-preview" :src="aiState(task.id).previewUrl" :alt="`${task.title} evidence`" />
+                  </div>
+                  <div v-if="aiState(task.id).analyzing" class="vision-note">AI is analysing your image...</div>
+                  <div v-else-if="aiState(task.id).matchedLabel" class="vision-note">
+                    Detected: {{ aiState(task.id).matchedLabel }} ({{ formatConfidence(aiState(task.id).matchedScore) }})
+                  </div>
+                  <div v-if="aiState(task.id).predictions.length" class="vision-preds">
+                    <span v-for="(pred, idx) in aiState(task.id).predictions.slice(0, 3)" :key="`${task.id}-pred-${idx}-${pred.label}`" class="vision-pill">
+                      {{ pred.label }} {{ formatConfidence(pred.score) }}
+                    </span>
+                  </div>
+                  <div v-if="isClimateArticleTask(task) && aiState(task.id).matchedKeywords.length" class="vision-note">
+                    Matched keywords: {{ aiState(task.id).matchedKeywords.join(', ') }}
+                  </div>
+                  <div v-if="isClimateArticleTask(task) && aiState(task.id).textPreview" class="vision-ocr-preview">
+                    OCR preview: {{ aiState(task.id).textPreview }}
+                  </div>
+                  <div v-if="isStandbyTask(task) && aiState(task.id).standbyStats" class="vision-note">
+                    Brightness: {{ Math.round(aiState(task.id).standbyStats.avgLuma) }} / 255, Hot pixels: {{ Math.round(aiState(task.id).standbyStats.hotRatio * 100) }}%
+                  </div>
+                </template>
+                <div v-if="aiState(task.id).message && !isRecycleTask(task)" class="vision-ok">{{ aiState(task.id).message }}</div>
+                <div v-if="aiState(task.id).error && !isRecycleTask(task)" class="vision-error">{{ aiState(task.id).error }}</div>
+                <div v-if="isRecycleTask(task) && aiState(task.id).message" class="vision-ok">{{ aiState(task.id).message }}</div>
+                <div v-if="isRecycleTask(task) && aiState(task.id).error" class="vision-error">{{ aiState(task.id).error }}</div>
+              </section>
               <section v-if="isPlantMealTask(task) && mealBuilderTaskId === task.id" class="recipe-helper" aria-label="Light emission meal helper">
                 <div class="recipe-helper__head">
                   <span class="recipe-helper__title">Choose 3-5 ingredients</span>
@@ -96,7 +208,7 @@
             </div>
           </div>
           <button class="act-btn" :class="task.completed ? 'done' : 'todo'"
-                  :disabled="task.completed || completing===task.id"
+                  :disabled="task.completed || completing===task.id || (isAiVisionTask(task) && !aiState(task.id).verified)"
                   @click="complete(task.id)">
             <div v-if="completing===task.id" class="spin sm"></div>
             <span v-else>{{ actionLabel(task) }}</span>
@@ -113,7 +225,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { getTasks, completeTask, generateRecipeFromModel } from '../api/features.js'
 import {
   getBalancedIngredientBatch,
@@ -127,6 +239,17 @@ import {
   taskCardUsesContainFit,
   taskCardMediaTintClass,
 } from '../utils/taskCardImages.js'
+import {
+  aiTaskHint,
+  isAiVisionTask as isAiVisionTaskId,
+  verifyClimateArticlePhoto,
+  verifyProducePhoto,
+  verifyRecycleBinPhoto,
+  verifyRecycleItemPhoto,
+  verifyReusableCupPhoto,
+  verifyStandbyDevicePhoto,
+  verifyTaskImage,
+} from '../api/imageRecognition.js'
 // We emit the *resulting* totals so the shell can update immediately
 // without waiting for a separate refresh roundtrip.
 const emit = defineEmits(['coins-updated'])
@@ -145,6 +268,7 @@ const mealBuilderTaskId = ref(null)
 const recipe = ref(null)
 const recipeLoading = ref(false)
 const recipeError = ref('')
+const aiChecks = ref({})
 let ingredientWindow = 0
 let celebrationTimer = 0
 
@@ -163,6 +287,263 @@ function isPlantMealTask(task) {
   return Number(task?.id) === 5 || String(task?.title || '').toLowerCase() === 'light emission meal'
 }
 
+function isAiVisionTask(task) {
+  return isAiVisionTaskId(Number(task?.id))
+}
+
+function isRecycleTask(task) {
+  return Number(task?.id) === 7
+}
+
+function isClimateArticleTask(task) {
+  return Number(task?.id) === 6
+}
+
+function isStandbyTask(task) {
+  return Number(task?.id) === 4
+}
+
+function isProduceTask(task) {
+  return Number(task?.id) === 8
+}
+
+function createAiState() {
+  return {
+    analyzing: false,
+    verified: false,
+    matchedLabel: '',
+    matchedScore: 0,
+    predictions: [],
+    previewUrl: '',
+    fileName: '',
+    message: '',
+    error: '',
+    matchedKeywords: [],
+    textPreview: '',
+    standbyStats: null,
+    recycle: {
+      bin: {
+        analyzing: false,
+        verified: false,
+        previewUrl: '',
+        fileName: '',
+        message: '',
+        error: '',
+        yellowRatio: 0,
+      },
+      item: {
+        analyzing: false,
+        verified: false,
+        previewUrl: '',
+        fileName: '',
+        predictions: [],
+        matchedLabel: '',
+        matchedScore: 0,
+        message: '',
+        error: '',
+      },
+    },
+  }
+}
+
+function getAiState(taskId) {
+  const id = Number(taskId)
+  if (!aiChecks.value[id]) aiChecks.value[id] = createAiState()
+  return aiChecks.value[id]
+}
+
+function aiState(taskId) {
+  return getAiState(taskId)
+}
+
+function clearAiPreview(state) {
+  if (state?.previewUrl) URL.revokeObjectURL(state.previewUrl)
+  if (state?.recycle?.bin?.previewUrl) URL.revokeObjectURL(state.recycle.bin.previewUrl)
+  if (state?.recycle?.item?.previewUrl) URL.revokeObjectURL(state.recycle.item.previewUrl)
+}
+
+function resetAiStates() {
+  Object.values(aiChecks.value).forEach((state) => clearAiPreview(state))
+  aiChecks.value = {}
+}
+
+function aiHint(task) {
+  if (isRecycleTask(task)) {
+    return 'Step 1: upload a yellow recycle-bin photo. Step 2: upload a recyclable-item photo.'
+  }
+  return aiTaskHint(task?.id) || 'Upload a photo as proof for AI verification.'
+}
+
+function formatConfidence(score) {
+  return `${Math.round(Number(score || 0) * 100)}%`
+}
+
+async function onAiFileChange(task, event) {
+  const id = Number(task?.id)
+  const file = event?.target?.files?.[0]
+  if (!file || !isAiVisionTaskId(id)) return
+
+  const state = getAiState(id)
+  clearAiPreview(state)
+  state.previewUrl = URL.createObjectURL(file)
+  state.fileName = String(file?.name || '')
+  state.analyzing = true
+  state.verified = false
+  state.matchedLabel = ''
+  state.matchedScore = 0
+  state.predictions = []
+  state.message = ''
+  state.error = ''
+  state.matchedKeywords = []
+  state.textPreview = ''
+  state.standbyStats = null
+
+  try {
+    if (id === 6) {
+      const result = await verifyClimateArticlePhoto(file, { minHits: 1 })
+      state.verified = Boolean(result?.verified)
+      state.matchedKeywords = result?.matchedKeywords || []
+      state.textPreview = result?.textPreview || ''
+      state.message = state.verified
+        ? `AI verified: climate article detected (keyword: ${state.matchedKeywords[0]}).`
+        : ''
+      if (!state.verified) {
+        state.error = 'No climate keyword found. Try a clearer screenshot with visible article text.'
+      }
+    } else if (id === 3) {
+      const result = await verifyReusableCupPhoto(file, { minScore: 0.45, disposableThreshold: 0.43 })
+      state.predictions = result?.predictions || []
+      state.verified = Boolean(result?.verified)
+      state.matchedLabel = result?.matchedLabel || ''
+      state.matchedScore = Number(result?.matchedScore || 0)
+      if (state.verified) {
+        state.message = result?.message || 'AI verified: cup detected and no disposable-cup evidence found.'
+      } else {
+        state.error = result?.message || 'Disposable-looking cup detected.'
+      }
+    } else if (id === 4) {
+      const result = await verifyStandbyDevicePhoto(file)
+      state.predictions = result?.predictions || []
+      state.verified = Boolean(result?.verified)
+      state.standbyStats = {
+        avgLuma: Number(result?.avgLuma || 0),
+        hotRatio: Number(result?.hotRatio || 0),
+      }
+      state.message = state.verified
+        ? `${result?.message || 'AI verified: device appears switched off.'} (${result?.deviceLabel || 'device'})`
+        : ''
+      if (!state.verified) state.error = result?.message || 'Device still appears active.'
+    } else if (id === 8) {
+      const result = await verifyProducePhoto(file, { minScore: 0.45 })
+      state.predictions = result?.predictions || []
+      state.verified = Boolean(result?.verified)
+      state.matchedLabel = result?.matchedLabel || ''
+      state.matchedScore = Number(result?.matchedScore || 0)
+      if (state.verified) {
+        state.message = `AI verified: produce detected (${state.matchedLabel}).`
+      } else {
+        state.error = 'No produce detected. Try a clearer photo with fruit or vegetables.'
+      }
+    } else {
+      const result = await verifyTaskImage(id, file, { minScore: 0.45 })
+      state.predictions = result.predictions || []
+      state.verified = Boolean(result?.match?.verified)
+      state.matchedLabel = result?.match?.matchedLabel || ''
+      state.matchedScore = Number(result?.match?.matchedScore || 0)
+      if (state.verified) {
+        state.message = `AI verified: detected ${state.matchedLabel} (${formatConfidence(state.matchedScore)}).`
+      } else {
+        const target = (result?.match?.expectedLabels || []).join(' / ')
+        state.error = `No matching object found. Expected: ${target || 'target object'}.`
+      }
+    }
+  } catch (e) {
+    state.error = `AI detection failed: ${String(e?.message || 'Unknown error')}`
+  } finally {
+    state.analyzing = false
+    if (event?.target) event.target.value = ''
+  }
+}
+
+function recomputeRecycleVerified(state) {
+  const binOk = Boolean(state?.recycle?.bin?.verified)
+  const itemOk = Boolean(state?.recycle?.item?.verified)
+  state.verified = binOk && itemOk
+  if (state.verified) state.message = 'AI verified: bin and recyclable item checks passed.'
+  else state.message = ''
+}
+
+async function onRecycleBinFileChange(task, event) {
+  const id = Number(task?.id)
+  const file = event?.target?.files?.[0]
+  if (!file || id !== 7) return
+
+  const state = getAiState(id)
+  const binState = state.recycle.bin
+  if (binState.previewUrl) URL.revokeObjectURL(binState.previewUrl)
+  binState.previewUrl = URL.createObjectURL(file)
+  binState.fileName = String(file?.name || '')
+  binState.analyzing = true
+  binState.verified = false
+  binState.message = ''
+  binState.error = ''
+  binState.yellowRatio = 0
+  state.error = ''
+
+  try {
+    const res = await verifyRecycleBinPhoto(file, { yellowRatioThreshold: 0.12 })
+    binState.verified = Boolean(res?.verified)
+    binState.yellowRatio = Number(res?.yellowRatio || 0)
+    if (binState.verified) binState.message = res?.message || 'Bin verified.'
+    else binState.error = res?.message || 'Bin check failed. Try another photo.'
+  } catch (e) {
+    binState.error = `Bin check failed: ${String(e?.message || 'Unknown error')}`
+  } finally {
+    binState.analyzing = false
+    recomputeRecycleVerified(state)
+    if (event?.target) event.target.value = ''
+  }
+}
+
+async function onRecycleItemFileChange(task, event) {
+  const id = Number(task?.id)
+  const file = event?.target?.files?.[0]
+  if (!file || id !== 7) return
+
+  const state = getAiState(id)
+  const itemState = state.recycle.item
+  if (itemState.previewUrl) URL.revokeObjectURL(itemState.previewUrl)
+  itemState.previewUrl = URL.createObjectURL(file)
+  itemState.fileName = String(file?.name || '')
+  itemState.analyzing = true
+  itemState.verified = false
+  itemState.predictions = []
+  itemState.matchedLabel = ''
+  itemState.matchedScore = 0
+  itemState.message = ''
+  itemState.error = ''
+  state.error = ''
+
+  try {
+    const res = await verifyRecycleItemPhoto(file, { minScore: 0.45 })
+    itemState.predictions = res?.predictions || []
+    itemState.verified = Boolean(res?.verified)
+    itemState.matchedLabel = res?.matchedLabel || ''
+    itemState.matchedScore = Number(res?.matchedScore || 0)
+    if (itemState.verified) {
+      itemState.message = `Recyclable item verified (${itemState.matchedLabel}, ${formatConfidence(itemState.matchedScore)}).`
+    } else {
+      itemState.error = `No recyclable item found. Expected: ${(res?.expectedLabels || []).join(' / ')}.`
+    }
+  } catch (e) {
+    itemState.error = `Item check failed: ${String(e?.message || 'Unknown error')}`
+  } finally {
+    itemState.analyzing = false
+    recomputeRecycleVerified(state)
+    if (event?.target) event.target.value = ''
+  }
+}
+
 function normalizeTask(task) {
   if (Number(task?.id) !== 5) return task
   return {
@@ -174,6 +555,9 @@ function normalizeTask(task) {
 
 function actionLabel(task) {
   if (task.completed) return 'Done'
+  if (isAiVisionTask(task)) {
+    return 'Complete task'
+  }
   if (!isPlantMealTask(task)) return 'Complete'
   if (mealBuilderTaskId.value !== task.id) return 'Choose ingredients'
   return recipe.value ? 'Complete task' : 'Pick ingredients'
@@ -240,7 +624,13 @@ async function generateRecipe() {
     }
   } catch (e) {
     recipe.value = localRecipe()
-    recipeError.value = 'Model API unavailable, showing template fallback.'
+    const hint = e?.hint || e?.reason
+    const detail = e?.detail ? String(e.detail) : ''
+    const exitPart = e?.exitCode != null ? ` (exit code ${e.exitCode})` : ''
+    const detailSuffix = detail ? ` Detail: ${detail}` : ''
+    recipeError.value = hint
+      ? `Model service unavailable (${e.status || '?'})${exitPart}: ${hint}${detailSuffix}`
+      : 'Model API unavailable, showing template fallback.'
   } finally {
     recipeLoading.value = false
   }
@@ -259,11 +649,36 @@ async function complete(id, options = {}) {
       return
     }
   }
+  if (isAiVisionTask(task) && !options.forceAi) {
+    const state = getAiState(id)
+    if (!state.verified) {
+      if (isRecycleTask(task)) {
+        const missing = []
+        if (!state.recycle.bin.verified) missing.push('yellow bin photo')
+        if (!state.recycle.item.verified) missing.push('recyclable item photo')
+        state.error = `Verification incomplete: please pass ${missing.join(' and ')}.`
+      } else if (isClimateArticleTask(task)) {
+        state.error = 'Please upload a climate article screenshot and run AI analysis first.'
+      } else if (isStandbyTask(task)) {
+        state.error = 'Please upload an off-state device photo and pass AI verification first.'
+      } else if (isProduceTask(task)) {
+        state.error = 'Please upload a produce photo and pass AI verification first.'
+      } else {
+        state.error = 'Please upload an image and pass AI verification first.'
+      }
+      return
+    }
+  }
   completing.value = id
   try {
     const res = await completeTask(id)
     if (!res?.error) {
       tasks.value = tasks.value.map(t => t.id===id ? {...t, completed:true} : t)
+      if (isAiVisionTask(task)) {
+        const state = getAiState(id)
+        state.message = 'AI verified and task completed.'
+        state.error = ''
+      }
       const completedTask = tasks.value.find(t => t.id === id)
       triggerCelebration(completedTask, res)
       emit('coins-updated', {
@@ -299,8 +714,14 @@ async function loadTasks() {
 
 onMounted(loadTasks)
 
+onUnmounted(() => {
+  clearTimeout(celebrationTimer)
+  resetAiStates()
+})
+
 watch(() => props.user?.id || props.user?.username || null, () => {
   tasks.value = []
+  resetAiStates()
   loadTasks()
 })
 </script>
@@ -354,6 +775,7 @@ watch(() => props.user?.id || props.user?.username || null, () => {
   min-width:0;
   display:flex;
   flex-direction:column;
+  height: 132px;
 }
 .task-media--tint-energy-tip {
   /* energy-saving infographic — pale green field */
@@ -374,7 +796,14 @@ watch(() => props.user?.id || props.user?.username || null, () => {
   background:rgba(255,255,255,0.12);
   font-size:2rem;
 }
-.task-card-img { width:100%; height:100%; object-fit:cover; object-position:center; display:block; }
+.task-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+  background: rgba(0, 0, 0, 0.16);
+}
 .task-card-img--contain { object-fit:contain; }
 .task-icon-fallback { line-height:1; }
 .task-main { display:flex; flex-direction:column; gap:8px; }
@@ -384,6 +813,165 @@ watch(() => props.user?.id || props.user?.username || null, () => {
 .badge      { font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7); }
 .badge.gold { background:rgba(244,196,48,0.15);color:#f4c430; }
 .badge.cyan { background:rgba(0,242,255,0.10);color:#00f2ff; }
+.vision-helper {
+  margin-top: 4px;
+  padding: 10px;
+  border: 1px solid rgba(0, 242, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(0, 242, 255, 0.06);
+  overflow: hidden;
+}
+.vision-helper__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+.vision-helper__title {
+  font-size: .72rem;
+  font-weight: 800;
+  color: rgba(165, 247, 255, .95);
+}
+.vision-helper__status {
+  font-size: .62rem;
+  border-radius: 999px;
+  padding: 2px 8px;
+  border: 1px solid rgba(255, 255, 255, .15);
+  color: rgba(255, 255, 255, .64);
+}
+.vision-helper__status.ok {
+  color: #9df7cf;
+  border-color: rgba(82, 212, 150, .35);
+  background: rgba(82, 212, 150, .12);
+}
+.vision-helper__hint {
+  font-size: .66rem;
+  color: rgba(255, 255, 255, .52);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+.recycle-proof {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.recycle-step {
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 8px;
+  padding: 8px;
+  background: rgba(255,255,255,.03);
+}
+.recycle-step__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+  font-size: .66rem;
+  color: rgba(255,255,255,.82);
+}
+.recycle-step__status {
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: rgba(255,255,255,.62);
+}
+.recycle-step__status.ok {
+  color: #9df7cf;
+  border-color: rgba(82,212,150,.4);
+  background: rgba(82,212,150,.12);
+}
+.vision-upload {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  font-size: .64rem;
+  color: rgba(255,255,255,.7);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 10px;
+  padding: 6px 8px;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.vision-upload__input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.vision-upload__btn {
+  border: 1px solid rgba(0,242,255,.24);
+  background: rgba(0,242,255,.12);
+  color: rgba(159,248,255,.96);
+  border-radius: 999px;
+  font-size: .62rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+.vision-upload__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(255,255,255,.65);
+}
+.vision-preview-wrap {
+  margin-top: 8px;
+}
+.vision-preview {
+  width: 100%;
+  height: 96px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(0, 0, 0, 0.18);
+}
+.vision-note {
+  margin-top: 8px;
+  font-size: .66rem;
+  color: rgba(255,255,255,.72);
+}
+.vision-ocr-preview {
+  margin-top: 7px;
+  padding: 7px 8px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 8px;
+  font-size: .62rem;
+  line-height: 1.35;
+  color: rgba(255,255,255,.62);
+  background: rgba(255,255,255,.03);
+  max-height: 84px;
+  overflow: auto;
+}
+.vision-preds {
+  margin-top: 7px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.vision-pill {
+  font-size: .62rem;
+  color: rgba(255,255,255,.72);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+.vision-ok {
+  margin-top: 7px;
+  font-size: .66rem;
+  color: #9df7cf;
+}
+.vision-error {
+  margin-top: 7px;
+  font-size: .66rem;
+  color: #ffd8a8;
+  line-height: 1.35;
+}
 .recipe-helper {
   margin-top: 4px;
   padding: 10px;
