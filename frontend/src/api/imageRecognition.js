@@ -9,7 +9,7 @@ const AI_TASK_TARGETS = {
   },
   3: {
     labels: ['cup'],
-    hint: 'Upload a photo containing a cup.',
+    hint: 'Upload a cup photo. Disposable-looking cups will fail verification.',
   },
   4: {
     labels: [],
@@ -30,6 +30,7 @@ const AI_TASK_TARGETS = {
 }
 
 export const RECYCLE_ITEM_LABELS = ['bottle', 'cup', 'book', 'can']
+export const DEVICE_LABELS = ['tv', 'laptop', 'cell phone', 'keyboard', 'remote', 'mouse']
 export const CLIMATE_KEYWORDS = [
   'climate',
   'global warming',
@@ -52,6 +53,7 @@ function normalizePrediction(prediction) {
   return {
     label: String(prediction?.class || '').trim().toLowerCase(),
     score: Number(prediction?.score || 0),
+    bbox: Array.isArray(prediction?.bbox) ? prediction.bbox : null,
   }
 }
 
@@ -157,6 +159,48 @@ async function sampleImageLumaStats(file) {
   return {
     avgLuma: total > 0 ? lumaSum / total : 0,
     hotRatio: total > 0 ? hot / total : 0,
+  }
+}
+
+async function sampleDisposableCupStats(file) {
+  const image = await loadImageFromFile(file)
+  const maxSize = 220
+  const scale = Math.min(1, maxSize / Math.max(image.width || 1, image.height || 1))
+  const width = Math.max(1, Math.round((image.width || 1) * scale))
+  const height = Math.max(1, Math.round((image.height || 1) * scale))
+
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('CANVAS_CONTEXT_UNAVAILABLE')
+
+  ctx.drawImage(image, 0, 0, width, height)
+  const data = ctx.getImageData(0, 0, width, height).data
+  let total = 0
+  let transparentLike = 0
+  let paperLike = 0
+  let glossyLike = 0
+  let paleLike = 0
+
+  for (let i = 0; i < data.length; i += 16) {
+    const r = data[i]
+    const g = data[i + 1]
+    const b = data[i + 2]
+    const { h, s, v } = rgbToHsv(r, g, b)
+    total += 1
+    if (s <= 0.16 && v >= 0.72) transparentLike += 1
+    if (h >= 20 && h <= 58 && s <= 0.38 && v >= 0.56) paperLike += 1
+    if (v >= 0.93 && s <= 0.25) glossyLike += 1
+    if (v >= 0.75 && s <= 0.12) paleLike += 1
+  }
+
+  const safe = total || 1
+  return {
+    transparentLikeRatio: transparentLike / safe,
+    paperLikeRatio: paperLike / safe,
+    glossyLikeRatio: glossyLike / safe,
+    paleLikeRatio: paleLike / safe,
   }
 }
 
@@ -289,6 +333,24 @@ export async function verifyClimateArticlePhoto(file, options = {}) {
 
 export async function verifyStandbyDevicePhoto(file, options = {}) {
   if (!file) throw new Error('MISSING_IMAGE_FILE')
+  const minScore = Number(options?.minScore || DEFAULT_MIN_SCORE)
+  const predictions = await detectObjectsInFile(file, options?.maxPredictions || 8)
+  const deviceHit = predictions.find(
+    (item) => DEVICE_LABELS.includes(item.label) && Number(item.score || 0) >= minScore
+  )
+  if (!deviceHit) {
+    return {
+      verified: false,
+      hasDevice: false,
+      deviceLabel: '',
+      deviceScore: 0,
+      avgLuma: 0,
+      hotRatio: 0,
+      message: 'No device detected. Upload a clear photo of a screen device first.',
+      predictions,
+    }
+  }
+
   const stats = await sampleImageLumaStats(file)
   const maxAvgLuma = Number(options?.maxAvgLuma || 90)
   const maxHotRatio = Number(options?.maxHotRatio || 0.02)
@@ -296,6 +358,9 @@ export async function verifyStandbyDevicePhoto(file, options = {}) {
 
   return {
     verified,
+    hasDevice: true,
+    deviceLabel: deviceHit.label,
+    deviceScore: deviceHit.score,
     avgLuma: stats.avgLuma,
     hotRatio: stats.hotRatio,
     maxAvgLuma,
@@ -303,6 +368,7 @@ export async function verifyStandbyDevicePhoto(file, options = {}) {
     message: verified
       ? 'AI verified: device appears switched off.'
       : 'Device still appears active. Try a darker screen photo with no bright indicator lights.',
+    predictions,
   }
 }
 
@@ -319,5 +385,52 @@ export async function verifyProducePhoto(file, options = {}) {
     threshold: minScore,
     predictions,
     expectedLabels: [...PRODUCE_LABELS],
+  }
+}
+
+export async function verifyReusableCupPhoto(file, options = {}) {
+  if (!file) throw new Error('MISSING_IMAGE_FILE')
+  const minScore = Number(options?.minScore || DEFAULT_MIN_SCORE)
+  const predictions = await detectObjectsInFile(file, options?.maxPredictions || 8)
+  const cupHit = predictions.find(
+    (item) => item.label === 'cup' && Number(item.score || 0) >= minScore
+  )
+  if (!cupHit) {
+    return {
+      verified: false,
+      hasCup: false,
+      isDisposableLookingCup: false,
+      matchedLabel: '',
+      matchedScore: 0,
+      disposableScore: 0,
+      reason: 'NO_CUP',
+      message: 'No cup detected. Upload a clearer cup photo.',
+      predictions,
+    }
+  }
+
+  const stats = await sampleDisposableCupStats(file)
+  const disposableScore =
+    stats.transparentLikeRatio * 0.4 +
+    stats.paperLikeRatio * 0.3 +
+    stats.glossyLikeRatio * 0.2 +
+    stats.paleLikeRatio * 0.1
+  const threshold = Number(options?.disposableThreshold || 0.43)
+  const isDisposableLookingCup = disposableScore >= threshold
+
+  return {
+    verified: !isDisposableLookingCup,
+    hasCup: true,
+    isDisposableLookingCup,
+    matchedLabel: cupHit.label,
+    matchedScore: cupHit.score,
+    disposableScore,
+    threshold,
+    reason: isDisposableLookingCup ? 'DISPOSABLE_LOOKING' : 'OK',
+    message: isDisposableLookingCup
+      ? 'Disposable-looking cup detected (transparent/thin-wall style).'
+      : 'AI verified: cup detected and no disposable-cup evidence found.',
+    predictions,
+    stats,
   }
 }

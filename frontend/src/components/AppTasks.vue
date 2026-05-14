@@ -246,6 +246,7 @@ import {
   verifyProducePhoto,
   verifyRecycleBinPhoto,
   verifyRecycleItemPhoto,
+  verifyReusableCupPhoto,
   verifyStandbyDevicePhoto,
   verifyTaskImage,
 } from '../api/imageRecognition.js'
@@ -409,14 +410,28 @@ async function onAiFileChange(task, event) {
       if (!state.verified) {
         state.error = 'No climate keyword found. Try a clearer screenshot with visible article text.'
       }
+    } else if (id === 3) {
+      const result = await verifyReusableCupPhoto(file, { minScore: 0.45, disposableThreshold: 0.43 })
+      state.predictions = result?.predictions || []
+      state.verified = Boolean(result?.verified)
+      state.matchedLabel = result?.matchedLabel || ''
+      state.matchedScore = Number(result?.matchedScore || 0)
+      if (state.verified) {
+        state.message = result?.message || 'AI verified: cup detected and no disposable-cup evidence found.'
+      } else {
+        state.error = result?.message || 'Disposable-looking cup detected.'
+      }
     } else if (id === 4) {
       const result = await verifyStandbyDevicePhoto(file)
+      state.predictions = result?.predictions || []
       state.verified = Boolean(result?.verified)
       state.standbyStats = {
         avgLuma: Number(result?.avgLuma || 0),
         hotRatio: Number(result?.hotRatio || 0),
       }
-      state.message = state.verified ? result?.message || 'AI verified: device appears switched off.' : ''
+      state.message = state.verified
+        ? `${result?.message || 'AI verified: device appears switched off.'} (${result?.deviceLabel || 'device'})`
+        : ''
       if (!state.verified) state.error = result?.message || 'Device still appears active.'
     } else if (id === 8) {
       const result = await verifyProducePhoto(file, { minScore: 0.45 })
