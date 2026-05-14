@@ -21,6 +21,11 @@ body,
   height: 100%;
 }
 
+/* Slightly larger rem base for readability across the app (Dashboard, Tasks, modals, etc.).
+   Homepage hero title “CLIMATE QUEST” uses px-based clamp in AppLandingV2 and stays visually unchanged. */
+html {
+  font-size: 115%;
+}
 
 body {
   overflow: hidden;

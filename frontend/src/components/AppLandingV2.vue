@@ -25,45 +25,72 @@
 
     <div class="landing2-inner">
       <div class="landing2-top land-in-0">
-        <div class="landing2-hero-grid">
-          <div class="landing2-hero-left">
-            <div class="landing2-eyebrow">Monash FIT5120 · for planet heroes</div>
-            <div class="landing2-title" aria-label="ClimateQuest">
-              <span class="word-climate">CLIMATE</span>
-              <span class="word-quest">QUEST</span>
+        <div class="landing2-hero-narrow">
+          <div class="landing2-hero-grid">
+            <div class="landing2-hero-left">
+              <div class="landing2-title" aria-label="ClimateQuest">
+                <span class="word-climate">CLIMATE</span>
+                <span class="word-quest">QUEST</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       <div class="landing2-bottom land-in-1">
-        <div class="landing2-sub">Play · Learn · Make Real Impact</div>
-        <p class="landing2-micro">
-          Hop in, tick off a feel-good action (or crush the quiz), then hit <strong>My Scene</strong> to drop goodies on the map. Peek in often — your jungle loves the attention.
-        </p>
-        <button type="button" class="btn-start" @click="$emit('start')">Start Your Quest →</button>
-        <button v-if="!showGuidePanel" type="button" class="home-guide-reopen home-guide-reopen--inline" @click="reopenGuidePanel">How to use this site</button>
+        <div class="landing2-hero-tagline" aria-label="The climate is changing, so can you">
+          <p class="landing2-hero-tagline-main">
+            <span class="landing2-hero-tagline-line">THE CLIMATE IS CHANGING</span>
+            <span class="landing2-hero-tagline-line">SO CAN YOU</span>
+          </p>
+          <p class="landing2-hero-tagline-sub">YOUR DAILY ACTIONS CAN MOVE THE PLANET FORWARD</p>
+        </div>
+        <div class="landing2-cta-row">
+          <button type="button" class="landing2-ghost-pill" @click="$emit('start')">Start Your Quest</button>
+          <button
+            v-if="!showGuidePanel"
+            type="button"
+            class="landing2-ghost-pill"
+            @click="reopenGuidePanel"
+          >
+            How to use this site
+          </button>
+        </div>
       </div>
     </div>
 
-    <aside v-if="showGuidePanel" class="home-guide-panel" role="note" aria-label="How to play ClimateQuest">
-      <div class="home-guide-title">How this helps climate action</div>
-      <p class="home-guide-text">
-        ClimateQuest turns daily low-carbon choices into visible progress so players keep taking action in real life.
-      </p>
-      <ol class="home-guide-steps">
-        <li>Start your quest and open Dashboard.</li>
-        <li>Earn coins in Daily Tasks and Daily Quiz.</li>
-        <li>Use coins in My Scene to grow your world.</li>
-        <li>Check Leaderboard to compare climate contribution.</li>
-      </ol>
-      <button type="button" class="home-guide-close" @click="dismissGuidePanel">Got it</button>
-    </aside>
+    <Transition name="guide-corner-fade" mode="out-in">
+      <aside
+        v-if="showGuidePanel && activeGuideCard"
+        :key="activeGuideCard.step"
+        class="home-guide-corner"
+        :class="`home-guide-corner--${activeGuideCard.pos}`"
+        role="note"
+        :aria-label="activeGuideCard.aria"
+      >
+        <div class="home-guide-corner-body">
+          <div class="home-guide-corner-head">
+            <div class="home-guide-corner-kicker">
+              <div class="home-guide-corner-step-label">Step {{ activeGuideCard.step }} of 4</div>
+              <div class="home-guide-corner-kicker-sub">How this helps climate action</div>
+            </div>
+            <h2 class="home-guide-corner-title">{{ activeGuideCard.title }}</h2>
+            <p class="home-guide-corner-text">{{ activeGuideCard.body }}</p>
+          </div>
+        </div>
+        <div class="home-guide-corner-footer">
+          <button type="button" class="home-guide-corner-next" @click="advanceGuideTour">
+            {{ activeGuideCard.step < 4 ? 'Next step' : 'Done' }}
+          </button>
+          <button type="button" class="home-guide-corner-hide" @click="dismissGuidePanel">Hide tips</button>
+        </div>
+      </aside>
+    </Transition>
   </div>
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 defineProps({
   user: { type: Object, default: null },
@@ -77,10 +104,55 @@ defineEmits(['start', 'login', 'navigate'])
 
 const bg = ref(null)
 const showGuidePanel = ref(true)
+/** Which corner card is visible (1–4); advances with “Next step”. */
+const guideStepIndex = ref(1)
 let raf = 0
+
+/** Ordered tour: corners advance with “Next step” only (no in-card navigation). */
+const guideCornerCards = [
+  {
+    step: 1,
+    pos: 'tl',
+    aria: 'Step 1: Dashboard — start your quest',
+    title: 'Start your quest',
+    body: 'Open your Dashboard to track progress. Small low-carbon choices add up in real life.',
+  },
+  {
+    step: 2,
+    pos: 'tr',
+    aria: 'Step 2: earn coins',
+    title: 'Earn coins',
+    body: 'Complete Daily Tasks and the Daily Quiz to collect rewards for your journey.',
+  },
+  {
+    step: 3,
+    pos: 'bl',
+    aria: 'Step 3: My Scene',
+    title: 'Grow your world',
+    body: 'Spend coins in My Scene to place trees and goodies and watch your map thrive.',
+  },
+  {
+    step: 4,
+    pos: 'br',
+    aria: 'Step 4: Leaderboard',
+    title: 'Compare progress',
+    body: 'Check the Leaderboard to see how your climate contribution compares with others.',
+  },
+]
+
+const activeGuideCard = computed(() => guideCornerCards.find((c) => c.step === guideStepIndex.value) || null)
+
+function advanceGuideTour() {
+  if (guideStepIndex.value < 4) {
+    guideStepIndex.value += 1
+  } else {
+    dismissGuidePanel()
+  }
+}
 
 function dismissGuidePanel() {
   showGuidePanel.value = false
+  guideStepIndex.value = 1
   try {
     localStorage.setItem('cq_home_guide_hidden', '1')
   } catch {
@@ -89,6 +161,7 @@ function dismissGuidePanel() {
 }
 
 function reopenGuidePanel() {
+  guideStepIndex.value = 1
   showGuidePanel.value = true
   try {
     localStorage.removeItem('cq_home_guide_hidden')
@@ -188,6 +261,7 @@ onMounted(() => {
   } catch {
     showGuidePanel.value = true
   }
+  guideStepIndex.value = 1
   const canvas = bg.value
   if (!canvas) return
 
@@ -598,79 +672,204 @@ onMounted(() => {
   display: block;
 }
 
-.home-guide-panel {
-  position: fixed;
-  top: calc(var(--landing2-nav-h) + 16px);
-  right: 16px;
-  width: min(440px, calc(100vw - 20px));
-  z-index: 6;
-  border-radius: 16px;
-  border: 1px solid rgba(0, 242, 255, 0.28);
-  background: rgba(10, 26, 22, 0.86);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  padding: 16px 18px;
-  color: rgba(255, 255, 255, 0.86);
+.guide-corner-fade-enter-active,
+.guide-corner-fade-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
 }
-.home-guide-title {
-  font-size: 0.9rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: rgba(148, 240, 200, 0.95);
-  margin-bottom: 6px;
-}
-.home-guide-text {
-  margin: 0 0 8px;
-  font-size: 0.9rem;
-  line-height: 1.45;
-}
-.home-guide-steps {
-  margin: 0;
-  padding-left: 18px;
-  font-size: 0.88rem;
-  line-height: 1.45;
-}
-.home-guide-steps li {
-  margin-bottom: 4px;
-}
-.home-guide-close {
-  margin-top: 8px;
-  width: 100%;
-  border: 1px solid rgba(82, 212, 150, 0.35);
-  background: rgba(82, 212, 150, 0.12);
-  color: rgba(200, 255, 224, 0.95);
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 0.86rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-@media (max-width: 720px) {
-  .home-guide-panel {
-    right: 8px;
-    top: calc(var(--landing2-nav-h) + 8px);
-  }
-}
-.home-guide-reopen {
-  border-radius: 50px;
-  border: 1px solid rgba(0, 242, 255, 0.32);
-  background: rgba(0, 242, 255, 0.12);
-  color: rgba(215, 252, 255, 0.95);
-  padding: 11px 36px;
-  font-family: 'Fredoka', Nunito, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  font-size: 0.78rem;
-  font-weight: 400;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  line-height: 1.15;
-  cursor: pointer;
-}
-.home-guide-reopen--inline {
-  margin-top: 8px;
-  pointer-events: auto;
+.guide-corner-fade-enter-from,
+.guide-corner-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.98);
 }
 
+.home-guide-corner {
+  position: fixed;
+  z-index: 6;
+  pointer-events: auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: min(480px, calc(100vw - 20px));
+  max-width: calc(100vw - 16px);
+  min-height: min(320px, 42vh);
+  padding: 26px 28px 22px;
+  border-radius: 24px;
+  /* Apple-style frosted glass — slightly higher transparency so the globe shows through */
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.05) 42%,
+    rgba(255, 255, 255, 0.025) 100%
+  );
+  background-color: rgba(22, 32, 38, 0.26);
+  backdrop-filter: blur(48px) saturate(200%);
+  -webkit-backdrop-filter: blur(48px) saturate(200%);
+  color: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1),
+    0 24px 64px rgba(0, 0, 0, 0.32),
+    0 0 0 0.5px rgba(255, 255, 255, 0.05);
+}
+
+.home-guide-corner--tl {
+  left: clamp(8px, 1.5vw, 16px);
+  top: calc(var(--landing2-nav-h) + clamp(6px, 1.2vh, 12px));
+}
+
+.home-guide-corner--tr {
+  right: clamp(8px, 1.5vw, 16px);
+  top: calc(var(--landing2-nav-h) + clamp(6px, 1.2vh, 12px));
+}
+
+.home-guide-corner--bl {
+  left: clamp(8px, 1.5vw, 16px);
+  bottom: clamp(100px, 15vh, 152px);
+}
+
+.home-guide-corner--br {
+  right: clamp(8px, 1.5vw, 16px);
+  bottom: clamp(100px, 15vh, 152px);
+}
+
+.home-guide-corner-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.home-guide-corner-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+}
+
+.home-guide-corner-kicker {
+  width: 100%;
+}
+
+.home-guide-corner-step-label {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Fredoka', 'Nunito', system-ui, sans-serif;
+  font-size: clamp(1.45rem, 4.2vw, 2rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.15;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.98);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+
+.home-guide-corner-kicker-sub {
+  margin-top: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Fredoka', system-ui, sans-serif;
+  font-size: clamp(0.78rem, 1.9vw, 0.92rem);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(200, 245, 220, 0.72);
+}
+
+.home-guide-corner-title {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Fredoka', 'Nunito', system-ui, sans-serif;
+  font-size: clamp(1.2rem, 3vw, 1.45rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: rgba(255, 255, 255, 0.98);
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.35);
+}
+
+.home-guide-corner-text {
+  margin: 0;
+  max-width: 38ch;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Fredoka', system-ui, sans-serif;
+  font-size: clamp(1.02rem, 2.35vw, 1.15rem);
+  line-height: 1.55;
+  font-weight: 500;
+  color: rgba(235, 248, 242, 0.92);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.28);
+}
+
+.home-guide-corner-footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: auto;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.home-guide-corner-next {
+  width: 100%;
+  max-width: 300px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  color: rgba(255, 255, 255, 0.98);
+  padding: 14px 28px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Fredoka', system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.home-guide-corner-next:hover {
+  background: rgba(255, 255, 255, 0.24);
+  transform: translateY(-1px);
+}
+
+.home-guide-corner-hide {
+  border: none;
+  border-radius: 12px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: rgba(220, 240, 230, 0.75);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Fredoka', system-ui, sans-serif;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.home-guide-corner-hide:hover {
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 720px) {
+  .home-guide-corner {
+    width: min(400px, calc(100vw - 16px));
+    min-height: min(280px, 48vh);
+    padding: 20px 18px 18px;
+  }
+  .home-guide-corner--tl,
+  .home-guide-corner--tr {
+    top: calc(var(--landing2-nav-h) + 4px);
+  }
+  .home-guide-corner--bl,
+  .home-guide-corner--br {
+    bottom: clamp(92px, 16vh, 128px);
+  }
+  .home-guide-corner-next {
+    max-width: 100%;
+  }
+}
 .landing2-nav {
   position: fixed;
   top: 0;
@@ -760,8 +959,15 @@ onMounted(() => {
 
 .landing2-top {
   margin-top: 0;
-  max-width: min(520px, 100%);
+  width: 100%;
+  max-width: min(920px, 100%);
   text-align: center;
+}
+
+.landing2-hero-narrow {
+  max-width: min(520px, 100%);
+  margin: 0 auto;
+  width: 100%;
 }
 
 .landing2-hero-grid {
@@ -777,7 +983,7 @@ onMounted(() => {
 
 .landing2-lead {
   font-family: 'Fredoka', Nunito, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  font-size: clamp(13px, 1.45vw, 16px);
+  font-size: clamp(15px, 1.55vw, 18px);
   font-weight: 500;
   line-height: 1.72;
   color: rgba(210, 228, 218, 0.82);
@@ -808,19 +1014,44 @@ onMounted(() => {
   background: rgba(0, 28, 18, 0.35);
 }
 
-.landing2-micro {
-  font-family: 'Fredoka', Nunito, system-ui, sans-serif;
-  font-size: clamp(11px, 1.2vw, 13px);
-  line-height: 1.5;
-  color: rgba(185, 212, 198, 0.55);
-  max-width: min(400px, 100%);
-  margin: 0 auto 16px;
+.landing2-hero-tagline {
+  max-width: min(560px, 92vw);
+  margin: clamp(10px, 2vh, 28px) auto clamp(6px, 1vh, 12px);
   text-align: center;
   pointer-events: auto;
 }
-.landing2-micro strong {
-  color: rgba(148, 236, 190, 0.88);
-  font-weight: 700;
+
+.landing2-hero-tagline-main {
+  font-family: Anton, Nunito, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-size: clamp(17px, 3.15vw, 26px);
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(232, 240, 235, 0.92);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+  margin: 0 0 clamp(10px, 1.6vh, 16px);
+}
+
+.landing2-hero-tagline-line {
+  display: block;
+}
+
+.landing2-hero-tagline-line + .landing2-hero-tagline-line {
+  margin-top: 0.12em;
+}
+
+.landing2-hero-tagline-sub {
+  font-family: 'Nunito', 'Fredoka', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-size: clamp(13px, 1.95vw, 17px);
+  font-weight: 500;
+  line-height: 1.65;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(178, 196, 188, 0.88);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.35);
+  margin: 0 auto;
+  max-width: 38em;
 }
 
 .land-in-lead {
@@ -841,21 +1072,6 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   opacity: 0;
-}
-
-.landing2-eyebrow {
-  font-family: 'Fredoka', Nunito, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  font-size: clamp(10px, 1vw, 12px);
-  font-weight: 300;
-  letter-spacing: 10px;
-  text-transform: uppercase;
-  color: rgba(180, 210, 200, 0.38);
-  margin-bottom: 4px;
-}
-
-.landing2-top .landing2-eyebrow {
-  margin-bottom: 8px;
-  pointer-events: auto;
 }
 
 .landing2-title {
@@ -882,40 +1098,56 @@ onMounted(() => {
     0 0 80px rgba(78, 207, 140, 0.4), 0 0 160px rgba(78, 207, 140, 0.18);
 }
 
-.landing2-sub {
-  font-family: 'Fredoka', Nunito, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  font-size: clamp(14px, 1.6vw, 18px);
-  font-weight: 700;
-  color: rgba(210, 232, 222, 0.66);
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  text-align: center;
-  margin-bottom: 18px;
+.landing2-cta-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  width: max-content;
+  max-width: min(560px, 94vw);
+  margin-inline: auto;
+  justify-items: stretch;
+  pointer-events: auto;
 }
 
-.btn-start {
-  padding: 11px 36px;
-  border-radius: 50px;
-  border: 1px solid rgba(78, 207, 140, 0.4);
-  background: rgba(78, 207, 140, 0.06);
-  color: rgba(78, 207, 140, 0.9);
+/* Reference-style pill ghost CTAs: mint border, transparent fill, uppercase tracking */
+.landing2-ghost-pill {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(78, 207, 140, 0.55);
+  background: transparent;
+  color: rgba(120, 230, 185, 0.96);
   font-family: 'Fredoka', Nunito, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  font-size: 0.78rem;
-  font-weight: 400;
-  cursor: pointer;
-  letter-spacing: 3px;
+  font-size: clamp(0.68rem, 1.65vw, 0.78rem);
+  font-weight: 600;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  backdrop-filter: blur(16px);
-  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-  pointer-events: all;
-  line-height: 1.15;
+  line-height: 1.2;
+  cursor: pointer;
+  text-align: center;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.2s ease;
 }
-.btn-start:hover {
-  background: rgba(78, 207, 140, 0.16);
-  border-color: rgba(78, 207, 140, 0.8);
-  color: #a8f0cc;
-  transform: translateY(-3px) scale(1.025);
-  box-shadow: 0 0 30px rgba(78, 207, 140, 0.22), 0 8px 28px rgba(0, 0, 0, 0.35);
+
+.landing2-ghost-pill:hover {
+  background: rgba(78, 207, 140, 0.07);
+  border-color: rgba(110, 235, 175, 0.9);
+  color: rgba(200, 255, 220, 0.98);
+  transform: translateY(-1px);
+}
+
+.landing2-ghost-pill:active {
+  transform: translateY(0);
+}
+
+.landing2-ghost-pill:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(78, 207, 140, 0.35);
 }
 
 .land-in-0 {
@@ -961,8 +1193,11 @@ onMounted(() => {
 
 @media (min-width: 980px) {
   .landing2-top {
-    max-width: min(620px, 100%);
+    max-width: min(960px, 100%);
     text-align: center;
+  }
+  .landing2-hero-narrow {
+    max-width: min(620px, 100%);
   }
   .landing2-hero-grid {
     display: block;
