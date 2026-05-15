@@ -34,11 +34,11 @@
             <span v-else-if="u.rank === 3">🥉</span>
             <span v-else>#{{ u.rank }}</span>
           </div>
-          <div class="lb-avatar" :style="{ background: avatarBg(u.username) }">
-            {{ (u.displayName || u.username || '?').slice(0, 2).toUpperCase() }}
+          <div class="lb-avatar" :style="{ background: avatarBg(u.avatarSeed) }">
+            {{ publicInitials(u.displayName, u.nickname) }}
           </div>
           <div class="lb-name">
-            <span class="lb-name-text">{{ u.displayName || u.username }}</span>
+            <span class="lb-name-text">{{ u.displayName || u.nickname || 'Anonymous' }}</span>
             <span v-if="u.isYou" class="you-tag">You</span>
             <div class="lb-honors" aria-label="Honors and badges">
               <template v-if="u.honors?.coinKing">
@@ -231,10 +231,18 @@ const pagedBoard = computed(() => {
   return board.value.slice(start, start + pageSize)
 })
 
-function avatarBg(username) {
-  const s = username || 'user'
+function avatarBg(seed) {
+  const s = seed || 'user'
   let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360
   return `hsla(${h},70%,42%,0.9)`
+}
+
+function publicInitials(displayName, nickname) {
+  const raw = String(displayName || nickname || '?').trim() || '?'
+  const letters = raw.replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g, '')
+  if (letters.length >= 2) return letters.slice(0, 2).toUpperCase()
+  if (raw.length >= 2) return raw.slice(0, 2).toUpperCase()
+  return raw.slice(0, 2).toUpperCase()
 }
 
 function prevPage() {

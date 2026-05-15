@@ -41,7 +41,7 @@
           <div class="sub-text mt8">Come back tomorrow for a new question.</div>
           <div v-if="result" class="quiz-result mt8" :class="result.correct?'correct':'wrong'">
             <strong>{{ result.correct ? '✓ Correct! +25 coins' : '✗ Not quite this time' }}</strong><br><br>
-            <div v-if="result.correctAnswer !== undefined" style="margin-bottom:8px;">
+            <div v-if="result.correct && result.correctAnswer !== undefined" style="margin-bottom:8px;">
               Correct answer: <strong>{{ ['A','B','C','D'][result.correctAnswer] }}</strong>
             </div>
             {{ result.explanation }}
@@ -117,8 +117,8 @@ function select(i) { if (!result.value) selected.value = i }
 
 function optClass(i) {
   if (!result.value) return selected.value === i ? 'selected' : ''
-  if (i === result.value.correctAnswer) return 'correct'
-  if (i === selected.value && !result.value.correct) return 'wrong'
+  if (result.value.correct && i === result.value.correctAnswer) return 'correct'
+  if (!result.value.correct && i === selected.value) return 'wrong'
   return ''
 }
 
