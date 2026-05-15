@@ -12,6 +12,26 @@ const { FRONTEND_ORIGIN, NODE_ENV, PORT, SESSION_SECRET } = require("./config");
 const { getPlacementKindForItemId } = require("./placementCatalog");
 const { getPool, query, exec } = require("./db");
 
+/** In dev, allow any localhost/127.0.0.1 port so Vite fallback (e.g. 5174) still passes CORS. */
+function resolveCorsOrigin() {
+  if (NODE_ENV === "production") return FRONTEND_ORIGIN;
+  return (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (origin === FRONTEND_ORIGIN) return callback(null, true);
+    try {
+      const u = new URL(origin);
+      const loopback =
+        u.hostname === "localhost" || u.hostname === "127.0.0.1";
+      if (loopback && (u.protocol === "http:" || u.protocol === "https:")) {
+        return callback(null, true);
+      }
+    } catch {
+      // ignore
+    }
+    return callback(null, false);
+  };
+}
+
 const app = express();
 
 app.disable("x-powered-by");
@@ -24,7 +44,7 @@ app.use(express.json({ limit: "2mb" }));
 
 app.use(
   cors({
-    origin: FRONTEND_ORIGIN,
+    origin: resolveCorsOrigin(),
     credentials: true,
   })
 );

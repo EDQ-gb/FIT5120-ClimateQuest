@@ -12,6 +12,8 @@ server/.env
 .env
 .env.*
 !.env.example
+# Team default: dev UI proxies to cloud API (override locally with `.env.development.local`).
+!frontend/.env.development
 
 # Build output
 frontend/dist/
