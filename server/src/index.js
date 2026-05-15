@@ -9,79 +9,7 @@ const path = require("path");
 const { spawn } = require("child_process");
 
 const { FRONTEND_ORIGIN, NODE_ENV, PORT, SESSION_SECRET } = require("./config");
-const { getPlacementKindForItemId } = require("./placementCatalog");
 const { getPool, query, exec } = require("./db");
-
-function normalizeConfiguredOrigin(origin) {
-  const s = String(origin || "").trim();
-  if (!s) return "";
-  return s.replace(/\/+$/, "");
-}
-
-/** Comma-separated FRONTEND_ORIGIN values (trimmed, non-empty). */
-function parseFrontendOrigins() {
-  const raw = String(FRONTEND_ORIGIN || "").trim();
-  if (!raw) return [];
-  return raw
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-/** Compare origins treating `www.` host as equivalent to apex (common misconfig). */
-function stripWwwCanonical(origin) {
-  try {
-    const u = new URL(normalizeConfiguredOrigin(origin));
-    let h = u.hostname.toLowerCase();
-    if (h.startsWith("www.")) h = h.slice(4);
-    const port = u.port ? `:${u.port}` : "";
-    return `${u.protocol}//${h}${port}`;
-  } catch {
-    return normalizeConfiguredOrigin(origin);
-  }
-}
-
-function originAllowed(candidateOrigin, allowedRawStrings) {
-  const got = normalizeConfiguredOrigin(candidateOrigin);
-  if (!got) return false;
-  const list = allowedRawStrings.map((x) => normalizeConfiguredOrigin(x)).filter(Boolean);
-  if (!list.length) return false;
-  const gotCanon = stripWwwCanonical(got);
-  for (const allowed of list) {
-    if (!allowed) continue;
-    if (got === allowed) return true;
-    if (gotCanon === stripWwwCanonical(allowed)) return true;
-  }
-  return false;
-}
-
-function corsOriginDelegate() {
-  const list = parseFrontendOrigins();
-  return (origin, callback) => {
-    if (!origin) {
-      if (NODE_ENV !== "production") return callback(null, true);
-      return callback(null, false);
-    }
-    const o = normalizeConfiguredOrigin(origin);
-    if (NODE_ENV !== "production") {
-      if (originAllowed(o, list)) return callback(null, origin);
-      try {
-        const u = new URL(origin);
-        if (
-          (u.hostname === "localhost" || u.hostname === "127.0.0.1") &&
-          (u.protocol === "http:" || u.protocol === "https:")
-        ) {
-          return callback(null, origin);
-        }
-      } catch {
-        // ignore
-      }
-      return callback(null, false);
-    }
-    if (originAllowed(o, list)) return callback(null, origin);
-    return callback(null, false);
-  };
-}
 
 const app = express();
 
@@ -95,7 +23,7 @@ app.use(express.json({ limit: "2mb" }));
 
 app.use(
   cors({
-    origin: corsOriginDelegate(),
+    origin: FRONTEND_ORIGIN,
     credentials: true,
   })
 );
@@ -185,43 +113,6 @@ app.use(
     },
   })
 );
-
-/** Mitigate CSRF on cookie-authenticated POSTs: require browser Origin/Referer to match FRONTEND_ORIGIN in production. */
-function assertBrowserOriginMatchesFrontend(req, res) {
-  if (NODE_ENV !== "production") return true;
-  if (String(process.env.RELAX_ORIGIN_CHECK || "").trim() === "1") return true;
-  const m = String(req.method || "GET").toUpperCase();
-  if (m === "GET" || m === "HEAD" || m === "OPTIONS") return true;
-  const p = String(req.path || req.url || "");
-  if (p.startsWith("/api/admin")) return true;
-  const allowedList = parseFrontendOrigins();
-  if (!allowedList.length) return true;
-  const originHdr = req.get("origin");
-  const referer = req.get("referer");
-  let candidate = originHdr;
-  if (!candidate && referer) {
-    try {
-      candidate = new URL(referer).origin;
-    } catch {
-      candidate = null;
-    }
-  }
-  const got = normalizeConfiguredOrigin(candidate);
-  if (!got) {
-    res.status(403).json({ error: "MISSING_ORIGIN" });
-    return false;
-  }
-  if (!originAllowed(got, allowedList)) {
-    res.status(403).json({ error: "FORBIDDEN_ORIGIN" });
-    return false;
-  }
-  return true;
-}
-
-app.use((req, res, next) => {
-  if (!assertBrowserOriginMatchesFrontend(req, res)) return;
-  next();
-});
 
 function normalizeUsername(username) {
   return String(username || "").trim().toLowerCase();
@@ -737,38 +628,6 @@ function shopUnitPurchasePrice(itemKind, itemIdStr) {
     return Number(SHOP_PRICE_BY_ITEM_ID[id]);
   }
   return Number(SHOP_KIND_DEFAULT_PRICE[itemKind] ?? 15);
-}
-
-async function loadShopPurchaseQtyByLedgerKey(userId) {
-  const r = await query(
-    `select item, item_id, cost
-     from shop_ledger
-     where user_id = ?`,
-    [userId]
-  );
-  const map = new Map();
-  for (const row of r.rows || []) {
-    const item = String(row.item || "").trim();
-    const rawId = row.item_id == null ? "" : String(row.item_id).trim();
-    const unit = shopUnitPurchasePrice(item, rawId);
-    if (!Number.isFinite(unit) || unit <= 0) continue;
-    const cost = Number(row.cost || 0);
-    const qty = Math.floor(cost / unit);
-    if (qty <= 0) continue;
-    const key = `${item}::${rawId}`;
-    map.set(key, (map.get(key) || 0) + qty);
-  }
-  return map;
-}
-
-function countPlacementsOfItemId(items, itemId) {
-  const id = String(itemId || "").trim();
-  if (!id) return 0;
-  let n = 0;
-  for (const p of items || []) {
-    if (String(p?.itemId || "").trim() === id) n += 1;
-  }
-  return n;
 }
 
 function mondayWeekStartYmd(d = new Date()) {
@@ -1686,9 +1545,6 @@ app.post("/api/scene/select", async (req, res, next) => {
 
 app.post("/api/game/reset", async (req, res, next) => {
   try {
-    if (String(req.body?.confirmReset || "").trim() !== "RESET_CLIMATEQUEST_PROGRESS") {
-      return res.status(400).json({ error: "CONFIRM_RESET_REQUIRED" });
-    }
     const userId = requireAuth(req, res);
     if (!userId) return;
     await ensureUserState(userId);
@@ -1814,14 +1670,6 @@ app.post("/api/scene/place", async (req, res, next) => {
       return res.status(400).json({ error: "INVALID_PLACEMENT" });
     }
 
-    const canonicalKind = getPlacementKindForItemId(itemId);
-    if (!canonicalKind) {
-      return res.status(400).json({ error: "UNKNOWN_ITEM" });
-    }
-    if (canonicalKind !== type) {
-      return res.status(400).json({ error: "TYPE_MISMATCH" });
-    }
-
     const r = await query(
       `select scene_type, placements_json from user_state where user_id = ?`,
       [userId]
@@ -1836,15 +1684,7 @@ app.post("/api/scene/place", async (req, res, next) => {
     const exists = placements.items.some(
       (p) => p && String(p.itemId || "") === itemId && String(p.col) + "," + String(p.row) === k
     );
-
     if (!exists) {
-      const placed = countPlacementsOfItemId(placements.items, itemId);
-      const ledger = await loadShopPurchaseQtyByLedgerKey(userId);
-      const key = `${canonicalKind}::${itemId}`;
-      const purchased = Number(ledger.get(key) || 0);
-      if (placed >= purchased) {
-        return res.status(403).json({ error: "ITEM_NOT_OWNED" });
-      }
       placements.items.push({
         itemId,
         type,
@@ -2028,13 +1868,11 @@ app.get("/api/quiz", async (req, res, next) => {
       const savedCorrect = Number(completedRow.correct || 0) === 1;
       completedResult = {
         correct: savedCorrect,
+        correctAnswer: savedQ.ans,
+        explanation: savedQ.exp,
         selectedAnswer: clampInt(completedRow.answer, 0, 3),
         coinsEarned: savedCorrect ? 25 : 0,
       };
-      if (savedCorrect) {
-        completedResult.correctAnswer = savedQ.ans;
-        completedResult.explanation = savedQ.exp;
-      }
     }
     res.json({
       question: { q: q.q, opts: q.opts },
@@ -2097,18 +1935,15 @@ app.post("/api/quiz/submit", async (req, res, next) => {
     const activeSet = await buildActiveDaySet(userId);
     const streak = streakFromActiveSet(activeSet);
 
-    const payload = {
+    res.json({
       correct,
+      correctAnswer: q.ans,
+      explanation: q.exp,
       coinsEarned,
       totalCoins: Number(state.coins || 0),
       sceneProgress: Number(state.scene_progress || 0),
       streak,
-    };
-    if (correct) {
-      payload.correctAnswer = q.ans;
-      payload.explanation = q.exp;
-    }
-    res.json(payload);
+    });
   } catch (err) {
     next(err);
   }
@@ -2229,8 +2064,11 @@ app.get("/api/leaderboard", async (req, res, next) => {
     if (!userId) return;
     await ensureUserState(userId);
 
+    const me = await query(`select username from users where id = ?`, [userId]);
+    const myUsername = me.rows?.[0]?.username || null;
+
     const r = await query(
-      `select u.id, u.display_name, s.coins, s.xp, s.trees,
+      `select u.id, u.username, u.display_name, s.coins, s.xp, s.trees,
               s.placements_json, s.scene_type
        from user_state s
        join users u on u.id = s.user_id
@@ -2240,28 +2078,6 @@ app.get("/api/leaderboard", async (req, res, next) => {
 
     const rows = r.rows || [];
     const ids = rows.map((x) => x.id);
-
-    let weeklyByUser = new Map();
-    if (ids.length) {
-      const ws = mondayWeekStartYmd();
-      const wEnd = new Date(`${ws}T12:00:00`);
-      wEnd.setDate(wEnd.getDate() + 6);
-      const we = ymdLocal(wEnd);
-      const ph = ids.map(() => "?").join(", ");
-      const wk = await query(
-        `select user_id, count(*) as c
-         from task_logs
-         where user_id in (${ph})
-           and completed_on >= ?
-           and completed_on <= ?
-         group by user_id`,
-        [...ids, ws, we]
-      );
-      for (const row of wk.rows || []) {
-        weeklyByUser.set(Number(row.user_id), Number(row.c || 0));
-      }
-    }
-
     const streakMap = await getStreakMapForUserIds(ids);
     const taskStreakMap = await getTaskOnlyStreakMapForUserIds(ids);
 
@@ -2314,13 +2130,10 @@ app.get("/api/leaderboard", async (req, res, next) => {
 
       board.push({
         rank: i + 1,
-        displayName: String(row.display_name || "").trim() || "Anonymous",
-        nickname: String(row.display_name || "").trim() || "Anonymous",
-        avatarUrl: null,
-        avatarSeed: crypto.createHash("sha256").update(`lb:${uid}`).digest("hex").slice(0, 12),
+        username: row.username,
+        displayName: row.display_name || "",
         coins: Number(row.coins || 0),
         trees: Number(row.trees || 0),
-        weeklyActionCount: weeklyByUser.get(Number(uid)) || 0,
         level: treeLevel,
         streak,
         honors: {
@@ -2330,7 +2143,7 @@ app.get("/api/leaderboard", async (req, res, next) => {
           levelKing,
           activityStreakKing,
         },
-        isYou: Number(uid) === Number(userId),
+        isYou: myUsername ? row.username === myUsername : false,
       });
     }
 
@@ -2434,13 +2247,6 @@ app.post("/api/shop/buy", async (req, res, next) => {
     if (!["tree", "flower", "ground", "decor"].includes(item)) {
       return res.status(400).json({ error: "INVALID_ITEM" });
     }
-    if (!itemId) {
-      return res.status(400).json({ error: "ITEM_ID_REQUIRED" });
-    }
-    const catalogKind = getPlacementKindForItemId(itemId);
-    if (!catalogKind || catalogKind !== item) {
-      return res.status(400).json({ error: "INVALID_ITEM" });
-    }
 
     const unit = shopUnitPurchasePrice(item, itemId);
     const cost = Number(unit) * qty;
@@ -2540,10 +2346,6 @@ app.post("/api/auth/username", async (req, res, next) => {
 });
 
 
-app.use((req, res) => {
-  res.status(404).json({ error: "NOT_FOUND" });
-});
-
 // Basic error handler
 app.use((err, req, res, next) => {
   const status = err && typeof err.status === "number" ? err.status : 500;
@@ -2567,7 +2369,7 @@ app.listen(PORT, async () => {
   await maybeStartupSetCoins();
   // eslint-disable-next-line no-console
   console.log(`EcoQuest auth server listening on :${PORT}`);
-  console.log(`CORS allowed origin(s): ${parseFrontendOrigins().join(" | ") || "(none)"}`);
+  console.log(`CORS origin: ${FRONTEND_ORIGIN}`);
   console.log(`Session cookie secure: ${cookieSecure}, sameSite: ${cookieSameSite}`);
 });
 
