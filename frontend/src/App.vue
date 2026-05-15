@@ -312,6 +312,9 @@ function friendlyAuthFetchError(raw) {
   if (msg === 'FORBIDDEN_ORIGIN') {
     return 'Login blocked: this site’s address does not match the API allow-list (FORBIDDEN_ORIGIN). Ask the admin to set Render FRONTEND_ORIGIN to this exact URL (try with/without www). / 登录被拒绝：当前网址不在 API 白名单，请在 Render 配置 FRONTEND_ORIGIN 为当前完整地址（含 https，可尝试加/去 www）。'
   }
+  if (msg === 'EMPTY_AUTH_RESPONSE') {
+    return 'Unexpected empty response from server. Please refresh and try again. / 服务器返回异常，请刷新后重试。'
+  }
   if (
     /failed to fetch/i.test(msg) ||
     /networkerror when attempting to fetch resource/i.test(msg) ||
@@ -552,7 +555,10 @@ async function onNavigate(view, options = {}) {
   const reqId = ++navReqId
   // Scene builder ("My Scene" from nav or landing CTA as `game`): single forest biome only.
   if (view === 'scene' || view === 'game') {
-    if (!user.value) return openAuth()
+    if (!user.value) {
+      await openAuth()
+      return
+    }
     // Open Scene immediately, then refresh data in background.
     currentView.value = 'game'
     syncShellFromGame()
@@ -924,10 +930,13 @@ async function refreshMe() {
   }
 }
 
-function onNavClick(key) {
+async function onNavClick(key) {
   if (!validViews.has(key)) return
   if (key === 'home') return onNavigate('home', { userAction: true })
-  if (!user.value) return openAuth()
+  if (!user.value) {
+    await openAuth()
+    return
+  }
   onNavigate(key, { userAction: true })
 }
 
@@ -935,7 +944,12 @@ function onStayOnQuiz() {
   stickyView.value = 'quiz'
 }
 
-function openAuth() {
+async function openAuth() {
+  await refreshMe()
+  if (user.value) {
+    menuOpen.value = true
+    return
+  }
   authOpen.value = true
   errorMsg.value = ''
   authSuggested.value = 'signin'
@@ -986,6 +1000,9 @@ async function submitSignin() {
       method: 'POST',
       body: JSON.stringify({ username: form.username }),
     })
+    if (!data?.user) {
+      throw new Error('EMPTY_AUTH_RESPONSE')
+    }
     user.value = data.user
     setFeatureStorageUser(data.user?.username)
     clearLegacyFeatureStorage()
@@ -998,6 +1015,19 @@ async function submitSignin() {
     onNavigate('dashboard')
   } catch (e) {
     const msg = String(e?.message || 'Login failed')
+    if (msg === 'FORBIDDEN_ORIGIN') {
+      await refreshMe()
+      if (user.value) {
+        showToast(
+          'You already have a session in this browser; continuing to the dashboard. Use Sign out to switch accounts. / 检测到已有登录态，正在进入主页。若要换号请先退出。',
+          'Session detected',
+          5200,
+        )
+        closeAuth()
+        await onNavigate('dashboard')
+        return
+      }
+    }
     // UX requirement:
     // - login with non-existent username → guide user to register
     if (msg === 'USER_NOT_FOUND') {
@@ -1036,7 +1066,7 @@ function onLogin() {
     menuOpen.value = !menuOpen.value
     return
   }
-  openAuth()
+  void openAuth()
 }
 
 function closeMenu() {
@@ -1073,10 +1103,14 @@ async function submitUsername() {
   }
 }
 
-function onCta() {
+async function onCta() {
   errorMsg.value = ''
-  if (user.value) onNavigate('dashboard')
-  else authOpen.value = true
+  await refreshMe()
+  if (user.value) {
+    onNavigate('dashboard')
+    return
+  }
+  authOpen.value = true
 }
 
 function onKeydown(e) {
