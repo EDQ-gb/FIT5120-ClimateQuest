@@ -35,6 +35,8 @@ $env:RECIPE_CHECKPOINT="G:\FIT5120\FIT5120-ClimateQuest\AI Development\Cooking_D
 $env:RECIPE_MODEL_TIMEOUT_MS="120000"
 ```
 
+Use **`best_transformer_copy_v3.pt`** instead for the newer run (4 encoder / 4 decoder layers in the saved `model_config`; the inference script reads that from the checkpoint).
+
 If `RECIPE_PYTHON` is not set, the server tries `python` from PATH.
 
 ## Vercel
