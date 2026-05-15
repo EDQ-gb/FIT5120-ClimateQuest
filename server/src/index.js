@@ -12,12 +12,34 @@ const { FRONTEND_ORIGIN, NODE_ENV, PORT, SESSION_SECRET } = require("./config");
 const { getPlacementKindForItemId } = require("./placementCatalog");
 const { getPool, query, exec } = require("./db");
 
+function normalizeConfiguredOrigin(origin) {
+  const s = String(origin || "").trim();
+  if (!s) return "";
+  return s.replace(/\/+$/, "");
+}
+
+/** One or more browser origins (comma-separated in FRONTEND_ORIGIN). */
+function parseFrontendOrigins() {
+  const raw = String(FRONTEND_ORIGIN || "").trim();
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((s) => normalizeConfiguredOrigin(s.trim()))
+    .filter(Boolean);
+}
+
 /** In dev, allow any localhost/127.0.0.1 port so Vite fallback (e.g. 5174) still passes CORS. */
 function resolveCorsOrigin() {
-  if (NODE_ENV === "production") return FRONTEND_ORIGIN;
+  const list = parseFrontendOrigins();
+  if (NODE_ENV === "production") {
+    if (list.length === 0) return true;
+    if (list.length === 1) return list[0];
+    return list;
+  }
   return (origin, callback) => {
     if (!origin) return callback(null, true);
-    if (origin === FRONTEND_ORIGIN) return callback(null, true);
+    const o = normalizeConfiguredOrigin(origin);
+    if (list.includes(o)) return callback(null, true);
     try {
       const u = new URL(origin);
       const loopback =
@@ -135,12 +157,6 @@ app.use(
   })
 );
 
-function normalizeConfiguredOrigin(origin) {
-  const s = String(origin || "").trim();
-  if (!s) return "";
-  return s.replace(/\/+$/, "");
-}
-
 /** Mitigate CSRF on cookie-authenticated POSTs: require browser Origin/Referer to match FRONTEND_ORIGIN in production. */
 function assertBrowserOriginMatchesFrontend(req, res) {
   if (NODE_ENV !== "production") return true;
@@ -149,8 +165,8 @@ function assertBrowserOriginMatchesFrontend(req, res) {
   if (m === "GET" || m === "HEAD" || m === "OPTIONS") return true;
   const p = String(req.path || req.url || "");
   if (p.startsWith("/api/admin")) return true;
-  const allowed = normalizeConfiguredOrigin(FRONTEND_ORIGIN);
-  if (!allowed) return true;
+  const allowedList = parseFrontendOrigins();
+  if (!allowedList.length) return true;
   const originHdr = req.get("origin");
   const referer = req.get("referer");
   let candidate = originHdr;
@@ -166,7 +182,7 @@ function assertBrowserOriginMatchesFrontend(req, res) {
     res.status(403).json({ error: "MISSING_ORIGIN" });
     return false;
   }
-  if (got !== allowed) {
+  if (!allowedList.includes(got)) {
     res.status(403).json({ error: "FORBIDDEN_ORIGIN" });
     return false;
   }
@@ -2522,7 +2538,7 @@ app.listen(PORT, async () => {
   await maybeStartupSetCoins();
   // eslint-disable-next-line no-console
   console.log(`EcoQuest auth server listening on :${PORT}`);
-  console.log(`CORS origin: ${FRONTEND_ORIGIN}`);
+  console.log(`CORS allowed origin(s): ${parseFrontendOrigins().join(" | ") || "(none)"}`);
   console.log(`Session cookie secure: ${cookieSecure}, sameSite: ${cookieSameSite}`);
 });
 
