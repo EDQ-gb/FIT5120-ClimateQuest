@@ -3,6 +3,9 @@
 
 import { Buffer } from 'node:buffer'
 
+/** Dedicated recipe-model Render service (sync with `frontend/api/_proxyBase.js`). */
+const DEFAULT_RECIPE_BACKEND_BASE = 'https://fit5120-climatequest-backend.onrender.com'
+
 const BACKEND_BASE = process.env.BACKEND_BASE || 'https://fit5120-climatequest.onrender.com'
 
 export default async function handler(req, res) {
@@ -18,7 +21,12 @@ export default async function handler(req, res) {
     const marker = '/api/'
     const idx = raw.indexOf(marker)
     const tail = idx >= 0 ? raw.slice(idx + marker.length) : ''
-    const url = `${BACKEND_BASE}/api/${tail}`.replace(/\/+$/, '')
+    const recipeOverride =
+      typeof process.env.RECIPE_BACKEND_BASE === 'string' ? process.env.RECIPE_BACKEND_BASE.trim() : ''
+    const base = tail.startsWith('recipes')
+      ? recipeOverride || DEFAULT_RECIPE_BACKEND_BASE
+      : BACKEND_BASE
+    const url = `${base.replace(/\/$/, '')}/api/${tail}`.replace(/\/+$/, '')
 
     const headers = {}
     for (const [k, v] of Object.entries(req.headers || {})) {

@@ -312,11 +312,12 @@ http://localhost:8080
 The Vite dev proxy is configured so that:
 
 ```text
-/api/recipes -> local backend at http://localhost:8080
+/api/recipes -> dedicated recipe backend at https://fit5120-climatequest-backend.onrender.com
+               (override with VITE_RECIPE_PROXY=http://127.0.0.1:8080 for fully local model API)
 /api         -> deployed backend at https://fit5120-climatequest.onrender.com
 ```
 
-This keeps login, registration, tasks, and progress connected to the deployed backend database, while the recipe model runs locally.
+This keeps login, registration, tasks, and progress on the main Render API while recipe generation hits the Render service that hosts PyTorch inference (unless you override `VITE_RECIPE_PROXY` for local testing).
 
 ## 8. Current Behavior
 
