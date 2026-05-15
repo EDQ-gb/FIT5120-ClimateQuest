@@ -45,3 +45,12 @@ docker-compose.yml
 *.log
 .env.local
 
+# Ephemeral restore dirs (local only; never commit)
+.restore-full-zip/
+.restore-zip/
+
+# Python bytecode (server)
+**/src/__pycache__/
+**/__pycache__/
+*.py[cod]
+
