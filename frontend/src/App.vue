@@ -306,21 +306,49 @@ function resetThemeState() {
   game.themeLocked = false
 }
 
-/** Vite proxy → backend; connection refused surfaces as TypeError "Failed to fetch". */
+/** Maps API / network errors to short, plain-English copy for the auth modal. */
 function friendlyAuthFetchError(raw) {
   const msg = String(raw || '')
-  if (msg === 'FORBIDDEN_ORIGIN') {
-    return 'Login blocked: this site’s address does not match the API allow-list (FORBIDDEN_ORIGIN). Ask the admin to set Render FRONTEND_ORIGIN to this exact URL (try with/without www). / 登录被拒绝：当前网址不在 API 白名单，请在 Render 配置 FRONTEND_ORIGIN 为当前完整地址（含 https，可尝试加/去 www）。'
+  if (msg === 'FORBIDDEN_ORIGIN' || msg === 'HTTP_403') {
+    return 'Sign-in isn’t working on this web address yet. Open ClimateQuest from the link your class or organizer shared, or ask them to update the site so this address is allowed.'
+  }
+  if (msg === 'MISSING_ORIGIN') {
+    return 'We couldn’t verify this page. Try refreshing, or open the site in a normal browser tab instead of an embedded preview.'
   }
   if (msg === 'EMPTY_AUTH_RESPONSE') {
-    return 'Unexpected empty response from server. Please refresh and try again. / 服务器返回异常，请刷新后重试。'
+    return 'Something went wrong while signing in. Refresh the page and try again.'
+  }
+  if (msg === 'INVALID_USERNAME') {
+    return 'Usernames must be 3–32 characters and use only letters, numbers, and underscores.'
   }
   if (
     /failed to fetch/i.test(msg) ||
     /networkerror when attempting to fetch resource/i.test(msg) ||
     /load failed/i.test(msg)
   ) {
-    return 'Cannot reach the API (Failed to fetch). In another terminal at the repo root run npm run dev:server, or from root once: npm install && npm run dev:local — then refresh.'
+    if (typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname)) {
+      return 'Cannot reach the game server. Start the local API (see project readme), or run dev:local from the repo root, then refresh.'
+    }
+    return 'Cannot reach the server. Check your internet connection and try again.'
+  }
+  if (/^HTTP_5\d\d$/.test(msg)) {
+    return 'The server is having trouble right now. Please try again in a minute.'
+  }
+  if (/^HTTP_4\d\d$/.test(msg)) {
+    return 'This action could not be completed. Refresh the page and try again.'
+  }
+  if (msg === 'USER_NOT_FOUND') {
+    return 'Account not found. Please register first.'
+  }
+  if (msg === 'USERNAME_TAKEN') {
+    return 'This username is already taken. Try another or sign in.'
+  }
+  if (msg === 'REQUEST_ERROR' || msg === 'INTERNAL_ERROR' || msg === 'NOT_FOUND') {
+    return 'Something went wrong. Please try again.'
+  }
+  // Avoid showing raw API error codes to players
+  if (/^[A-Z][A-Z0-9_]+$/.test(msg)) {
+    return 'Something went wrong. Please try again.'
   }
   return msg
 }
@@ -1015,12 +1043,12 @@ async function submitSignin() {
     onNavigate('dashboard')
   } catch (e) {
     const msg = String(e?.message || 'Login failed')
-    if (msg === 'FORBIDDEN_ORIGIN') {
+    if (msg === 'FORBIDDEN_ORIGIN' || msg === 'HTTP_403') {
       await refreshMe()
       if (user.value) {
         showToast(
-          'You already have a session in this browser; continuing to the dashboard. Use Sign out to switch accounts. / 检测到已有登录态，正在进入主页。若要换号请先退出。',
-          'Session detected',
+          'You are still signed in on this device. Opening your dashboard. To use a different account, choose Sign out first.',
+          'Already signed in',
           5200,
         )
         closeAuth()
@@ -1097,7 +1125,12 @@ async function submitUsername() {
     user.value = data.user
     closeUsernameModal()
   } catch (e) {
-    usernameError.value = String(e?.message || 'Update failed')
+    const msg = String(e?.message || 'Update failed')
+    if (msg === 'USERNAME_TAKEN') {
+      usernameError.value = 'That username is already taken. Try another one.'
+    } else {
+      usernameError.value = friendlyAuthFetchError(msg)
+    }
   } finally {
     busy.value = false
   }
