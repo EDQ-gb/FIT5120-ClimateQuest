@@ -309,7 +309,7 @@ function resetThemeState() {
 /** Maps API / network errors to short, plain-English copy for the auth modal. */
 function friendlyAuthFetchError(raw) {
   const msg = String(raw || '')
-  if (msg === 'FORBIDDEN_ORIGIN' || msg === 'HTTP_403') {
+  if (msg === 'FORBIDDEN_ORIGIN') {
     return 'Sign-in isn’t working on this web address yet. Open ClimateQuest from the link your class or organizer shared, or ask them to update the site so this address is allowed.'
   }
   if (msg === 'MISSING_ORIGIN') {
@@ -891,11 +891,6 @@ watch(
 
 const form = reactive({ username: '', displayName: '' })
 
-/** Same normalization as the API: trim + lowercase (3–32 [a-z0-9_] validated server-side). */
-function normalizeUsernameInput(raw) {
-  return String(raw || '').trim().toLowerCase()
-}
-
 // Tracks which action the UI should guide users toward when an auth call fails.
 // We keep the existing two-button modal, but we can still “switch” intent.
 const authSuggested = ref('signin') // signin|register
@@ -963,6 +958,16 @@ async function refreshMe() {
   }
 }
 
+/** Avoid hanging the UI forever if `/api/auth/me` never returns (blocked proxy, bad network). */
+async function refreshMeWithBudget(ms = 6000) {
+  await Promise.race([
+    refreshMe(),
+    new Promise((resolve) => {
+      setTimeout(resolve, ms)
+    }),
+  ])
+}
+
 async function onNavClick(key) {
   if (!validViews.has(key)) return
   if (key === 'home') return onNavigate('home', { userAction: true })
@@ -978,7 +983,7 @@ function onStayOnQuiz() {
 }
 
 async function openAuth() {
-  await refreshMe()
+  await refreshMeWithBudget(6000)
   if (user.value) {
     menuOpen.value = true
     return
@@ -1048,37 +1053,6 @@ async function submitSignin() {
     onNavigate('dashboard')
   } catch (e) {
     const msg = String(e?.message || 'Login failed')
-    if (msg === 'FORBIDDEN_ORIGIN' || msg === 'HTTP_403') {
-      await refreshMe()
-      if (user.value) {
-        const attempted = normalizeUsernameInput(form.username)
-        const current = normalizeUsernameInput(user.value.username)
-        // POST sign-in is origin-checked; GET /api/auth/me is not. A blocked POST can look like
-        // "any username logs me in as my old cookie" — only treat as success if names match.
-        if (attempted && current && attempted !== current) {
-          errorMsg.value =
-            'That sign-in did not complete on this web address. This browser is still signed in as @' +
-            user.value.username +
-            '. To use another username, open the menu and choose Sign out first, then try again.'
-          authSuggested.value = 'signin'
-        } else if (attempted && current && attempted === current) {
-          showToast(
-            'You are still signed in on this device. Opening your dashboard. To use a different account, choose Sign out first.',
-            'Already signed in',
-            5200,
-          )
-          closeAuth()
-          await onNavigate('dashboard')
-        } else {
-          errorMsg.value = friendlyAuthFetchError(msg)
-          authSuggested.value = 'signin'
-        }
-      } else {
-        errorMsg.value = friendlyAuthFetchError(msg)
-        authSuggested.value = 'signin'
-      }
-      return
-    }
     // UX requirement:
     // - login with non-existent username → guide user to register
     if (msg === 'USER_NOT_FOUND') {
@@ -1161,7 +1135,7 @@ async function submitUsername() {
 
 async function onCta() {
   errorMsg.value = ''
-  await refreshMe()
+  await refreshMeWithBudget(6000)
   if (user.value) {
     onNavigate('dashboard')
     return
@@ -1218,7 +1192,7 @@ watch(
 )
 
 onMounted(async () => {
-  await refreshMe()
+  await refreshMeWithBudget(8000)
   window.addEventListener('keydown', onKeydown)
   document.addEventListener('visibilitychange', onVisibilityChange)
 })
