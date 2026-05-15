@@ -306,6 +306,19 @@ function resetThemeState() {
   game.themeLocked = false
 }
 
+/** Vite proxy → backend; connection refused surfaces as TypeError "Failed to fetch". */
+function friendlyAuthFetchError(raw) {
+  const msg = String(raw || '')
+  if (
+    /failed to fetch/i.test(msg) ||
+    /networkerror when attempting to fetch resource/i.test(msg) ||
+    /load failed/i.test(msg)
+  ) {
+    return 'Cannot reach the API (Failed to fetch). In another terminal at the repo root run npm run dev:server, or from root once: npm install && npm run dev:local — then refresh.'
+  }
+  return msg
+}
+
 const toast = reactive({ show: false, title: '', text: '', key: 0, actions: [] })
 let toastTimer = 0
 function dismissToast() {
@@ -954,7 +967,7 @@ async function submitRegister() {
     // English UX requirement:
     // - username already exists → show “already registered”
     if (msg === 'USERNAME_TAKEN') errorMsg.value = 'This username is already registered.'
-    else errorMsg.value = msg
+    else errorMsg.value = friendlyAuthFetchError(msg)
     authSuggested.value = 'signin'
   } finally {
     busy.value = false
@@ -988,7 +1001,7 @@ async function submitSignin() {
       errorMsg.value = 'Account not found. Please register first.'
       authSuggested.value = 'register'
     } else {
-      errorMsg.value = msg
+      errorMsg.value = friendlyAuthFetchError(msg)
       authSuggested.value = 'signin'
     }
   } finally {
