@@ -2,8 +2,8 @@ import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 // https://vite.dev/config/
-// Dev: `/api` target comes from `frontend/.env.development` (cloud Render by default).
-// Override with `.env.development.local` for a local Node API (see that file’s comments).
+// Dev: `/api` target from `frontend/.env.development` (defaults to local :8080; see file comments).
+// Override in `.env.development.local` if needed.
 const RENDER_API = 'https://fit5120-climatequest.onrender.com'
 const LOCAL_API = 'http://127.0.0.1:8080'
 
