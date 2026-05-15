@@ -891,6 +891,11 @@ watch(
 
 const form = reactive({ username: '', displayName: '' })
 
+/** Same normalization as the API: trim + lowercase (3–32 [a-z0-9_] validated server-side). */
+function normalizeUsernameInput(raw) {
+  return String(raw || '').trim().toLowerCase()
+}
+
 // Tracks which action the UI should guide users toward when an auth call fails.
 // We keep the existing two-button modal, but we can still “switch” intent.
 const authSuggested = ref('signin') // signin|register
@@ -1046,15 +1051,33 @@ async function submitSignin() {
     if (msg === 'FORBIDDEN_ORIGIN' || msg === 'HTTP_403') {
       await refreshMe()
       if (user.value) {
-        showToast(
-          'You are still signed in on this device. Opening your dashboard. To use a different account, choose Sign out first.',
-          'Already signed in',
-          5200,
-        )
-        closeAuth()
-        await onNavigate('dashboard')
-        return
+        const attempted = normalizeUsernameInput(form.username)
+        const current = normalizeUsernameInput(user.value.username)
+        // POST sign-in is origin-checked; GET /api/auth/me is not. A blocked POST can look like
+        // "any username logs me in as my old cookie" — only treat as success if names match.
+        if (attempted && current && attempted !== current) {
+          errorMsg.value =
+            'That sign-in did not complete on this web address. This browser is still signed in as @' +
+            user.value.username +
+            '. To use another username, open the menu and choose Sign out first, then try again.'
+          authSuggested.value = 'signin'
+        } else if (attempted && current && attempted === current) {
+          showToast(
+            'You are still signed in on this device. Opening your dashboard. To use a different account, choose Sign out first.',
+            'Already signed in',
+            5200,
+          )
+          closeAuth()
+          await onNavigate('dashboard')
+        } else {
+          errorMsg.value = friendlyAuthFetchError(msg)
+          authSuggested.value = 'signin'
+        }
+      } else {
+        errorMsg.value = friendlyAuthFetchError(msg)
+        authSuggested.value = 'signin'
       }
+      return
     }
     // UX requirement:
     // - login with non-existent username → guide user to register
