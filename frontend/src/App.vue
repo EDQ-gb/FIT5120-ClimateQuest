@@ -306,53 +306,6 @@ function resetThemeState() {
   game.themeLocked = false
 }
 
-/** Maps API / network errors to short, plain-English copy for the auth modal. */
-function friendlyAuthFetchError(raw) {
-  const msg = String(raw || '')
-  if (msg === 'FORBIDDEN_ORIGIN') {
-    return 'Sign-in isn’t working on this web address yet. Open ClimateQuest from the link your class or organizer shared, or ask them to update the site so this address is allowed.'
-  }
-  if (msg === 'MISSING_ORIGIN') {
-    return 'We couldn’t verify this page. Try refreshing, or open the site in a normal browser tab instead of an embedded preview.'
-  }
-  if (msg === 'EMPTY_AUTH_RESPONSE') {
-    return 'Something went wrong while signing in. Refresh the page and try again.'
-  }
-  if (msg === 'INVALID_USERNAME') {
-    return 'Usernames must be 3–32 characters and use only letters, numbers, and underscores.'
-  }
-  if (
-    /failed to fetch/i.test(msg) ||
-    /networkerror when attempting to fetch resource/i.test(msg) ||
-    /load failed/i.test(msg)
-  ) {
-    if (typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname)) {
-      return 'Cannot reach the game server. Start the local API (see project readme), or run dev:local from the repo root, then refresh.'
-    }
-    return 'Cannot reach the server. Check your internet connection and try again.'
-  }
-  if (/^HTTP_5\d\d$/.test(msg)) {
-    return 'The server is having trouble right now. Please try again in a minute.'
-  }
-  if (/^HTTP_4\d\d$/.test(msg)) {
-    return 'This action could not be completed. Refresh the page and try again.'
-  }
-  if (msg === 'USER_NOT_FOUND') {
-    return 'Account not found. Please register first.'
-  }
-  if (msg === 'USERNAME_TAKEN') {
-    return 'This username is already taken. Try another or sign in.'
-  }
-  if (msg === 'REQUEST_ERROR' || msg === 'INTERNAL_ERROR' || msg === 'NOT_FOUND') {
-    return 'Something went wrong. Please try again.'
-  }
-  // Avoid showing raw API error codes to players
-  if (/^[A-Z][A-Z0-9_]+$/.test(msg)) {
-    return 'Something went wrong. Please try again.'
-  }
-  return msg
-}
-
 const toast = reactive({ show: false, title: '', text: '', key: 0, actions: [] })
 let toastTimer = 0
 function dismissToast() {
@@ -583,10 +536,7 @@ async function onNavigate(view, options = {}) {
   const reqId = ++navReqId
   // Scene builder ("My Scene" from nav or landing CTA as `game`): single forest biome only.
   if (view === 'scene' || view === 'game') {
-    if (!user.value) {
-      await openAuth()
-      return
-    }
+    if (!user.value) return openAuth()
     // Open Scene immediately, then refresh data in background.
     currentView.value = 'game'
     syncShellFromGame()
@@ -650,12 +600,7 @@ function onActivity(payload) {
 
 async function onResetGame() {
   try {
-    await fetch('/api/game/reset', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ confirmReset: 'RESET_CLIMATEQUEST_PROGRESS' }),
-    }).then((r) => r.json())
+    await fetch('/api/game/reset', { method: 'POST', credentials: 'include' }).then((r) => r.json())
   } catch {
     // ignore
   }
@@ -958,23 +903,10 @@ async function refreshMe() {
   }
 }
 
-/** Avoid hanging the UI forever if `/api/auth/me` never returns (blocked proxy, bad network). */
-async function refreshMeWithBudget(ms = 6000) {
-  await Promise.race([
-    refreshMe(),
-    new Promise((resolve) => {
-      setTimeout(resolve, ms)
-    }),
-  ])
-}
-
-async function onNavClick(key) {
+function onNavClick(key) {
   if (!validViews.has(key)) return
   if (key === 'home') return onNavigate('home', { userAction: true })
-  if (!user.value) {
-    await openAuth()
-    return
-  }
+  if (!user.value) return openAuth()
   onNavigate(key, { userAction: true })
 }
 
@@ -982,12 +914,7 @@ function onStayOnQuiz() {
   stickyView.value = 'quiz'
 }
 
-async function openAuth() {
-  await refreshMeWithBudget(6000)
-  if (user.value) {
-    menuOpen.value = true
-    return
-  }
+function openAuth() {
   authOpen.value = true
   errorMsg.value = ''
   authSuggested.value = 'signin'
@@ -1022,7 +949,7 @@ async function submitRegister() {
     // English UX requirement:
     // - username already exists → show “already registered”
     if (msg === 'USERNAME_TAKEN') errorMsg.value = 'This username is already registered.'
-    else errorMsg.value = friendlyAuthFetchError(msg)
+    else errorMsg.value = msg
     authSuggested.value = 'signin'
   } finally {
     busy.value = false
@@ -1038,9 +965,6 @@ async function submitSignin() {
       method: 'POST',
       body: JSON.stringify({ username: form.username }),
     })
-    if (!data?.user) {
-      throw new Error('EMPTY_AUTH_RESPONSE')
-    }
     user.value = data.user
     setFeatureStorageUser(data.user?.username)
     clearLegacyFeatureStorage()
@@ -1059,7 +983,7 @@ async function submitSignin() {
       errorMsg.value = 'Account not found. Please register first.'
       authSuggested.value = 'register'
     } else {
-      errorMsg.value = friendlyAuthFetchError(msg)
+      errorMsg.value = msg
       authSuggested.value = 'signin'
     }
   } finally {
@@ -1091,7 +1015,7 @@ function onLogin() {
     menuOpen.value = !menuOpen.value
     return
   }
-  void openAuth()
+  openAuth()
 }
 
 function closeMenu() {
@@ -1122,25 +1046,16 @@ async function submitUsername() {
     user.value = data.user
     closeUsernameModal()
   } catch (e) {
-    const msg = String(e?.message || 'Update failed')
-    if (msg === 'USERNAME_TAKEN') {
-      usernameError.value = 'That username is already taken. Try another one.'
-    } else {
-      usernameError.value = friendlyAuthFetchError(msg)
-    }
+    usernameError.value = String(e?.message || 'Update failed')
   } finally {
     busy.value = false
   }
 }
 
-async function onCta() {
+function onCta() {
   errorMsg.value = ''
-  await refreshMeWithBudget(6000)
-  if (user.value) {
-    onNavigate('dashboard')
-    return
-  }
-  authOpen.value = true
+  if (user.value) onNavigate('dashboard')
+  else authOpen.value = true
 }
 
 function onKeydown(e) {
@@ -1192,7 +1107,7 @@ watch(
 )
 
 onMounted(async () => {
-  await refreshMeWithBudget(8000)
+  await refreshMe()
   window.addEventListener('keydown', onKeydown)
   document.addEventListener('visibilitychange', onVisibilityChange)
 })

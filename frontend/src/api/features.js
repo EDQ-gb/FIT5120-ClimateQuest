@@ -306,12 +306,10 @@ export async function submitQuiz(idx, answer) {
     const quizResultLog = getQuizResultLog()
     quizResultLog[today()] = {
       correct,
+      correctAnswer: q.ans,
+      explanation: q.exp,
       selectedAnswer: answer,
       coinsEarned: correct ? 25 : 0,
-    }
-    if (correct) {
-      quizResultLog[today()].correctAnswer = q.ans
-      quizResultLog[today()].explanation = q.exp
     }
     set(K.quizResult, quizResultLog)
     if (correct) {
@@ -319,18 +317,15 @@ export async function submitQuiz(idx, answer) {
       const scene = getSceneState(); scene.progress = Math.min(100, scene.progress+3); set(K.scene, scene)
     }
     const completions = getCompletions()
-    const out = {
+    return {
       correct,
+      correctAnswer: q.ans,
+      explanation: q.exp,
       coinsEarned: correct ? 25 : 0,
       totalCoins: getCoins(),
       sceneProgress: getSceneState().progress,
       streak: calcActivityStreak(completions, log),
     }
-    if (correct) {
-      out.correctAnswer = q.ans
-      out.explanation = q.exp
-    }
-    return out
   }
 }
 

@@ -43,68 +43,54 @@
             <span class="landing2-hero-tagline-line">THE CLIMATE IS CHANGING</span>
             <span class="landing2-hero-tagline-line">SO CAN YOU</span>
           </p>
-          <p class="landing2-hero-tagline-sub">your daily actions can move the planet forward</p>
+          <p class="landing2-hero-tagline-sub">YOUR DAILY ACTIONS CAN MOVE THE PLANET FORWARD</p>
         </div>
         <div class="landing2-cta-row">
-          <button type="button" class="landing2-ghost-pill landing2-ghost-pill--start" @click="$emit('start')">
-            start your quest
-          </button>
+          <button type="button" class="landing2-ghost-pill" @click="$emit('start')">Start Your Quest</button>
           <button
             v-if="!showGuidePanel"
             type="button"
-            class="landing2-ghost-pill landing2-ghost-pill--glass"
+            class="landing2-ghost-pill"
             @click="reopenGuidePanel"
           >
-            how to use this site
+            How to use this site
           </button>
         </div>
       </div>
     </div>
 
-    <template v-if="showGuidePanel">
+    <Transition name="guide-corner-fade" mode="out-in">
       <aside
-        v-for="card in guideCornerCards"
-        v-show="card.step <= guideRevealCount"
-        :key="card.step"
+        v-if="showGuidePanel && activeGuideCard"
+        :key="activeGuideCard.step"
         class="home-guide-corner"
-        :class="[
-          `home-guide-corner--${card.pos}`,
-          {
-            'home-guide-corner--completed': card.step < guideRevealCount,
-            'home-guide-corner--active': card.step === guideRevealCount,
-          },
-        ]"
-        :style="{ zIndex: 10 + card.step }"
+        :class="`home-guide-corner--${activeGuideCard.pos}`"
         role="note"
-        :aria-label="card.aria"
+        :aria-label="activeGuideCard.aria"
       >
         <div class="home-guide-corner-body">
           <div class="home-guide-corner-head">
-            <h2 class="home-guide-corner-title">{{ card.title }}</h2>
-            <p class="home-guide-corner-text">{{ card.body }}</p>
+            <div class="home-guide-corner-kicker">
+              <div class="home-guide-corner-step-label">Step {{ activeGuideCard.step }} of 4</div>
+              <div class="home-guide-corner-kicker-sub">How this helps climate action</div>
+            </div>
+            <h2 class="home-guide-corner-title">{{ activeGuideCard.title }}</h2>
+            <p class="home-guide-corner-text">{{ activeGuideCard.body }}</p>
           </div>
         </div>
-        <div v-if="card.step === guideRevealCount" class="home-guide-corner-footer">
-          <div class="home-guide-corner-footer-main">
-            <button
-              type="button"
-              class="landing2-ghost-pill landing2-ghost-pill--glass home-guide-corner-pill--primary"
-              @click="advanceGuideTour"
-            >
-              {{ guideRevealCount < 4 ? 'next step' : 'done' }}
-            </button>
-          </div>
-          <div class="home-guide-corner-footer-dismiss-wrap">
-            <button type="button" class="home-guide-corner-dismiss" @click="dismissGuidePanel">hide tips</button>
-          </div>
+        <div class="home-guide-corner-footer">
+          <button type="button" class="home-guide-corner-next" @click="advanceGuideTour">
+            {{ activeGuideCard.step < 4 ? 'Next step' : 'Done' }}
+          </button>
+          <button type="button" class="home-guide-corner-hide" @click="dismissGuidePanel">Hide tips</button>
         </div>
       </aside>
-    </template>
+    </Transition>
   </div>
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 defineProps({
   user: { type: Object, default: null },
@@ -118,8 +104,8 @@ defineEmits(['start', 'login', 'navigate'])
 
 const bg = ref(null)
 const showGuidePanel = ref(true)
-/** How many corner cards are visible (1–4); increases with “next step”; all hide on “done” or hide tips. */
-const guideRevealCount = ref(1)
+/** Which corner card is visible (1–4); advances with “Next step”. */
+const guideStepIndex = ref(1)
 let raf = 0
 
 /** Ordered tour: corners advance with “Next step” only (no in-card navigation). */
@@ -128,35 +114,37 @@ const guideCornerCards = [
     step: 1,
     pos: 'tl',
     aria: 'Step 1: Dashboard — start your quest',
-    title: 'start your quest',
+    title: 'Start your quest',
     body: 'Open your Dashboard to track progress. Small low-carbon choices add up in real life.',
   },
   {
     step: 2,
     pos: 'tr',
     aria: 'Step 2: earn coins',
-    title: 'earn coins',
+    title: 'Earn coins',
     body: 'Complete Daily Tasks and the Daily Quiz to collect rewards for your journey.',
   },
   {
     step: 3,
     pos: 'bl',
     aria: 'Step 3: My Scene',
-    title: 'grow your world',
+    title: 'Grow your world',
     body: 'Spend coins in My Scene to place trees and goodies and watch your map thrive.',
   },
   {
     step: 4,
     pos: 'br',
     aria: 'Step 4: Leaderboard',
-    title: 'compare progress',
+    title: 'Compare progress',
     body: 'Check the Leaderboard to see how your climate contribution compares with others.',
   },
 ]
 
+const activeGuideCard = computed(() => guideCornerCards.find((c) => c.step === guideStepIndex.value) || null)
+
 function advanceGuideTour() {
-  if (guideRevealCount.value < 4) {
-    guideRevealCount.value += 1
+  if (guideStepIndex.value < 4) {
+    guideStepIndex.value += 1
   } else {
     dismissGuidePanel()
   }
@@ -164,7 +152,7 @@ function advanceGuideTour() {
 
 function dismissGuidePanel() {
   showGuidePanel.value = false
-  guideRevealCount.value = 1
+  guideStepIndex.value = 1
   try {
     localStorage.setItem('cq_home_guide_hidden', '1')
   } catch {
@@ -173,7 +161,7 @@ function dismissGuidePanel() {
 }
 
 function reopenGuidePanel() {
-  guideRevealCount.value = 1
+  guideStepIndex.value = 1
   showGuidePanel.value = true
   try {
     localStorage.removeItem('cq_home_guide_hidden')
@@ -273,7 +261,7 @@ onMounted(() => {
   } catch {
     showGuidePanel.value = true
   }
-  guideRevealCount.value = 1
+  guideStepIndex.value = 1
   const canvas = bg.value
   if (!canvas) return
 
@@ -670,24 +658,6 @@ onMounted(() => {
 <style scoped>
 .landing2 {
   --landing2-nav-h: 64px;
-  /* Frosted panels — landing canvas tones (#0e1822 / mint / cyan) */
-  --l2-glass-border: 1px solid rgba(0, 242, 255, 0.16);
-  --l2-glass-bg: linear-gradient(
-    165deg,
-    rgba(255, 255, 255, 0.055) 0%,
-    rgba(78, 207, 140, 0.045) 38%,
-    rgba(0, 242, 255, 0.045) 100%
-  );
-  --l2-glass-fill: rgba(14, 24, 34, 0.22);
-  --l2-glass-fill-hover: rgba(16, 30, 44, 0.34);
-  --l2-glass-blur: blur(22px) saturate(170%);
-  --l2-glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  --l2-glass-drop: 0 6px 20px rgba(0, 0, 0, 0.18);
-  --l2-glass-aura: 0 0 28px rgba(0, 242, 255, 0.08), 0 0 44px rgba(78, 207, 140, 0.06);
-  /* Guide panels: same inset from left/right; balanced vertical clearance */
-  --guide-edge-inset: clamp(18px, 3.6vw, 32px);
-  --guide-top-offset: calc(var(--landing2-nav-h) + clamp(12px, 2vh, 24px));
-  --guide-bottom-offset: max(var(--guide-edge-inset), clamp(84px, 12.5vh, 128px));
   position: relative;
   width: 100%;
   height: 100vh;
@@ -700,7 +670,16 @@ onMounted(() => {
   inset: 0;
   z-index: 0;
   display: block;
-  pointer-events: auto;
+}
+
+.guide-corner-fade-enter-active,
+.guide-corner-fade-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+.guide-corner-fade-enter-from,
+.guide-corner-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.98);
 }
 
 .home-guide-corner {
@@ -710,58 +689,55 @@ onMounted(() => {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
-  width: min(340px, calc(100vw - 2 * var(--guide-edge-inset)));
-  max-width: calc(100vw - 2 * var(--guide-edge-inset));
-  max-height: min(48vh, 420px);
-  min-height: 0;
-  padding: 14px 17px 12px;
-  border-radius: 22px;
-  border: var(--l2-glass-border);
-  box-shadow: var(--l2-glass-inset), var(--l2-glass-drop), var(--l2-glass-aura);
-  background: var(--l2-glass-bg);
-  background-color: var(--l2-glass-fill);
-  backdrop-filter: var(--l2-glass-blur);
-  -webkit-backdrop-filter: var(--l2-glass-blur);
-  color: rgba(222, 238, 236, 0.96);
-  transition: opacity 0.2s ease, box-shadow 0.2s ease;
-}
-
-.home-guide-corner--completed {
-  opacity: 0.86;
-  box-shadow: var(--l2-glass-inset), 0 4px 14px rgba(0, 0, 0, 0.14);
-}
-
-.home-guide-corner--active {
-  opacity: 1;
+  width: min(480px, calc(100vw - 20px));
+  max-width: calc(100vw - 16px);
+  min-height: min(320px, 42vh);
+  padding: 26px 28px 22px;
+  border-radius: 24px;
+  /* Apple-style frosted glass — slightly higher transparency so the globe shows through */
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.05) 42%,
+    rgba(255, 255, 255, 0.025) 100%
+  );
+  background-color: rgba(22, 32, 38, 0.26);
+  backdrop-filter: blur(48px) saturate(200%);
+  -webkit-backdrop-filter: blur(48px) saturate(200%);
+  color: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1),
+    0 24px 64px rgba(0, 0, 0, 0.32),
+    0 0 0 0.5px rgba(255, 255, 255, 0.05);
 }
 
 .home-guide-corner--tl {
-  left: var(--guide-edge-inset);
-  top: var(--guide-top-offset);
+  left: clamp(8px, 1.5vw, 16px);
+  top: calc(var(--landing2-nav-h) + clamp(6px, 1.2vh, 12px));
 }
 
 .home-guide-corner--tr {
-  right: var(--guide-edge-inset);
-  top: var(--guide-top-offset);
+  right: clamp(8px, 1.5vw, 16px);
+  top: calc(var(--landing2-nav-h) + clamp(6px, 1.2vh, 12px));
 }
 
 .home-guide-corner--bl {
-  left: var(--guide-edge-inset);
-  bottom: var(--guide-bottom-offset);
+  left: clamp(8px, 1.5vw, 16px);
+  bottom: clamp(100px, 15vh, 152px);
 }
 
 .home-guide-corner--br {
-  right: var(--guide-edge-inset);
-  bottom: var(--guide-bottom-offset);
+  right: clamp(8px, 1.5vw, 16px);
+  bottom: clamp(100px, 15vh, 152px);
 }
 
 .home-guide-corner-body {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
 }
 
 .home-guide-corner-head {
@@ -769,92 +745,130 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 7px;
+  gap: 14px;
+}
+
+.home-guide-corner-kicker {
+  width: 100%;
+}
+
+.home-guide-corner-step-label {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Fredoka', 'Nunito', system-ui, sans-serif;
+  font-size: clamp(1.45rem, 4.2vw, 2rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.15;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.98);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+
+.home-guide-corner-kicker-sub {
+  margin-top: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Fredoka', system-ui, sans-serif;
+  font-size: clamp(0.78rem, 1.9vw, 0.92rem);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(200, 245, 220, 0.72);
 }
 
 .home-guide-corner-title {
   margin: 0;
-  font-family: var(--font-game, 'Fredoka', 'Nunito', system-ui, sans-serif);
-  font-size: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Fredoka', 'Nunito', system-ui, sans-serif;
+  font-size: clamp(1.2rem, 3vw, 1.45rem);
   font-weight: 700;
   line-height: 1.2;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #e8f4ef;
-  text-shadow:
-    0 1px 10px rgba(0, 0, 0, 0.35),
-    0 0 18px rgba(78, 207, 140, 0.15),
-    0 0 22px rgba(0, 242, 255, 0.1);
-}
-
-.home-guide-corner--completed .home-guide-corner-title {
-  color: rgba(210, 232, 224, 0.82);
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.3);
+  letter-spacing: -0.02em;
+  color: rgba(255, 255, 255, 0.98);
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.35);
 }
 
 .home-guide-corner-text {
-  margin: 2px 0 0;
-  max-width: 34ch;
-  font-family: var(--font-game, 'Fredoka', 'Nunito', system-ui, sans-serif);
-  font-size: 15px;
-  line-height: 1.5;
+  margin: 0;
+  max-width: 38ch;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Fredoka', system-ui, sans-serif;
+  font-size: clamp(1.02rem, 2.35vw, 1.15rem);
+  line-height: 1.55;
   font-weight: 500;
-  letter-spacing: 0.01em;
-  color: rgba(200, 226, 220, 0.92);
-  max-height: 8.5em;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.home-guide-corner--completed .home-guide-corner-text {
-  color: rgba(188, 212, 206, 0.72);
+  color: rgba(235, 248, 242, 0.92);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.28);
 }
 
 .home-guide-corner-footer {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  width: 100%;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(0, 242, 255, 0.14);
-  gap: 0;
-}
-
-.home-guide-corner-footer-main {
-  display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 12px;
   width: 100%;
+  margin-top: auto;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
 }
 
-.home-guide-corner-footer-dismiss-wrap {
-  display: flex;
-  justify-content: flex-end;
+.home-guide-corner-next {
   width: 100%;
-  margin-top: 4px;
-  padding-right: 1px;
-}
-
-.home-guide-corner-dismiss {
-  border: none;
-  border-radius: 6px;
-  padding: 2px 4px;
-  margin: 0;
-  background: transparent;
-  font-family: var(--font-game, 'Fredoka', 'Nunito', system-ui, sans-serif);
-  font-size: 11px;
+  max-width: 300px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  color: rgba(255, 255, 255, 0.98);
+  padding: 14px 28px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Fredoka', system-ui, sans-serif;
+  font-size: 1rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: lowercase;
-  color: rgba(120, 168, 178, 0.72);
+  letter-spacing: 0.02em;
   cursor: pointer;
-  transition: color 0.18s ease, background 0.18s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transition: background 0.2s ease, transform 0.15s ease;
 }
 
-.home-guide-corner-dismiss:hover {
-  color: rgba(183, 248, 255, 0.88);
-  background: rgba(0, 242, 255, 0.06);
+.home-guide-corner-next:hover {
+  background: rgba(255, 255, 255, 0.24);
+  transform: translateY(-1px);
+}
+
+.home-guide-corner-hide {
+  border: none;
+  border-radius: 12px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: rgba(220, 240, 230, 0.75);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Fredoka', system-ui, sans-serif;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.home-guide-corner-hide:hover {
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 720px) {
+  .home-guide-corner {
+    width: min(400px, calc(100vw - 16px));
+    min-height: min(280px, 48vh);
+    padding: 20px 18px 18px;
+  }
+  .home-guide-corner--tl,
+  .home-guide-corner--tr {
+    top: calc(var(--landing2-nav-h) + 4px);
+  }
+  .home-guide-corner--bl,
+  .home-guide-corner--br {
+    bottom: clamp(92px, 16vh, 128px);
+  }
+  .home-guide-corner-next {
+    max-width: 100%;
+  }
 }
 .landing2-nav {
   position: fixed;
@@ -868,12 +882,10 @@ onMounted(() => {
   gap: 28px;
   padding: 0 24px;
   z-index: 5;
-  /* Match app shell / Dashboard glass strip */
-  background: rgba(255, 255, 255, 0.07);
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .landing2-links {
@@ -911,17 +923,14 @@ onMounted(() => {
   gap: 8px;
   padding: 7px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(0, 242, 255, 0.22);
-  background: rgba(0, 242, 255, 0.08);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: rgba(230, 252, 255, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.95);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 .landing2-login:hover {
-  background: rgba(0, 242, 255, 0.14);
-  border-color: rgba(0, 242, 255, 0.38);
+  background: rgba(255, 255, 255, 0.11);
 }
 
 .landing2-avatar {
@@ -943,7 +952,6 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  background: transparent;
   /* More bottom padding so the Start button isn't glued to the bottom edge */
   padding: calc(clamp(18px, 3vh, 44px) + var(--landing2-nav-h)) clamp(16px, 4vw, 36px) clamp(18px, 4vh, 44px);
   pointer-events: none;
@@ -954,8 +962,6 @@ onMounted(() => {
   width: 100%;
   max-width: min(920px, 100%);
   text-align: center;
-  /* Breathing room between logo block and the globe */
-  padding-bottom: clamp(6px, 2vh, 28px);
 }
 
 .landing2-hero-narrow {
@@ -1009,23 +1015,22 @@ onMounted(() => {
 }
 
 .landing2-hero-tagline {
-  max-width: min(520px, 92vw);
-  margin: clamp(16px, 4vh, 40px) auto 0;
-  padding-top: clamp(8px, 2vh, 24px);
+  max-width: min(560px, 92vw);
+  margin: clamp(10px, 2vh, 28px) auto clamp(6px, 1vh, 12px);
   text-align: center;
   pointer-events: auto;
 }
 
 .landing2-hero-tagline-main {
   font-family: Anton, Nunito, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  font-size: clamp(14px, 2.65vw, 22px);
+  font-size: clamp(17px, 3.15vw, 26px);
   font-weight: 400;
-  line-height: 1.12;
-  letter-spacing: 0.2em;
+  line-height: 1.35;
+  letter-spacing: 0.32em;
   text-transform: uppercase;
   color: rgba(232, 240, 235, 0.92);
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
-  margin: 0 0 0.2em;
+  margin: 0 0 clamp(10px, 1.6vh, 16px);
 }
 
 .landing2-hero-tagline-line {
@@ -1033,20 +1038,20 @@ onMounted(() => {
 }
 
 .landing2-hero-tagline-line + .landing2-hero-tagline-line {
-  margin-top: 0.02em;
+  margin-top: 0.12em;
 }
 
 .landing2-hero-tagline-sub {
-  font-family: var(--font-game, 'Fredoka', 'Nunito', system-ui, sans-serif);
-  font-size: clamp(11px, 1.45vw, 13.5px);
+  font-family: 'Nunito', 'Fredoka', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-size: clamp(13px, 1.95vw, 17px);
   font-weight: 500;
-  line-height: 1.32;
-  letter-spacing: 0.03em;
-  text-transform: none;
-  color: rgba(200, 220, 212, 0.76);
+  line-height: 1.65;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(178, 196, 188, 0.88);
   text-shadow: 0 1px 10px rgba(0, 0, 0, 0.35);
-  margin: 0.15em auto 0;
-  max-width: 36em;
+  margin: 0 auto;
+  max-width: 38em;
 }
 
 .land-in-lead {
@@ -1057,8 +1062,8 @@ onMounted(() => {
 }
 
 .landing2-bottom {
-  margin-top: clamp(120px, 34vh, 360px);
-  margin-bottom: clamp(44px, 8vh, 110px);
+  /* Keep CTA under the globe without touching it */
+  margin-bottom: clamp(58px, 10vh, 140px);
 }
 
 .landing2-top,
@@ -1071,11 +1076,11 @@ onMounted(() => {
 
 .landing2-title {
   font-family: Anton, Nunito, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  font-size: clamp(28px, 5.2vw, 64px);
+  font-size: clamp(38px, 7.0vw, 88px);
   font-weight: 400;
   line-height: 0.82;
   text-align: center;
-  letter-spacing: 4px;
+  letter-spacing: 5px;
   color: #deeee6;
   text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.35), 6px 6px 0 rgba(0, 0, 0, 0.18),
     0 0 80px rgba(82, 212, 150, 0.08);
@@ -1096,72 +1101,44 @@ onMounted(() => {
 .landing2-cta-row {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 10px;
+  gap: 12px;
   width: max-content;
-  max-width: min(520px, 94vw);
-  margin-top: clamp(14px, 2.4vh, 22px);
+  max-width: min(560px, 94vw);
   margin-inline: auto;
   justify-items: stretch;
   pointer-events: auto;
 }
 
-/* Both CTAs: same type rhythm (sentence case in markup), slimmer hit area */
+/* Reference-style pill ghost CTAs: mint border, transparent fill, uppercase tracking */
 .landing2-ghost-pill {
   width: 100%;
   box-sizing: border-box;
-  min-height: 38px;
-  padding: 7px 16px;
+  min-height: 48px;
+  padding: 12px 18px;
   border-radius: 999px;
-  font-family: var(--font-game, 'Fredoka', 'Nunito', system-ui, sans-serif);
-  font-size: clamp(0.72rem, 1.5vw, 0.82rem);
+  border: 1px solid rgba(78, 207, 140, 0.55);
+  background: transparent;
+  color: rgba(120, 230, 185, 0.96);
+  font-family: 'Fredoka', Nunito, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-size: clamp(0.68rem, 1.65vw, 0.78rem);
   font-weight: 600;
-  letter-spacing: 0.045em;
-  text-transform: none;
-  line-height: 1.25;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  line-height: 1.2;
   cursor: pointer;
   text-align: center;
   transition:
     color 0.2s ease,
     border-color 0.2s ease,
     background-color 0.2s ease,
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+    transform 0.2s ease;
 }
 
-.landing2-ghost-pill--start {
-  border: 1px solid rgba(0, 242, 255, 0.35);
-  background: rgba(0, 242, 255, 0.1);
-  color: #b7f8ff;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-
-.landing2-ghost-pill--start:hover {
-  background: rgba(0, 242, 255, 0.16);
-  border-color: rgba(0, 242, 255, 0.55);
-  color: #e8fdff;
+.landing2-ghost-pill:hover {
+  background: rgba(78, 207, 140, 0.07);
+  border-color: rgba(110, 235, 175, 0.9);
+  color: rgba(200, 255, 220, 0.98);
   transform: translateY(-1px);
-}
-
-/* Secondary — frosted glass (same tokens as guide cards + .home-guide-corner) */
-.landing2-ghost-pill--glass {
-  min-height: 34px;
-  padding: 6px 14px;
-  font-size: clamp(0.68rem, 1.4vw, 0.76rem);
-  border: var(--l2-glass-border);
-  background: var(--l2-glass-bg);
-  background-color: var(--l2-glass-fill);
-  color: rgba(230, 246, 252, 0.88);
-  backdrop-filter: var(--l2-glass-blur);
-  -webkit-backdrop-filter: var(--l2-glass-blur);
-  box-shadow: var(--l2-glass-inset), var(--l2-glass-drop), var(--l2-glass-aura);
-}
-
-.landing2-ghost-pill--glass:hover {
-  background-color: var(--l2-glass-fill-hover);
-  border-color: rgba(0, 242, 255, 0.2);
-  color: rgba(255, 255, 255, 0.95);
-  transform: translateY(-1px);
-  box-shadow: var(--l2-glass-inset), var(--l2-glass-drop), 0 0 40px rgba(0, 242, 255, 0.09);
 }
 
 .landing2-ghost-pill:active {
@@ -1170,30 +1147,7 @@ onMounted(() => {
 
 .landing2-ghost-pill:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(0, 242, 255, 0.35);
-}
-
-.landing2-ghost-pill--glass:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 2px rgba(0, 242, 255, 0.28),
-    var(--l2-glass-inset),
-    var(--l2-glass-drop),
-    var(--l2-glass-aura);
-}
-
-/* Primary guide CTA — compact control; body/title carry readability */
-.home-guide-corner-footer-main .landing2-ghost-pill.landing2-ghost-pill--glass.home-guide-corner-pill--primary {
-  width: auto;
-  min-width: min(156px, 78vw);
-  max-width: 88%;
-  min-height: 28px;
-  padding: 5px 11px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  line-height: 1.26;
-  color: rgba(220, 252, 255, 0.96);
+  box-shadow: 0 0 0 3px rgba(78, 207, 140, 0.35);
 }
 
 .land-in-0 {
@@ -1216,9 +1170,6 @@ onMounted(() => {
 @media (max-width: 720px) {
   .landing2 {
     --landing2-nav-h: 58px;
-    --guide-edge-inset: clamp(14px, 4.2vw, 22px);
-    --guide-top-offset: calc(var(--landing2-nav-h) + clamp(10px, 1.6vh, 18px));
-    --guide-bottom-offset: max(var(--guide-edge-inset), clamp(76px, 11vh, 112px));
   }
   .landing2-nav {
     height: var(--landing2-nav-h);
@@ -1236,14 +1187,7 @@ onMounted(() => {
     max-width: 280px;
   }
   .landing2-bottom {
-    margin-top: clamp(96px, 30vh, 300px);
-    margin-bottom: clamp(32px, 7vh, 80px);
-  }
-  .home-guide-corner {
-    width: min(318px, calc(100vw - 2 * var(--guide-edge-inset)));
-    max-width: calc(100vw - 2 * var(--guide-edge-inset));
-    max-height: min(50vh, 400px);
-    padding: 12px 14px 10px;
+    margin-bottom: clamp(42px, 8vh, 100px);
   }
 }
 
