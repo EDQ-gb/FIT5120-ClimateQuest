@@ -600,7 +600,12 @@ function onActivity(payload) {
 
 async function onResetGame() {
   try {
-    await fetch('/api/game/reset', { method: 'POST', credentials: 'include' }).then((r) => r.json())
+    await fetch('/api/game/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ confirmReset: 'RESET_CLIMATEQUEST_PROGRESS' }),
+    }).then((r) => r.json())
   } catch {
     // ignore
   }
