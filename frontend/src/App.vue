@@ -309,6 +309,9 @@ function resetThemeState() {
 /** Vite proxy → backend; connection refused surfaces as TypeError "Failed to fetch". */
 function friendlyAuthFetchError(raw) {
   const msg = String(raw || '')
+  if (msg === 'FORBIDDEN_ORIGIN') {
+    return 'Login blocked: this site’s address does not match the API allow-list (FORBIDDEN_ORIGIN). Ask the admin to set Render FRONTEND_ORIGIN to this exact URL (try with/without www). / 登录被拒绝：当前网址不在 API 白名单，请在 Render 配置 FRONTEND_ORIGIN 为当前完整地址（含 https，可尝试加/去 www）。'
+  }
   if (
     /failed to fetch/i.test(msg) ||
     /networkerror when attempting to fetch resource/i.test(msg) ||

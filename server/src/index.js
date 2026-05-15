@@ -12,6 +12,77 @@ const { FRONTEND_ORIGIN, NODE_ENV, PORT, SESSION_SECRET } = require("./config");
 const { getPlacementKindForItemId } = require("./placementCatalog");
 const { getPool, query, exec } = require("./db");
 
+function normalizeConfiguredOrigin(origin) {
+  const s = String(origin || "").trim();
+  if (!s) return "";
+  return s.replace(/\/+$/, "");
+}
+
+/** Comma-separated FRONTEND_ORIGIN values (trimmed, non-empty). */
+function parseFrontendOrigins() {
+  const raw = String(FRONTEND_ORIGIN || "").trim();
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/** Compare origins treating `www.` host as equivalent to apex (common misconfig). */
+function stripWwwCanonical(origin) {
+  try {
+    const u = new URL(normalizeConfiguredOrigin(origin));
+    let h = u.hostname.toLowerCase();
+    if (h.startsWith("www.")) h = h.slice(4);
+    const port = u.port ? `:${u.port}` : "";
+    return `${u.protocol}//${h}${port}`;
+  } catch {
+    return normalizeConfiguredOrigin(origin);
+  }
+}
+
+function originAllowed(candidateOrigin, allowedRawStrings) {
+  const got = normalizeConfiguredOrigin(candidateOrigin);
+  if (!got) return false;
+  const list = allowedRawStrings.map((x) => normalizeConfiguredOrigin(x)).filter(Boolean);
+  if (!list.length) return false;
+  const gotCanon = stripWwwCanonical(got);
+  for (const allowed of list) {
+    if (!allowed) continue;
+    if (got === allowed) return true;
+    if (gotCanon === stripWwwCanonical(allowed)) return true;
+  }
+  return false;
+}
+
+function corsOriginDelegate() {
+  const list = parseFrontendOrigins();
+  return (origin, callback) => {
+    if (!origin) {
+      if (NODE_ENV !== "production") return callback(null, true);
+      return callback(null, false);
+    }
+    const o = normalizeConfiguredOrigin(origin);
+    if (NODE_ENV !== "production") {
+      if (originAllowed(o, list)) return callback(null, origin);
+      try {
+        const u = new URL(origin);
+        if (
+          (u.hostname === "localhost" || u.hostname === "127.0.0.1") &&
+          (u.protocol === "http:" || u.protocol === "https:")
+        ) {
+          return callback(null, origin);
+        }
+      } catch {
+        // ignore
+      }
+      return callback(null, false);
+    }
+    if (originAllowed(o, list)) return callback(null, origin);
+    return callback(null, false);
+  };
+}
+
 const app = express();
 
 app.disable("x-powered-by");
@@ -24,7 +95,7 @@ app.use(express.json({ limit: "2mb" }));
 
 app.use(
   cors({
-    origin: FRONTEND_ORIGIN,
+    origin: corsOriginDelegate(),
     credentials: true,
   })
 );
@@ -115,12 +186,6 @@ app.use(
   })
 );
 
-function normalizeConfiguredOrigin(origin) {
-  const s = String(origin || "").trim();
-  if (!s) return "";
-  return s.replace(/\/+$/, "");
-}
-
 /** Mitigate CSRF on cookie-authenticated POSTs: require browser Origin/Referer to match FRONTEND_ORIGIN in production. */
 function assertBrowserOriginMatchesFrontend(req, res) {
   if (NODE_ENV !== "production") return true;
@@ -129,8 +194,8 @@ function assertBrowserOriginMatchesFrontend(req, res) {
   if (m === "GET" || m === "HEAD" || m === "OPTIONS") return true;
   const p = String(req.path || req.url || "");
   if (p.startsWith("/api/admin")) return true;
-  const allowed = normalizeConfiguredOrigin(FRONTEND_ORIGIN);
-  if (!allowed) return true;
+  const allowedList = parseFrontendOrigins();
+  if (!allowedList.length) return true;
   const originHdr = req.get("origin");
   const referer = req.get("referer");
   let candidate = originHdr;
@@ -146,7 +211,7 @@ function assertBrowserOriginMatchesFrontend(req, res) {
     res.status(403).json({ error: "MISSING_ORIGIN" });
     return false;
   }
-  if (got !== allowed) {
+  if (!originAllowed(got, allowedList)) {
     res.status(403).json({ error: "FORBIDDEN_ORIGIN" });
     return false;
   }
@@ -2502,7 +2567,7 @@ app.listen(PORT, async () => {
   await maybeStartupSetCoins();
   // eslint-disable-next-line no-console
   console.log(`EcoQuest auth server listening on :${PORT}`);
-  console.log(`CORS origin: ${FRONTEND_ORIGIN}`);
+  console.log(`CORS allowed origin(s): ${parseFrontendOrigins().join(" | ") || "(none)"}`);
   console.log(`Session cookie secure: ${cookieSecure}, sameSite: ${cookieSameSite}`);
 });
 
