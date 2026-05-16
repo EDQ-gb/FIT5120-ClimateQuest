@@ -72,6 +72,7 @@ def health():
         detail = str(exc)
     return {
         "status": "ok" if ready else "degraded",
+        "service": "recipe-ai-worker",
         "model_ready": ready,
         "detail": detail if not ready else None,
     }

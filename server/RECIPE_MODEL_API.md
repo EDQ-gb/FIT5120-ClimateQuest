@@ -20,26 +20,26 @@ The list must contain 3 to 5 ingredients.
 
 The endpoint calls `server/src/recipe_model_infer.py`, which requires Python with PyTorch installed.
 
-## Fast cloud AI mode (recommended)
+## Recipe generation provider (no Pollinations)
 
-For low latency on Render free CPU, enable the built-in fast cloud AI path. This keeps the response in real AI generation mode while avoiding local heavyweight inference timeouts.
+`POST /api/recipes/generate` is routed by `server/src/recipe_model_router.js`:
 
-```powershell
-$env:RECIPE_FAST_CLOUD_ENABLED="1"
-$env:RECIPE_FAST_MODEL="openai-fast"
-$env:RECIPE_FAST_TIMEOUT_MS="12000"
-$env:RECIPE_FAST_CACHE_TTL_MS="21600000"   # 6 hours
-$env:RECIPE_FAST_FALLBACK_TO_LOCAL="0"
+1. **`local_worker`** (default when `LOCAL_AI_ENDPOINT` is set) — forwards to your machine’s FastAPI `ai_worker` (trained Transformer). See **[AI_WORKER_SETUP.md](../AI_WORKER_SETUP.md)**.
+2. **`local_builtin`** — only if `RECIPE_USE_SERVER_PYTORCH=1` and PyTorch runs on the same host as Node (local dev).
+3. **`local-fallback`** — JSON with `fallback: true` when the worker is not configured or unreachable (HTTP 200, not 503).
+
+Pollinations is **not** used for this route. Legacy Pollinations code lives in `server/src/pollinations_provider.js` for optional non-recipe use only.
+
+**Render (recommended):**
+
+```env
+RECIPE_MODEL_PROVIDER=local_worker
+LOCAL_AI_ENDPOINT=https://your-tunnel-url
+AI_WORKER_TOKEN=your-secret
+AI_WORKER_TIMEOUT_MS=60000
 ```
 
-Behavior:
-
-- Server tries fast cloud AI first.
-- If successful, response source is `fast_cloud_ai`.
-- If fast model is unavailable and `RECIPE_FAST_FALLBACK_TO_LOCAL=1`, server falls back to the local PyTorch model.
-- If `RECIPE_FAST_FALLBACK_TO_LOCAL=0`, API returns 503 quickly and frontend uses template fallback.
-
-If your training environment already has PyTorch, point the server to that Python executable:
+If your training environment already has PyTorch on the same machine as Node (dev only):
 
 ```powershell
 $env:RECIPE_PYTHON="C:\Path\To\Your\Python.exe"

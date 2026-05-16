@@ -37,7 +37,7 @@ function buildRecipeFallbackResponse(ingredients, message) {
     message:
       message ||
       "AI worker unavailable or too slow. Returned fallback result.",
-    source: "template_fallback",
+    source: "local-fallback",
     ingredients: list,
     title: "Simple low-carbon meal idea",
     text: `A quick idea using ${joined}. ${steps.join(" ")}`,

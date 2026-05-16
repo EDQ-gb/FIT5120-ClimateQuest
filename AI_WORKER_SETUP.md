@@ -33,14 +33,24 @@ Browser (Vite / 生产站点)
 | `AI_WORKER_TOKEN` | 与本地 worker 相同的密钥；设置后双方必须带 `Authorization: Bearer <token>` |
 | `AI_WORKER_TIMEOUT_MS` | 转发超时，默认 `60000` |
 
-**建议在 Render 上同时设置（避免 Node 再跑 PyTorch / 多余云端路径）：**
+**Render 建议：**
 
 ```env
-RECIPE_FAST_CLOUD_ENABLED=0
-RECIPE_MODEL_DISABLED=1
+RECIPE_MODEL_PROVIDER=local_worker
+LOCAL_AI_ENDPOINT=https://your-tunnel-url
+AI_WORKER_TOKEN=your-secret
 ```
 
-设置 `LOCAL_AI_ENDPOINT` 后，Node **只会** 转发到本地 worker（失败则 fallback），不会 `spawn` Python。
+菜谱生成 **不会** 调用 Pollinations。未配置 worker 时返回 `fallback: true`（`source: local-fallback`），HTTP 200。
+
+### 若仍看到 Pollinations / Queue full / 快速云端模型
+
+说明 Render 可能还在跑**旧版** Node 代码，或环境变量仍启用旧路径。请：
+
+1. 部署包含 `recipe_model_router.js` 的最新 `server` 代码。  
+2. 在 Render 删除或不要设置：`RECIPE_FAST_CLOUD_ENABLED`、`RECIPE_FAST_FALLBACK_TO_LOCAL`、`RECIPE_FAST_MODEL`。  
+3. 设置 `RECIPE_MODEL_PROVIDER=local_worker` 与 `LOCAL_AI_ENDPOINT`（Tunnel URL）。  
+4. 重新部署后，菜谱 API 应返回 200（真实结果或 `fallback: true`），不应再出现 503 + `RECIPE_FAST_MODEL_FAILED`。
 
 ### 本地 AI worker
 
