@@ -2,8 +2,8 @@ import { Buffer } from 'node:buffer'
 
 const BACKEND_BASE = process.env.BACKEND_BASE || 'https://fit5120-climatequest.onrender.com'
 
-/** Dedicated Render service (Node + Python/torch + `.pt`). Sync default with `api/[...path].js` if changed. */
-export const DEFAULT_RECIPE_BACKEND_BASE = 'https://fit5120-climatequest-backend.onrender.com'
+/** Recipe routes use the same Node service as other APIs (hybrid: LOCAL_AI_ENDPOINT on that host). */
+export const DEFAULT_RECIPE_BACKEND_BASE = BACKEND_BASE
 
 function getTailAndQuery(req, prefix) {
   const raw = typeof req.url === 'string' ? req.url : ''

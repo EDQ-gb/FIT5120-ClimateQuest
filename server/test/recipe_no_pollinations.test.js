@@ -15,6 +15,8 @@ test("index.js recipe path does not reference Pollinations", () => {
   assert.equal(src.includes("pollinations_provider"), false);
   assert.equal(src.includes("runRecipeModelFastCloud"), false);
   assert.equal(src.includes("RECIPE_FAST_CLOUD_ENABLED"), false);
+  assert.equal(src.includes("recipe_generation_service"), true);
+  assert.equal(src.includes("/api/debug/recipe-provider"), true);
 });
 
 test("recipe_model_router.js does not call Pollinations API", () => {

@@ -6,34 +6,31 @@ const {
   runRecipeModel,
 } = require("../src/recipe_model_router");
 
-test("default provider is disabled without LOCAL_AI_ENDPOINT", () => {
+test("default provider is local_fallback without LOCAL_AI_ENDPOINT", () => {
   const prevEndpoint = process.env.LOCAL_AI_ENDPOINT;
   const prevProvider = process.env.RECIPE_MODEL_PROVIDER;
-  const prevPytorch = process.env.RECIPE_USE_SERVER_PYTORCH;
   delete process.env.LOCAL_AI_ENDPOINT;
   delete process.env.RECIPE_MODEL_PROVIDER;
-  delete process.env.RECIPE_USE_SERVER_PYTORCH;
 
-  assert.equal(resolveRecipeModelProvider(), "disabled");
+  assert.equal(resolveRecipeModelProvider(), "local_fallback");
 
   if (prevEndpoint) process.env.LOCAL_AI_ENDPOINT = prevEndpoint;
   if (prevProvider) process.env.RECIPE_MODEL_PROVIDER = prevProvider;
-  if (prevPytorch) process.env.RECIPE_USE_SERVER_PYTORCH = prevPytorch;
 });
 
-test("runRecipeModel returns local-fallback when provider disabled", async () => {
+test("runRecipeModel returns local-fallback when provider local_fallback", async () => {
   const prevEndpoint = process.env.LOCAL_AI_ENDPOINT;
   const prevProvider = process.env.RECIPE_MODEL_PROVIDER;
   delete process.env.LOCAL_AI_ENDPOINT;
-  process.env.RECIPE_MODEL_PROVIDER = "disabled";
+  process.env.RECIPE_MODEL_PROVIDER = "local_fallback";
 
   const res = await runRecipeModel(["rice", "tofu", "onion"]);
   assert.equal(res.fallback, true);
   assert.equal(res.source, "local-fallback");
 
   if (prevEndpoint) process.env.LOCAL_AI_ENDPOINT = prevEndpoint;
-  else delete process.env.RECIPE_MODEL_PROVIDER;
   if (prevProvider) process.env.RECIPE_MODEL_PROVIDER = prevProvider;
+  else delete process.env.RECIPE_MODEL_PROVIDER;
 });
 
 test("recipe router does not import pollinations provider", () => {
