@@ -20,6 +20,25 @@ The list must contain 3 to 5 ingredients.
 
 The endpoint calls `server/src/recipe_model_infer.py`, which requires Python with PyTorch installed.
 
+## Fast cloud AI mode (recommended)
+
+For low latency on Render free CPU, enable the built-in fast cloud AI path. This keeps the response in real AI generation mode while avoiding local heavyweight inference timeouts.
+
+```powershell
+$env:RECIPE_FAST_CLOUD_ENABLED="1"
+$env:RECIPE_FAST_MODEL="openai-fast"
+$env:RECIPE_FAST_TIMEOUT_MS="12000"
+$env:RECIPE_FAST_CACHE_TTL_MS="21600000"   # 6 hours
+$env:RECIPE_FAST_FALLBACK_TO_LOCAL="0"
+```
+
+Behavior:
+
+- Server tries fast cloud AI first.
+- If successful, response source is `fast_cloud_ai`.
+- If fast model is unavailable and `RECIPE_FAST_FALLBACK_TO_LOCAL=1`, server falls back to the local PyTorch model.
+- If `RECIPE_FAST_FALLBACK_TO_LOCAL=0`, API returns 503 quickly and frontend uses template fallback.
+
 If your training environment already has PyTorch, point the server to that Python executable:
 
 ```powershell

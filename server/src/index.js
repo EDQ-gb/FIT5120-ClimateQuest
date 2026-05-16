@@ -333,6 +333,147 @@ function clampInt(n, lo, hi) {
 }
 
 let recipeModelCooldownUntil = 0;
+const recipeFastCache = new Map();
+
+function textToSteps(text) {
+  const normalized = String(text || "")
+    .replace(/\r/g, " ")
+    .replace(/\n+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return [];
+  return normalized
+    .split(/(?<=[.!?])\s+/)
+    .map((x) => x.replace(/^[-*]\s*/, "").trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
+function recipeFastCloudEnabled() {
+  return String(process.env.RECIPE_FAST_CLOUD_ENABLED || "1").trim() !== "0";
+}
+
+function recipeFastFallbackToLocal() {
+  return String(process.env.RECIPE_FAST_FALLBACK_TO_LOCAL || "0").trim() === "1";
+}
+
+function recipeFastCloudTimeoutMs() {
+  const timeoutMs = Number(process.env.RECIPE_FAST_TIMEOUT_MS || 12000);
+  return Number.isFinite(timeoutMs) && timeoutMs >= 2000 && timeoutMs <= 60000
+    ? Math.floor(timeoutMs)
+    : 12000;
+}
+
+function recipeFastCloudCacheTtlMs() {
+  const ttlMs = Number(process.env.RECIPE_FAST_CACHE_TTL_MS || 6 * 60 * 60 * 1000);
+  return Number.isFinite(ttlMs) && ttlMs >= 60000 && ttlMs <= 24 * 60 * 60 * 1000
+    ? Math.floor(ttlMs)
+    : 6 * 60 * 60 * 1000;
+}
+
+function recipeFastCloudModel() {
+  const configured = String(process.env.RECIPE_FAST_MODEL || "").trim();
+  return configured || "openai-fast";
+}
+
+function recipeFastCloudPrompt(ingredients) {
+  const joined = ingredients.join(", ");
+  return [
+    "You are a concise low-carbon meal assistant.",
+    `Ingredients: ${joined}`,
+    "Return plain text in English only with this format:",
+    "Title: <short title>",
+    "Recipe: <one short paragraph>",
+    "Steps:",
+    "1) ...",
+    "2) ...",
+    "3) ...",
+    "4) ...",
+    "Pantry tips: <one sentence>",
+  ].join(" ");
+}
+
+function parseFastRecipeText(rawText, ingredients) {
+  const text = String(rawText || "").trim();
+  if (!text) {
+    const err = new Error("RECIPE_FAST_MODEL_FAILED");
+    err.detail = "Fast model returned empty text.";
+    throw err;
+  }
+
+  const lines = text.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+  let title = "";
+  for (const line of lines) {
+    const hit = line.match(/^title\s*:\s*(.+)$/i);
+    if (hit && hit[1]) {
+      title = hit[1].trim();
+      break;
+    }
+  }
+  if (!title) {
+    const first = lines.find((x) => !/^(recipe|steps?|pantry tips?)\s*:/i.test(x)) || "";
+    title = first.replace(/^#+\s*/, "").replace(/^[-*]\s*/, "").slice(0, 70).trim();
+  }
+  if (!title) title = "Generated low-carbon meal";
+
+  const compact = text.replace(/\s+/g, " ").trim();
+  const steps = textToSteps(text);
+  return {
+    source: "fast_cloud_ai",
+    ingredients,
+    title,
+    text: compact,
+    steps: steps.length ? steps : ["Combine ingredients and cook until warm and well-seasoned."],
+  };
+}
+
+async function runRecipeModelFastCloud(ingredients) {
+  const key = ingredients.map((x) => String(x).trim().toLowerCase()).sort().join("|");
+  const cached = recipeFastCache.get(key);
+  if (cached && Date.now() < cached.expiresAt) return cached.value;
+
+  const model = recipeFastCloudModel();
+  const prompt = recipeFastCloudPrompt(ingredients);
+  const url = `https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=${encodeURIComponent(
+    model
+  )}`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), recipeFastCloudTimeoutMs());
+  try {
+    const resp = await fetch(url, {
+      method: "GET",
+      signal: controller.signal,
+      headers: { Accept: "text/plain, application/json;q=0.9" },
+    });
+    const bodyText = await resp.text();
+    if (!resp.ok) {
+      const err = new Error("RECIPE_FAST_MODEL_FAILED");
+      err.detail = bodyText
+        ? bodyText.slice(0, 400)
+        : `Fast model request failed with status ${resp.status}`;
+      throw err;
+    }
+    const value = parseFastRecipeText(bodyText, ingredients);
+    recipeFastCache.set(key, {
+      value,
+      expiresAt: Date.now() + recipeFastCloudCacheTtlMs(),
+    });
+    return value;
+  } catch (e) {
+    if (e?.name === "AbortError") {
+      const err = new Error("RECIPE_FAST_MODEL_TIMEOUT");
+      err.detail = `Fast cloud model timed out after ${recipeFastCloudTimeoutMs()}ms.`;
+      throw err;
+    }
+    if (e?.message === "RECIPE_FAST_MODEL_FAILED") throw e;
+    const err = new Error("RECIPE_FAST_MODEL_FAILED");
+    err.detail = String(e?.message || e || "Fast cloud model request failed.");
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function recipeCooldownMs() {
   const cooldownMs = Number(process.env.RECIPE_MODEL_COOLDOWN_MS || 10 * 60 * 1000);
@@ -641,6 +782,14 @@ function runRecipeModelOneShot(ingredients) {
 async function runRecipeModel(ingredients) {
   if (String(process.env.RECIPE_MODEL_DISABLED || "").trim() === "1") {
     throw new Error("RECIPE_MODEL_DISABLED");
+  }
+  if (recipeFastCloudEnabled()) {
+    try {
+      return await runRecipeModelFastCloud(ingredients);
+    } catch (e) {
+      if (!recipeFastFallbackToLocal()) throw e;
+      // fallback explicitly enabled; continue to local heavy model path below
+    }
   }
   if (Date.now() < recipeModelCooldownUntil) {
     throw new Error("RECIPE_MODEL_COOLDOWN");
@@ -1434,6 +1583,8 @@ app.post("/api/recipes/generate", async (req, res, next) => {
     const modelDown =
       msg === "RECIPE_MODEL_DISABLED" ||
       msg === "RECIPE_MODEL_COOLDOWN" ||
+      msg === "RECIPE_FAST_MODEL_TIMEOUT" ||
+      msg === "RECIPE_FAST_MODEL_FAILED" ||
       msg === "RECIPE_MODEL_TIMEOUT" ||
       msg === "RECIPE_MODEL_FAILED" ||
       msg === "RECIPE_MODEL_SETUP_INCOMPLETE" ||
@@ -1461,6 +1612,10 @@ app.post("/api/recipes/generate", async (req, res, next) => {
         RECIPE_MODEL_TIMEOUT: "推理超过 RECIPE_MODEL_TIMEOUT_MS。可尝试调大超时、降低 beam size，或启用常驻 worker。",
         RECIPE_MODEL_DISABLED: "已在服务器设置 RECIPE_MODEL_DISABLED=1，菜谱模型已关闭。",
         RECIPE_MODEL_COOLDOWN: "模型近期超时或失败，已临时降级。请稍后重试，前端会自动使用模板回退。",
+        RECIPE_FAST_MODEL_TIMEOUT:
+          "快速云端模型响应超时。可适当调大 RECIPE_FAST_TIMEOUT_MS，或稍后重试。",
+        RECIPE_FAST_MODEL_FAILED:
+          "快速云端模型暂不可用。可检查 RECIPE_FAST_MODEL 配置，或启用 RECIPE_FAST_FALLBACK_TO_LOCAL 回退到本地模型。",
       };
       const hintDefault =
         code === "ENOENT"
