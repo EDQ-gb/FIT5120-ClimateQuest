@@ -1,0 +1,152 @@
+[
+  {
+    "id": "quick_chicken_rice",
+    "ingredients": [
+      "chicken breast",
+      "rice",
+      "onion",
+      "garlic",
+      "soy sauce"
+    ],
+    "category": "savory_main",
+    "generation_method": "best_of_n",
+    "generated_recipe": "1. Cook chicken breast and cut into small pieces.\n2. Add soy sauce to chicken in a skillet with garlic and onion.\n3. Cook until tender and then add rice.\n4. Simmer until done.",
+    "ingredient_coverage": 1.0,
+    "repetition_rate": 0.0
+  },
+  {
+    "id": "beef_potato_tomato",
+    "ingredients": [
+      "ground beef",
+      "potato",
+      "tomato",
+      "onion",
+      "pepper"
+    ],
+    "category": "savory_main",
+    "generation_method": "best_of_n",
+    "generated_recipe": "1. Brown ground beef with onion and pepper.\n2. Add tomato and potato.\n3. Cook until potatoes are done.\n4. Serve with mashed potatoes.",
+    "ingredient_coverage": 1.0,
+    "repetition_rate": 0.0
+  },
+  {
+    "id": "egg_cheese_bread",
+    "ingredients": [
+      "egg",
+      "cheddar cheese",
+      "bread",
+      "milk",
+      "butter"
+    ],
+    "category": "breakfast",
+    "generation_method": "best_of_n",
+    "generated_recipe": "1. Cut bread in half; place in baking dish.\n2. Cut cheddar cheese into cubes.\n3. Put milk into bowl.\n4. Pour over bread, then add egg.\n5. Put butter on top of bread and bake in oven until brown.",
+    "ingredient_coverage": 1.0,
+    "repetition_rate": 0.0
+  },
+  {
+    "id": "vegetable_pasta",
+    "ingredients": [
+      "pasta",
+      "tomato sauce",
+      "mushroom",
+      "bell pepper",
+      "garlic"
+    ],
+    "category": "vegetarian",
+    "generation_method": "best_of_n",
+    "generated_recipe": "1. Cook pasta according to package directions.\n2. Drain and rinse with cold water.\n3. Add tomato sauce, garlic and bell pepper to taste.",
+    "ingredient_coverage": 0.8571428571428571,
+    "repetition_rate": 0.0
+  },
+  {
+    "id": "broccoli_cheese_rice",
+    "ingredients": [
+      "rice",
+      "broccoli",
+      "cheddar cheese",
+      "milk",
+      "butter"
+    ],
+    "category": "casserole",
+    "generation_method": "best_of_n",
+    "generated_recipe": "1. Saute the broccoli in a little butter.\n2. Add cheddar cheese, then rice.\n3. Then add milk.\n4. Cover and heat.",
+    "ingredient_coverage": 1.0,
+    "repetition_rate": 0.0
+  },
+  {
+    "id": "tuna_pasta_celery",
+    "ingredients": [
+      "tuna",
+      "pasta",
+      "celery",
+      "mayonnaise",
+      "onion"
+    ],
+    "category": "salad",
+    "generation_method": "best_of_n",
+    "generated_recipe": "1. Cook pasta.\n2. Drain and rinse with cold water.\n3. Add celery, onion, mayonnaise and tuna.\n4. Add to pasta and mix with mayonnaise.",
+    "ingredient_coverage": 1.0,
+    "repetition_rate": 0.0
+  },
+  {
+    "id": "banana_peanut_butter",
+    "ingredients": [
+      "banana",
+      "peanut butter",
+      "milk",
+      "vanilla",
+      "sugar"
+    ],
+    "category": "sweet",
+    "generation_method": "best_of_n",
+    "generated_recipe": "1. Take the peanut butter.\n2. Place 2 banana in a pan and add some peanut butter, then it the banana and a little milk.\n3. Let cook until you take the sugar off.\n4. Take it and put it in the fridge until you have it.\n5. Take it out of the pan.\n6. Put it in the microwave.\n7. Put it on it.\n8. Take a piece of vanilla and put it back.\n9. You get the peanut butter.\n10. Now put it on a piece of peanut butter and put it in the microwave, then you eat, then eat it.",
+    "ingredient_coverage": 1.0,
+    "repetition_rate": 0.0964912280701754
+  },
+  {
+    "id": "apple_cinnamon_oats",
+    "ingredients": [
+      "apple",
+      "cinnamon",
+      "oats",
+      "brown sugar",
+      "butter"
+    ],
+    "category": "sweet",
+    "generation_method": "best_of_n",
+    "generated_recipe": "1. Place apple slices in baking dish.\n2. Sprinkle with brown sugar and cinnamon.\n3. Dot with butter.\n4. Bake until apples are tender.",
+    "ingredient_coverage": 0.8333333333333334,
+    "repetition_rate": 0.0
+  },
+  {
+    "id": "pork_cabbage_carrot",
+    "ingredients": [
+      "pork",
+      "cabbage",
+      "carrot",
+      "onion",
+      "soy sauce"
+    ],
+    "category": "savory_main",
+    "generation_method": "best_of_n",
+    "generated_recipe": "1. Cut the pork in 1-inch pieces.\n2. Cut cabbage into strips and carrot.\n3. Add onion.\n4. Add soy sauce to taste.\n5. Cook slowly until cabbage is tender.\n6. Add salt and pepper to taste.\n7. Cook until tender.",
+    "ingredient_coverage": 1.0,
+    "repetition_rate": 0.021739130434782594
+  },
+  {
+    "id": "cream_cheese_pineapple",
+    "ingredients": [
+      "cream cheese",
+      "pineapple",
+      "cool whip",
+      "powdered sugar",
+      "vanilla"
+    ],
+    "category": "dessert",
+    "generation_method": "best_of_n",
+    "generated_recipe": "1. Soften cream cheese to room temperature.\n2. Add sugar.\n3. Mix well.\n4. Stir in cool whip or cool whip.\n5. Add pineapple ( or pineapple ).\n6. Use a little vanilla to make creamy or dip.",
+    "ingredient_coverage": 0.875,
+    "repetition_rate": 0.0
+  }
+]

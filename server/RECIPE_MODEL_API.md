@@ -54,6 +54,13 @@ $env:RECIPE_CHECKPOINT="G:\FIT5120\FIT5120-ClimateQuest\AI Development\Cooking_D
 $env:RECIPE_MODEL_TIMEOUT_MS="120000"
 ```
 
+<<<<<<< HEAD
+Use **`best_transformer_copy_v3.pt`** instead for the newer run (4 encoder / 4 decoder layers in the saved `model_config`; the inference script reads that from the checkpoint).
+
+**Local dev (`npm run dev` in `frontend`):** `/api/recipes/*` is proxied to **`https://fit5120-climatequest-backend.onrender.com`** by default (see `vite.config.js`). Set **`VITE_RECIPE_PROXY=http://127.0.0.1:8080`** if you run the Express server + model on your machine instead.
+
+**Vercel:** set **`RECIPE_BACKEND_BASE`** only when the recipe host is not the default dedicated Render URL (see `frontend/api/_proxyBase.js` → `DEFAULT_RECIPE_BACKEND_BASE`).
+=======
 Performance-focused overrides (real model + faster response):
 
 ```powershell
@@ -64,6 +71,7 @@ $env:RECIPE_MODEL_MIN_LEN="10"
 $env:RECIPE_MODEL_TIMEOUT_MS="20000" # per-request timeout
 $env:RECIPE_MODEL_WARMUP_TIMEOUT_MS="90000"
 ```
+>>>>>>> origin/main
 
 If `RECIPE_PYTHON` is not set, the server tries `python` from PATH.
 
@@ -71,10 +79,10 @@ If `RECIPE_PYTHON` is not set, the server tries `python` from PATH.
 
 When the site is deployed with **Root Directory = `frontend`**:
 
-1. **`vercel.json`** must **not** send `/api/recipes/*` straight to Render in a single catch-all, or the `frontend/api/recipes/[...path].js` proxy (with `maxDuration: 120`) may never run and requests can time out. This repo uses a rewrite that excludes `recipes` so `/api/recipes/*` hits the serverless handler first.
-2. Set **`BACKEND_BASE`** to your Render URL (same as other APIs). The handler forwards recipe requests to that Node server, which must run Python + PyTorch and have the checkpoint file on disk.
+1. **`vercel.json`** must **not** send `/api/recipes/*` straight to the main API in a single catch-all, or the `frontend/api/recipes/[...path].js` proxy (with `maxDuration: 120`) may never run and requests can time out. This repo uses a rewrite that excludes `recipes` so `/api/recipes/*` hits the serverless handler first.
+2. Set **`BACKEND_BASE`** to your main Render URL (tasks, quiz, auth, …). Recipe traffic is forwarded separately: by default to **`DEFAULT_RECIPE_BACKEND_BASE`** in `frontend/api/_proxyBase.js` (dedicated Render service with Python + checkpoint). Override with **`RECIPE_BACKEND_BASE`** if that host changes.
 
-If the main Render app does **not** run the recipe model, deploy a backend that does and set **`RECIPE_BACKEND_BASE`** on Vercel so only recipe traffic goes there.
+If the main Render app does **not** run the recipe model (typical), keep the dedicated recipe service deployed and reachable at the default URL, or set **`RECIPE_BACKEND_BASE`** to your alternate host.
 
 ## Render (production Node)
 

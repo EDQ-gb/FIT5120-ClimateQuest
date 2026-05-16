@@ -37,16 +37,18 @@ The user flow of selecting 3 to 5 ingredients is also compatible with the traini
 
 ## 3. Model Training Progress
 
-The main notebook is:
+Training notebooks:
 
 ```text
-AI Development/code_32124112_spicy1.ipynb
+AI Development/Transformer_Recipe_Training.ipynb   # transformer_copy v2 / v3 (current pipeline)
+AI Development/code_32124112_spicy1.ipynb         # earlier seq2seq / legacy experiments
 ```
 
-The improved model checkpoint is:
+Transformer-copy checkpoints (same architecture family; v3 is the newer run):
 
 ```text
 AI Development/Cooking_Dataset/best_transformer_copy_v2.pt
+AI Development/Cooking_Dataset/best_transformer_copy_v3.pt
 ```
 
 The model architecture is:
@@ -92,6 +94,32 @@ Final v2 training result:
 
 The v2 model improved over the baseline, but ingredient coverage was still limited when using the original sampling generation method.
 
+### `transformer_copy_v3`
+
+The v3 run extends v2 with deeper encoder/decoder stacks, stronger AdamW regularisation, higher label smoothing, and a **coverage loss** term during training (dev loss remains plain NLL for comparability). Full hyperparameters and loss history are archived in:
+
+```text
+AI Development/training_runs/transformer_copy_v3/training_log.json
+```
+
+Training summary (from that log):
+
+| Item | Value |
+| --- | ---: |
+| Logged at | 2026-05-15 |
+| Best epoch | 24 |
+| Best dev loss | 2.0639 |
+| Encoder / decoder layers | 4 / 4 |
+| Max epochs | 25 |
+| Early stopping patience | 4 |
+| Dropout | 0.12 |
+| Learning rate | 2.5e-4 (OneCycleLR) |
+| Label smoothing | 0.08 |
+| AdamW weight decay | 0.01 |
+| Coverage loss weight | 0.5 (training only) |
+
+There is no separate v3 `test_metrics.json` for greedy/sampling-only evaluation in the archive; v3 is documented below using the same **`best_of_n`** protocol as the v2 best-of-n column so numbers are comparable.
+
 ## 4. Generation Strategy Improvement
 
 A stronger generation strategy was added in the notebook:
@@ -103,7 +131,7 @@ A stronger generation strategy was added in the notebook:
 - ingredient coverage scoring
 - recipe step formatting
 
-After applying `best_of_n`, the same checkpoint achieved:
+After applying `best_of_n`, the **v2** checkpoint achieved:
 
 | Metric | Sampling | Best-of-N |
 | --- | ---: | ---: |
@@ -114,6 +142,31 @@ After applying `best_of_n`, the same checkpoint achieved:
 | Repetition rate | 0.0099 | 0.0060 |
 | Average generated length | 34.7 tokens | 41.8 tokens |
 
+The **v3** checkpoint, evaluated on the same test subset with the same **`best_of_n`** settings (`max_items` / `num_items` = 500 in the exported JSON), achieved:
+
+| Metric | v3 (`best_of_n`) |
+| --- | ---: |
+| BLEU-4 | 0.0816 |
+| METEOR | 0.3165 |
+| BERTScore F1 | 0.8821 |
+| Ingredient coverage | 0.4944 |
+| Repetition rate | 0.0040 |
+| Average generated length | 41.8 tokens |
+| Empty output rate | 0.0 |
+
+Side-by-side (both **`best_of_n`**, 500-item export):
+
+| Metric | v2 | v3 |
+| --- | ---: | ---: |
+| BLEU-4 | 0.0823 | 0.0816 |
+| METEOR | 0.3109 | 0.3165 |
+| BERTScore F1 | 0.8810 | 0.8821 |
+| Ingredient coverage | 0.4865 | 0.4944 |
+| Repetition rate | 0.0060 | 0.0040 |
+| Average generated length | 41.8 tokens | 41.8 tokens |
+
+Automatic scores are very close overall; v3 shows small gains on METEOR, BERTScore, ingredient coverage, and repetition, while BLEU-4 is marginally lower than v2. Choosing a default checkpoint should combine these metrics with qualitative checks on fixed prompts.
+
 This showed that the trained model can support the selected-ingredient feature more effectively when decoding is improved.
 
 Generated result files:
@@ -122,6 +175,10 @@ Generated result files:
 AI Development/training_runs/transformer_copy_v2/test_metrics_best_of_n.json
 AI Development/training_runs/transformer_copy_v2/fixed_prompt_generations_best_of_n.json
 AI Development/training_runs/transformer_copy_v2/test_with_preds_transformer_copy_best_of_n.tsv
+AI Development/training_runs/transformer_copy_v3/training_log.json
+AI Development/training_runs/transformer_copy_v3/test_metrics_best_of_n.json
+AI Development/training_runs/transformer_copy_v3/fixed_prompt_generations_best_of_n.json
+AI Development/training_runs/transformer_copy_v3/test_with_preds_transformer_copy_best_of_n.tsv
 ```
 
 ## 5. Ingredient Selection Feature
@@ -190,13 +247,19 @@ The endpoint calls:
 server/src/recipe_model_infer.py
 ```
 
-This Python script loads:
+This Python script loads a Transformer-copy checkpoint. By default the repo points at **v2**; to serve **v3**, set the environment variable **`RECIPE_CHECKPOINT`** to the absolute path of:
+
+```text
+AI Development/Cooking_Dataset/best_transformer_copy_v3.pt
+```
+
+Default weight path (v2) if `RECIPE_CHECKPOINT` is unset:
 
 ```text
 AI Development/Cooking_Dataset/best_transformer_copy_v2.pt
 ```
 
-and returns generated recipe steps from the trained Transformer model.
+`recipe_model_infer.py` builds the network from `model_config` stored inside the checkpoint (v2 uses 3 encoder / 3 decoder layers; v3 uses 4 / 4), then returns generated recipe steps from the loaded weights.
 
 Backend files involved:
 
@@ -249,11 +312,12 @@ http://localhost:8080
 The Vite dev proxy is configured so that:
 
 ```text
-/api/recipes -> local backend at http://localhost:8080
+/api/recipes -> dedicated recipe backend at https://fit5120-climatequest-backend.onrender.com
+               (override with VITE_RECIPE_PROXY=http://127.0.0.1:8080 for fully local model API)
 /api         -> deployed backend at https://fit5120-climatequest.onrender.com
 ```
 
-This keeps login, registration, tasks, and progress connected to the deployed backend database, while the recipe model runs locally.
+This keeps login, registration, tasks, and progress on the main Render API while recipe generation hits the Render service that hosts PyTorch inference (unless you override `VITE_RECIPE_PROXY` for local testing).
 
 ## 8. Current Behavior
 
@@ -312,7 +376,7 @@ The current system demonstrates that the selected-ingredient recipe generator is
 
 The project now has:
 
-- a trained Transformer-copy recipe model,
+- trained Transformer-copy recipe weights (**v2** and **v3**) with exported logs and test-set archives,
 - improved decoding results,
 - a frontend ingredient-selection flow,
 - a local model API,

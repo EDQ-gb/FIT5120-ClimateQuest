@@ -97,7 +97,7 @@ Suggested changes:
 | LR | 3e-4 | keep 3e-4 first |
 | Eval | subset test | full test plus fixed 100-sample qualitative set |
 
-Recommended next run (implemented in `code_32124112_spicy1.ipynb` as **v3**):
+Recommended run **`transformer_copy_v3`** (implemented in `Transformer_Recipe_Training.ipynb`; **training completed** — log dated 2026-05-15):
 
 ```text
 Model: transformer_copy_v3
@@ -111,16 +111,51 @@ AdamW weight_decay: 0.01
 Checkpoint: best_transformer_copy_v3.pt
 ```
 
-Previous v2 recipe (still valid for A/B comparison):
+**Archived outputs (v3):**
+
+```text
+AI Development/Cooking_Dataset/best_transformer_copy_v3.pt
+AI Development/training_runs/transformer_copy_v3/training_log.json
+AI Development/training_runs/transformer_copy_v3/test_metrics_best_of_n.json
+AI Development/training_runs/transformer_copy_v3/fixed_prompt_generations_best_of_n.json
+AI Development/training_runs/transformer_copy_v3/test_with_preds_transformer_copy_best_of_n.tsv
+```
+
+**Measured outcome vs v2** (same test export protocol: `best_of_n`, 500 items in `test_metrics_best_of_n.json`):
+
+| | v2 | v3 |
+| --- | ---: | ---: |
+| Best dev loss (from `training_log.json`) | 2.0823 @ epoch 20 | **2.0639** @ epoch 24 |
+| BLEU-4 | 0.0823 | 0.0816 |
+| METEOR | 0.3109 | **0.3165** |
+| BERTScore F1 | 0.8810 | **0.8821** |
+| Ingredient coverage | 0.4865 | **0.4944** |
+| Repetition rate | 0.0060 | **0.0040** |
+
+v3 meets the Stage 2 success bar on dev loss and METEOR; BLEU-4 is effectively unchanged. The next quality lever is human review on fixed prompts and/or Stage 4 (pretrained text-to-text).
+
+Previous **`transformer_copy_v2`** recipe (still valid for A/B and as default weight in repo until `RECIPE_CHECKPOINT` is switched):
 
 ```text
 Model: transformer_copy_v2
+Notebook: AI Development/Transformer_Recipe_Training.ipynb (same pipeline as v3)
 Epochs: 20
 Early stopping patience: 3
 Dropout: 0.15
 Learning rate: 3e-4
 Label smoothing: 0.05
 Checkpoint: best_transformer_copy_v2.pt
+```
+
+**Archived outputs (v2):**
+
+```text
+AI Development/Cooking_Dataset/best_transformer_copy_v2.pt
+AI Development/training_runs/transformer_copy_v2/training_log.json
+AI Development/training_runs/transformer_copy_v2/test_metrics.json
+AI Development/training_runs/transformer_copy_v2/test_metrics_best_of_n.json
+AI Development/training_runs/transformer_copy_v2/fixed_prompt_generations_best_of_n.json
+AI Development/training_runs/transformer_copy_v2/test_with_preds_transformer_copy_best_of_n.tsv
 ```
 
 Success criteria:
@@ -242,16 +277,10 @@ Recommended human criteria:
 
 ## Recommended Immediate Next Step
 
-Do Stage 1 first:
+Transformer-copy **v2** and **v3** are trained and archived under `AI Development/training_runs/`. Suggested order now:
 
-1. Update the current notebook so evaluation always reloads `best_spicy1_transformer_copy.pt`.
-2. Add reproducible metric export.
-3. Add a fixed evaluation prompt list.
-4. Run the current baseline once.
+1. Human evaluation on the shared fixed prompt set (compare `fixed_prompt_generations_best_of_n.json` for v2 vs v3).
+2. Pick a default checkpoint for local API (`RECIPE_CHECKPOINT`) based on qualitative preference, not BLEU alone.
+3. When ready for a quality ceiling experiment, start **Stage 4** (FLAN-T5 or similar) using the same evaluation protocol.
 
-Then do Stage 2:
-
-1. Train `transformer_copy_v2`.
-2. Compare it against the current checkpoint.
-
-Only after the Transformer-copy model is cleanly evaluated should we start FLAN-T5 fine-tuning.
+Earlier roadmap item (reproducible baseline notebook) remains useful for anyone re-running from the original 12-epoch baseline; the main active training path is `Transformer_Recipe_Training.ipynb`.
