@@ -1,0 +1,9 @@
+# Python dependencies for the local AI worker only (not installed on Render Node).
+# CPU PyTorch wheel index — use GPU index locally if you have CUDA.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic>=2.0.0
+torch
+numpy

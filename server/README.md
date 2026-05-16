@@ -50,6 +50,10 @@ Do not open the frontend via `file://` (origin becomes `null` and CORS is awkwar
 
 *(The live ClimateQuest app may expose additional routes in `src/index.js`.)*
 
+## Recipe AI (hybrid: Render Node + local worker)
+
+For Transformer/PyTorch recipe generation without timeouts on Render CPU, set **`LOCAL_AI_ENDPOINT`** to a tunnel URL pointing at your machine. See the repo root **[AI_WORKER_SETUP.md](../AI_WORKER_SETUP.md)** for install, `uvicorn`, Cloudflare Tunnel/ngrok, and env vars.
+
 ## Production notes
 ### Cookies
 - Production defaults to `secure=true` (HTTPS required)

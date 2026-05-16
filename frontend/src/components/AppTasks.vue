@@ -646,6 +646,27 @@ async function generateRecipe() {
   recipeError.value = ''
   try {
     const modelRecipe = await generateRecipeFromModel(selectedIngredients.value)
+    if (modelRecipe?.fallback) {
+      const rawSteps = Array.isArray(modelRecipe?.steps) && modelRecipe.steps.length
+        ? modelRecipe.steps
+        : String(modelRecipe?.text || '').split('.').map(s => s.trim()).filter(Boolean)
+      const sanitizedSteps = sanitizeModelSteps(rawSteps, selectedIngredients.value)
+      const { steps: finalSteps, augmented } = augmentModelStepsIfNeeded(
+        sanitizedSteps,
+        selectedIngredients.value,
+      )
+      recipe.value = {
+        title: modelRecipe?.title || 'Simple meal suggestion',
+        ingredients: modelRecipe?.ingredients || selectedIngredients.value,
+        steps: finalSteps,
+        seasoningNote: buildSeasoningGuidance(selectedIngredients.value),
+        sourceLabel: augmented ? 'Quick suggestion · clarity edits' : 'Quick suggestion',
+      }
+      recipeError.value =
+        modelRecipe?.message ||
+        'AI is temporarily unavailable. Showing a simple suggestion instead.'
+      return
+    }
     const rawSteps = Array.isArray(modelRecipe?.steps) && modelRecipe.steps.length
       ? modelRecipe.steps
       : String(modelRecipe?.text || '').split('.').map(s => s.trim()).filter(Boolean)

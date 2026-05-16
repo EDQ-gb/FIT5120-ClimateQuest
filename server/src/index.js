@@ -10,6 +10,10 @@ const { spawn } = require("child_process");
 
 const { FRONTEND_ORIGINS, NODE_ENV, PORT, SESSION_SECRET } = require("./config");
 const { getPool, query, exec } = require("./db");
+const {
+  useLocalAiWorker,
+  runRecipeModelViaLocalWorker,
+} = require("./recipe_local_ai");
 
 const app = express();
 
@@ -780,6 +784,11 @@ function runRecipeModelOneShot(ingredients) {
 }
 
 async function runRecipeModel(ingredients) {
+  // Hybrid mode: Render Node forwards to a tunnelled local PyTorch worker (no spawn on server).
+  if (useLocalAiWorker()) {
+    return runRecipeModelViaLocalWorker(ingredients);
+  }
+
   if (String(process.env.RECIPE_MODEL_DISABLED || "").trim() === "1") {
     throw new Error("RECIPE_MODEL_DISABLED");
   }
