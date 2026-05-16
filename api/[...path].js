@@ -70,18 +70,6 @@ export default async function handler(req, res) {
     }
 
     const buf = Buffer.from(await upstream.arrayBuffer())
-    const ct = String(upstream.headers.get('content-type') || '').toLowerCase()
-    if (
-      upstream.status === 404 &&
-      !ct.includes('application/json') &&
-      buf.length &&
-      buf.slice(0, 9).toString('utf8').toUpperCase().startsWith('<!DOCTYPE')
-    ) {
-      res.statusCode = 404
-      res.setHeader('content-type', 'application/json; charset=utf-8')
-      res.end(JSON.stringify({ error: 'NOT_FOUND' }))
-      return
-    }
     res.end(buf)
   } catch (e) {
     res.statusCode = 502

@@ -89,6 +89,7 @@
             :user="user"
             :coins="shellCoins"
             @coins-updated="refreshShellStats"
+            @navigate="onNavigate"
           />
           <AppScene v-else-if="currentView === 'scene'" :user="user" />
           <AppQuiz
@@ -100,7 +101,7 @@
             @stay-on-quiz="onStayOnQuiz"
           />
           <AppLeaderboard v-else-if="currentView === 'leaderboard'" :user="user" />
-          <AppEducation v-else-if="currentView === 'education'" />
+          <AppEducation v-else-if="currentView === 'education'" @navigate="onNavigate" />
         </div>
       </div>
     </div>
@@ -304,19 +305,6 @@ function clearThemeCacheForUser(username) {
 function resetThemeState() {
   game.themeType = 'forest'
   game.themeLocked = false
-}
-
-/** Vite proxy → backend; connection refused surfaces as TypeError "Failed to fetch". */
-function friendlyAuthFetchError(raw) {
-  const msg = String(raw || '')
-  if (
-    /failed to fetch/i.test(msg) ||
-    /networkerror when attempting to fetch resource/i.test(msg) ||
-    /load failed/i.test(msg)
-  ) {
-    return 'Cannot reach the API (Failed to fetch). In another terminal at the repo root run npm run dev:server, or from root once: npm install && npm run dev:local — then refresh.'
-  }
-  return msg
 }
 
 const toast = reactive({ show: false, title: '', text: '', key: 0, actions: [] })
@@ -613,12 +601,7 @@ function onActivity(payload) {
 
 async function onResetGame() {
   try {
-    await fetch('/api/game/reset', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ confirmReset: 'RESET_CLIMATEQUEST_PROGRESS' }),
-    }).then((r) => r.json())
+    await fetch('/api/game/reset', { method: 'POST', credentials: 'include' }).then((r) => r.json())
   } catch {
     // ignore
   }
@@ -967,7 +950,7 @@ async function submitRegister() {
     // English UX requirement:
     // - username already exists → show “already registered”
     if (msg === 'USERNAME_TAKEN') errorMsg.value = 'This username is already registered.'
-    else errorMsg.value = friendlyAuthFetchError(msg)
+    else errorMsg.value = msg
     authSuggested.value = 'signin'
   } finally {
     busy.value = false
@@ -1001,7 +984,7 @@ async function submitSignin() {
       errorMsg.value = 'Account not found. Please register first.'
       authSuggested.value = 'register'
     } else {
-      errorMsg.value = friendlyAuthFetchError(msg)
+      errorMsg.value = msg
       authSuggested.value = 'signin'
     }
   } finally {

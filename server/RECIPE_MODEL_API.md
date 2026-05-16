@@ -20,6 +20,25 @@ The list must contain 3 to 5 ingredients.
 
 The endpoint calls `server/src/recipe_model_infer.py`, which requires Python with PyTorch installed.
 
+## Fast cloud AI mode (recommended)
+
+For low latency on Render free CPU, enable the built-in fast cloud AI path. This keeps the response in real AI generation mode while avoiding local heavyweight inference timeouts.
+
+```powershell
+$env:RECIPE_FAST_CLOUD_ENABLED="1"
+$env:RECIPE_FAST_MODEL="openai-fast"
+$env:RECIPE_FAST_TIMEOUT_MS="12000"
+$env:RECIPE_FAST_CACHE_TTL_MS="21600000"   # 6 hours
+$env:RECIPE_FAST_FALLBACK_TO_LOCAL="0"
+```
+
+Behavior:
+
+- Server tries fast cloud AI first.
+- If successful, response source is `fast_cloud_ai`.
+- If fast model is unavailable and `RECIPE_FAST_FALLBACK_TO_LOCAL=1`, server falls back to the local PyTorch model.
+- If `RECIPE_FAST_FALLBACK_TO_LOCAL=0`, API returns 503 quickly and frontend uses template fallback.
+
 If your training environment already has PyTorch, point the server to that Python executable:
 
 ```powershell
@@ -35,11 +54,24 @@ $env:RECIPE_CHECKPOINT="G:\FIT5120\FIT5120-ClimateQuest\AI Development\Cooking_D
 $env:RECIPE_MODEL_TIMEOUT_MS="120000"
 ```
 
+<<<<<<< HEAD
 Use **`best_transformer_copy_v3.pt`** instead for the newer run (4 encoder / 4 decoder layers in the saved `model_config`; the inference script reads that from the checkpoint).
 
 **Local dev (`npm run dev` in `frontend`):** `/api/recipes/*` is proxied to **`https://fit5120-climatequest-backend.onrender.com`** by default (see `vite.config.js`). Set **`VITE_RECIPE_PROXY=http://127.0.0.1:8080`** if you run the Express server + model on your machine instead.
 
 **Vercel:** set **`RECIPE_BACKEND_BASE`** only when the recipe host is not the default dedicated Render URL (see `frontend/api/_proxyBase.js` → `DEFAULT_RECIPE_BACKEND_BASE`).
+=======
+Performance-focused overrides (real model + faster response):
+
+```powershell
+$env:RECIPE_MODEL_PERSISTENT="1"     # keep Python model loaded between requests
+$env:RECIPE_MODEL_BEAM_SIZE="2"      # lower beam for faster decoding
+$env:RECIPE_MODEL_MAX_LEN="80"
+$env:RECIPE_MODEL_MIN_LEN="10"
+$env:RECIPE_MODEL_TIMEOUT_MS="20000" # per-request timeout
+$env:RECIPE_MODEL_WARMUP_TIMEOUT_MS="90000"
+```
+>>>>>>> origin/main
 
 If `RECIPE_PYTHON` is not set, the server tries `python` from PATH.
 
@@ -58,6 +90,8 @@ Render’s default Node image usually **does not** include PyTorch or your `.pt`
 
 - Set **`RECIPE_PYTHON`** to a Python binary that has **PyTorch** installed (often a custom build or Docker).
 - Set **`RECIPE_CHECKPOINT`** to an **absolute path** on the instance where the weight file actually exists (do not rely on a relative path if your deploy root omits `AI Development/`).
+- Keep **`RECIPE_MODEL_PERSISTENT=1`** so Render reuses one warm Python worker and avoids reloading torch/checkpoint every request.
+- Tune speed with **`RECIPE_MODEL_BEAM_SIZE=2`**, **`RECIPE_MODEL_MAX_LEN=80`**, and **`RECIPE_MODEL_TIMEOUT_MS=20000`** as a practical baseline.
 - If inference is intentionally off, set **`RECIPE_MODEL_DISABLED=1`**; the API returns **503** with `RECIPE_MODEL_UNAVAILABLE` and the Tasks UI uses the template fallback.
 
 ### 查看 503 / 错误响应（浏览器为中文界面时）

@@ -306,12 +306,10 @@ export async function submitQuiz(idx, answer) {
     const quizResultLog = getQuizResultLog()
     quizResultLog[today()] = {
       correct,
+      correctAnswer: q.ans,
+      explanation: q.exp,
       selectedAnswer: answer,
       coinsEarned: correct ? 25 : 0,
-    }
-    if (correct) {
-      quizResultLog[today()].correctAnswer = q.ans
-      quizResultLog[today()].explanation = q.exp
     }
     set(K.quizResult, quizResultLog)
     if (correct) {
@@ -319,18 +317,15 @@ export async function submitQuiz(idx, answer) {
       const scene = getSceneState(); scene.progress = Math.min(100, scene.progress+3); set(K.scene, scene)
     }
     const completions = getCompletions()
-    const out = {
+    return {
       correct,
+      correctAnswer: q.ans,
+      explanation: q.exp,
       coinsEarned: correct ? 25 : 0,
       totalCoins: getCoins(),
       sceneProgress: getSceneState().progress,
       streak: calcActivityStreak(completions, log),
     }
-    if (correct) {
-      out.correctAnswer = q.ans
-      out.explanation = q.exp
-    }
-    return out
   }
 }
 
@@ -373,12 +368,31 @@ export async function logQuickAction(actionKey) {
 }
 
 export async function generateRecipeFromModel(ingredients) {
-  const res = await fetch('/api/recipes/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ ingredients }),
-  })
+  const timeoutFromEnv = Number(import.meta?.env?.VITE_RECIPE_MODEL_CLIENT_TIMEOUT_MS)
+  const timeoutMs = Number.isFinite(timeoutFromEnv) && timeoutFromEnv > 0 ? timeoutFromEnv : 8000
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort('CLIENT_TIMEOUT'), timeoutMs)
+  let res
+  try {
+    res = await fetch('/api/recipes/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ ingredients }),
+      signal: controller.signal,
+    })
+  } catch (e) {
+    if (e?.name === 'AbortError') {
+      const err = new Error('RECIPE_MODEL_CLIENT_TIMEOUT')
+      err.status = 408
+      err.reason = 'RECIPE_MODEL_CLIENT_TIMEOUT'
+      err.hint = `Model response exceeded ${timeoutMs}ms, switched to local fallback.`
+      throw err
+    }
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
     const err = new Error(data?.error || `HTTP_${res.status}`)

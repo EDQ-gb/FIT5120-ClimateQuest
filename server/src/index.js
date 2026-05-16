@@ -8,29 +8,8 @@ const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 
-const { FRONTEND_ORIGIN, NODE_ENV, PORT, SESSION_SECRET } = require("./config");
-const { getPlacementKindForItemId } = require("./placementCatalog");
+const { FRONTEND_ORIGINS, NODE_ENV, PORT, SESSION_SECRET } = require("./config");
 const { getPool, query, exec } = require("./db");
-
-/** In dev, allow any localhost/127.0.0.1 port so Vite fallback (e.g. 5174) still passes CORS. */
-function resolveCorsOrigin() {
-  if (NODE_ENV === "production") return FRONTEND_ORIGIN;
-  return (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (origin === FRONTEND_ORIGIN) return callback(null, true);
-    try {
-      const u = new URL(origin);
-      const loopback =
-        u.hostname === "localhost" || u.hostname === "127.0.0.1";
-      if (loopback && (u.protocol === "http:" || u.protocol === "https:")) {
-        return callback(null, true);
-      }
-    } catch {
-      // ignore
-    }
-    return callback(null, false);
-  };
-}
 
 const app = express();
 
@@ -44,7 +23,12 @@ app.use(express.json({ limit: "2mb" }));
 
 app.use(
   cors({
-    origin: resolveCorsOrigin(),
+    origin(origin, callback) {
+      // Allow non-browser/server-to-server calls that do not send Origin.
+      if (!origin) return callback(null, true);
+      if (FRONTEND_ORIGINS.includes(origin)) return callback(null, true);
+      return callback(null, false);
+    },
     credentials: true,
   })
 );
@@ -134,49 +118,6 @@ app.use(
     },
   })
 );
-
-function normalizeConfiguredOrigin(origin) {
-  const s = String(origin || "").trim();
-  if (!s) return "";
-  return s.replace(/\/+$/, "");
-}
-
-/** Mitigate CSRF on cookie-authenticated POSTs: require browser Origin/Referer to match FRONTEND_ORIGIN in production. */
-function assertBrowserOriginMatchesFrontend(req, res) {
-  if (NODE_ENV !== "production") return true;
-  if (String(process.env.RELAX_ORIGIN_CHECK || "").trim() === "1") return true;
-  const m = String(req.method || "GET").toUpperCase();
-  if (m === "GET" || m === "HEAD" || m === "OPTIONS") return true;
-  const p = String(req.path || req.url || "");
-  if (p.startsWith("/api/admin")) return true;
-  const allowed = normalizeConfiguredOrigin(FRONTEND_ORIGIN);
-  if (!allowed) return true;
-  const originHdr = req.get("origin");
-  const referer = req.get("referer");
-  let candidate = originHdr;
-  if (!candidate && referer) {
-    try {
-      candidate = new URL(referer).origin;
-    } catch {
-      candidate = null;
-    }
-  }
-  const got = normalizeConfiguredOrigin(candidate);
-  if (!got) {
-    res.status(403).json({ error: "MISSING_ORIGIN" });
-    return false;
-  }
-  if (got !== allowed) {
-    res.status(403).json({ error: "FORBIDDEN_ORIGIN" });
-    return false;
-  }
-  return true;
-}
-
-app.use((req, res, next) => {
-  if (!assertBrowserOriginMatchesFrontend(req, res)) return;
-  next();
-});
 
 function normalizeUsername(username) {
   return String(username || "").trim().toLowerCase();
@@ -391,9 +332,365 @@ function clampInt(n, lo, hi) {
   return Math.max(lo, Math.min(hi, vv));
 }
 
-function runRecipeModel(ingredients) {
+let recipeModelCooldownUntil = 0;
+const recipeFastCache = new Map();
+
+function textToSteps(text) {
+  const normalized = String(text || "")
+    .replace(/\r/g, " ")
+    .replace(/\n+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return [];
+  return normalized
+    .split(/(?<=[.!?])\s+/)
+    .map((x) => x.replace(/^[-*]\s*/, "").trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
+function recipeFastCloudEnabled() {
+  return String(process.env.RECIPE_FAST_CLOUD_ENABLED || "1").trim() !== "0";
+}
+
+function recipeFastFallbackToLocal() {
+  return String(process.env.RECIPE_FAST_FALLBACK_TO_LOCAL || "0").trim() === "1";
+}
+
+function recipeFastCloudTimeoutMs() {
+  const timeoutMs = Number(process.env.RECIPE_FAST_TIMEOUT_MS || 12000);
+  return Number.isFinite(timeoutMs) && timeoutMs >= 2000 && timeoutMs <= 60000
+    ? Math.floor(timeoutMs)
+    : 12000;
+}
+
+function recipeFastCloudCacheTtlMs() {
+  const ttlMs = Number(process.env.RECIPE_FAST_CACHE_TTL_MS || 6 * 60 * 60 * 1000);
+  return Number.isFinite(ttlMs) && ttlMs >= 60000 && ttlMs <= 24 * 60 * 60 * 1000
+    ? Math.floor(ttlMs)
+    : 6 * 60 * 60 * 1000;
+}
+
+function recipeFastCloudModel() {
+  const configured = String(process.env.RECIPE_FAST_MODEL || "").trim();
+  return configured || "openai-fast";
+}
+
+function recipeFastCloudPrompt(ingredients) {
+  const joined = ingredients.join(", ");
+  return [
+    "You are a concise low-carbon meal assistant.",
+    `Ingredients: ${joined}`,
+    "Return plain text in English only with this format:",
+    "Title: <short title>",
+    "Recipe: <one short paragraph>",
+    "Steps:",
+    "1) ...",
+    "2) ...",
+    "3) ...",
+    "4) ...",
+    "Pantry tips: <one sentence>",
+  ].join(" ");
+}
+
+function parseFastRecipeText(rawText, ingredients) {
+  const text = String(rawText || "").trim();
+  if (!text) {
+    const err = new Error("RECIPE_FAST_MODEL_FAILED");
+    err.detail = "Fast model returned empty text.";
+    throw err;
+  }
+
+  const lines = text.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+  let title = "";
+  for (const line of lines) {
+    const hit = line.match(/^title\s*:\s*(.+)$/i);
+    if (hit && hit[1]) {
+      title = hit[1].trim();
+      break;
+    }
+  }
+  if (!title) {
+    const first = lines.find((x) => !/^(recipe|steps?|pantry tips?)\s*:/i.test(x)) || "";
+    title = first.replace(/^#+\s*/, "").replace(/^[-*]\s*/, "").slice(0, 70).trim();
+  }
+  if (!title) title = "Generated low-carbon meal";
+
+  const compact = text.replace(/\s+/g, " ").trim();
+  const steps = textToSteps(text);
+  return {
+    source: "fast_cloud_ai",
+    ingredients,
+    title,
+    text: compact,
+    steps: steps.length ? steps : ["Combine ingredients and cook until warm and well-seasoned."],
+  };
+}
+
+async function runRecipeModelFastCloud(ingredients) {
+  const key = ingredients.map((x) => String(x).trim().toLowerCase()).sort().join("|");
+  const cached = recipeFastCache.get(key);
+  if (cached && Date.now() < cached.expiresAt) return cached.value;
+
+  const model = recipeFastCloudModel();
+  const prompt = recipeFastCloudPrompt(ingredients);
+  const url = `https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=${encodeURIComponent(
+    model
+  )}`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), recipeFastCloudTimeoutMs());
+  try {
+    const resp = await fetch(url, {
+      method: "GET",
+      signal: controller.signal,
+      headers: { Accept: "text/plain, application/json;q=0.9" },
+    });
+    const bodyText = await resp.text();
+    if (!resp.ok) {
+      const err = new Error("RECIPE_FAST_MODEL_FAILED");
+      err.detail = bodyText
+        ? bodyText.slice(0, 400)
+        : `Fast model request failed with status ${resp.status}`;
+      throw err;
+    }
+    const value = parseFastRecipeText(bodyText, ingredients);
+    recipeFastCache.set(key, {
+      value,
+      expiresAt: Date.now() + recipeFastCloudCacheTtlMs(),
+    });
+    return value;
+  } catch (e) {
+    if (e?.name === "AbortError") {
+      const err = new Error("RECIPE_FAST_MODEL_TIMEOUT");
+      err.detail = `Fast cloud model timed out after ${recipeFastCloudTimeoutMs()}ms.`;
+      throw err;
+    }
+    if (e?.message === "RECIPE_FAST_MODEL_FAILED") throw e;
+    const err = new Error("RECIPE_FAST_MODEL_FAILED");
+    err.detail = String(e?.message || e || "Fast cloud model request failed.");
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function recipeCooldownMs() {
+  const cooldownMs = Number(process.env.RECIPE_MODEL_COOLDOWN_MS || 10 * 60 * 1000);
+  return Number.isFinite(cooldownMs) && cooldownMs > 0 ? cooldownMs : 10 * 60 * 1000;
+}
+
+function recipeRequestTimeoutMs() {
+  const timeoutMs = Number(process.env.RECIPE_MODEL_TIMEOUT_MS || 20000);
+  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 20000;
+}
+
+function recipeWarmupTimeoutMs() {
+  const timeoutMs = Number(process.env.RECIPE_MODEL_WARMUP_TIMEOUT_MS || 90000);
+  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 90000;
+}
+
+function recipeBeamSize() {
+  const beam = Number(process.env.RECIPE_MODEL_BEAM_SIZE || 2);
+  return Number.isFinite(beam) && beam >= 1 && beam <= 8 ? Math.floor(beam) : 2;
+}
+
+function recipeMaxLen() {
+  const maxLen = Number(process.env.RECIPE_MODEL_MAX_LEN || 80);
+  return Number.isFinite(maxLen) && maxLen >= 20 && maxLen <= 200 ? Math.floor(maxLen) : 80;
+}
+
+function recipeMinLen() {
+  const minLen = Number(process.env.RECIPE_MODEL_MIN_LEN || 10);
+  return Number.isFinite(minLen) && minLen >= 4 && minLen <= 80 ? Math.floor(minLen) : 10;
+}
+
+function recipeUsePersistentWorker() {
+  return String(process.env.RECIPE_MODEL_PERSISTENT || "1").trim() !== "0";
+}
+
+let recipeWorkerState = {
+  child: null,
+  ready: false,
+  readyPromise: null,
+  pending: new Map(),
+  stdoutBuffer: "",
+  nextId: 1,
+};
+
+function cleanupRecipeWorker(reason) {
+  const state = recipeWorkerState;
+  if (state.child) {
+    try {
+      state.child.kill();
+    } catch {
+      // ignore cleanup kill errors
+    }
+  }
+  state.child = null;
+  state.ready = false;
+  state.readyPromise = null;
+  state.stdoutBuffer = "";
+  for (const [, pendingReq] of state.pending) {
+    clearTimeout(pendingReq.timer);
+    const err = new Error("RECIPE_MODEL_FAILED");
+    err.detail = reason || "Persistent recipe worker exited unexpectedly.";
+    pendingReq.reject(err);
+  }
+  state.pending.clear();
+}
+
+function handleRecipeWorkerLine(line) {
+  const state = recipeWorkerState;
+  let msg;
+  try {
+    msg = JSON.parse(line);
+  } catch {
+    return;
+  }
+  if (msg && msg.ready) {
+    state.ready = true;
+    return;
+  }
+  const id = Number(msg?.id);
+  if (!Number.isFinite(id) || !state.pending.has(id)) return;
+  const pendingReq = state.pending.get(id);
+  state.pending.delete(id);
+  clearTimeout(pendingReq.timer);
+  if (msg?.ok && msg?.result) {
+    pendingReq.resolve(msg.result);
+    return;
+  }
+  const err = new Error("RECIPE_MODEL_FAILED");
+  err.detail = String(msg?.error || "Recipe worker returned an invalid response.");
+  pendingReq.reject(err);
+}
+
+function spawnRecipeWorker() {
+  const pythonExe = process.env.RECIPE_PYTHON || process.env.PYTHON || "python";
+  const workerScriptPath =
+    process.env.RECIPE_MODEL_WORKER_SCRIPT ||
+    path.join(__dirname, "recipe_model_worker.py");
+  const checkpointPath =
+    process.env.RECIPE_CHECKPOINT ||
+    path.join(
+      __dirname,
+      "..",
+      "..",
+      "AI Development",
+      "Cooking_Dataset",
+      "best_transformer_copy_v2.pt"
+    );
+  if (!fs.existsSync(workerScriptPath) || !fs.existsSync(checkpointPath)) {
+    throw new Error("RECIPE_MODEL_SETUP_INCOMPLETE");
+  }
+  const workerArgs = [
+    workerScriptPath,
+    "--checkpoint",
+    checkpointPath,
+    "--beam-size",
+    String(recipeBeamSize()),
+    "--max-len",
+    String(recipeMaxLen()),
+    "--min-len",
+    String(recipeMinLen()),
+  ];
+  const configuredDevice = String(process.env.RECIPE_MODEL_DEVICE || "").trim();
+  if (configuredDevice) workerArgs.push("--device", configuredDevice);
+  const child = spawn(pythonExe, workerArgs, { windowsHide: true });
+  recipeWorkerState.child = child;
+  recipeWorkerState.ready = false;
+  recipeWorkerState.stdoutBuffer = "";
+  child.stdout.on("data", (chunk) => {
+    recipeWorkerState.stdoutBuffer += chunk.toString("utf8");
+    let newlineIdx = recipeWorkerState.stdoutBuffer.indexOf("\n");
+    while (newlineIdx >= 0) {
+      const line = recipeWorkerState.stdoutBuffer.slice(0, newlineIdx).trim();
+      recipeWorkerState.stdoutBuffer = recipeWorkerState.stdoutBuffer.slice(newlineIdx + 1);
+      if (line) handleRecipeWorkerLine(line);
+      newlineIdx = recipeWorkerState.stdoutBuffer.indexOf("\n");
+    }
+  });
+  child.stderr.on("data", (chunk) => {
+    // eslint-disable-next-line no-console
+    console.error({ route: "recipe-worker", stderr: chunk.toString("utf8").slice(0, 800) });
+  });
+  child.on("error", (err) => {
+    cleanupRecipeWorker(err && err.message ? String(err.message) : "Recipe worker process errored.");
+  });
+  child.on("close", (code) => {
+    cleanupRecipeWorker(`Recipe worker exited with code ${code}`);
+  });
+}
+
+async function ensureRecipeWorkerReady() {
+  if (recipeWorkerState.child && recipeWorkerState.ready) return;
+  if (!recipeWorkerState.readyPromise) {
+    recipeWorkerState.readyPromise = new Promise((resolve, reject) => {
+      try {
+        spawnRecipeWorker();
+      } catch (e) {
+        recipeWorkerState.readyPromise = null;
+        reject(e);
+        return;
+      }
+      const timer = setTimeout(() => {
+        recipeWorkerState.readyPromise = null;
+        cleanupRecipeWorker("Recipe worker warmup timed out.");
+        reject(new Error("RECIPE_MODEL_TIMEOUT"));
+      }, recipeWarmupTimeoutMs());
+      const poll = setInterval(() => {
+        if (recipeWorkerState.ready) {
+          clearInterval(poll);
+          clearTimeout(timer);
+          recipeWorkerState.readyPromise = null;
+          resolve();
+        } else if (!recipeWorkerState.child) {
+          clearInterval(poll);
+          clearTimeout(timer);
+          recipeWorkerState.readyPromise = null;
+          const err = new Error("RECIPE_MODEL_FAILED");
+          err.detail = "Recipe worker exited before ready signal.";
+          reject(err);
+        }
+      }, 120);
+    });
+  }
+  await recipeWorkerState.readyPromise;
+}
+
+async function runRecipeModelPersistent(ingredients) {
+  await ensureRecipeWorkerReady();
+  return new Promise((resolve, reject) => {
+    const id = recipeWorkerState.nextId++;
+    const timer = setTimeout(() => {
+      recipeWorkerState.pending.delete(id);
+      const err = new Error("RECIPE_MODEL_TIMEOUT");
+      err.detail = "Recipe worker inference timeout.";
+      reject(err);
+    }, recipeRequestTimeoutMs());
+    recipeWorkerState.pending.set(id, { resolve, reject, timer });
+    try {
+      recipeWorkerState.child.stdin.write(
+        `${JSON.stringify({ id, ingredients })}\n`,
+        "utf8"
+      );
+    } catch (e) {
+      clearTimeout(timer);
+      recipeWorkerState.pending.delete(id);
+      const err = new Error("RECIPE_MODEL_FAILED");
+      err.detail = e && e.message ? String(e.message) : "Failed to write request to recipe worker.";
+      reject(err);
+    }
+  });
+}
+
+function runRecipeModelOneShot(ingredients) {
   if (String(process.env.RECIPE_MODEL_DISABLED || "").trim() === "1") {
     return Promise.reject(new Error("RECIPE_MODEL_DISABLED"));
+  }
+  if (Date.now() < recipeModelCooldownUntil) {
+    return Promise.reject(new Error("RECIPE_MODEL_COOLDOWN"));
   }
 
   const pythonExe = process.env.RECIPE_PYTHON || process.env.PYTHON || "python";
@@ -437,8 +734,9 @@ function runRecipeModel(ingredients) {
     let stderr = "";
     const timer = setTimeout(() => {
       child.kill();
+      recipeModelCooldownUntil = Date.now() + recipeCooldownMs();
       reject(new Error("RECIPE_MODEL_TIMEOUT"));
-    }, Number(process.env.RECIPE_MODEL_TIMEOUT_MS || 120000));
+    }, recipeRequestTimeoutMs());
 
     child.stdout.on("data", (chunk) => {
       stdout += chunk.toString("utf8");
@@ -448,6 +746,7 @@ function runRecipeModel(ingredients) {
     });
     child.on("error", (err) => {
       clearTimeout(timer);
+      recipeModelCooldownUntil = Date.now() + recipeCooldownMs();
       const wrap = new Error("RECIPE_MODEL_FAILED");
       wrap.cause = err;
       wrap.detail = err && err.message ? String(err.message) : "";
@@ -456,6 +755,7 @@ function runRecipeModel(ingredients) {
     child.on("close", (code) => {
       clearTimeout(timer);
       if (code !== 0) {
+        recipeModelCooldownUntil = Date.now() + recipeCooldownMs();
         const err = new Error("RECIPE_MODEL_FAILED");
         const tail = (stderr || stdout || "").trim();
         err.detail = tail
@@ -477,6 +777,35 @@ function runRecipeModel(ingredients) {
       }
     });
   });
+}
+
+async function runRecipeModel(ingredients) {
+  if (String(process.env.RECIPE_MODEL_DISABLED || "").trim() === "1") {
+    throw new Error("RECIPE_MODEL_DISABLED");
+  }
+  if (recipeFastCloudEnabled()) {
+    try {
+      return await runRecipeModelFastCloud(ingredients);
+    } catch (e) {
+      if (!recipeFastFallbackToLocal()) throw e;
+      // fallback explicitly enabled; continue to local heavy model path below
+    }
+  }
+  if (Date.now() < recipeModelCooldownUntil) {
+    throw new Error("RECIPE_MODEL_COOLDOWN");
+  }
+  try {
+    if (recipeUsePersistentWorker()) {
+      return await runRecipeModelPersistent(ingredients);
+    }
+    return await runRecipeModelOneShot(ingredients);
+  } catch (e) {
+    const msg = String(e?.message || e);
+    if (msg === "RECIPE_MODEL_TIMEOUT" || msg === "RECIPE_MODEL_FAILED") {
+      recipeModelCooldownUntil = Date.now() + recipeCooldownMs();
+    }
+    throw e;
+  }
 }
 
 const TASKS = [
@@ -692,38 +1021,6 @@ function shopUnitPurchasePrice(itemKind, itemIdStr) {
     return Number(SHOP_PRICE_BY_ITEM_ID[id]);
   }
   return Number(SHOP_KIND_DEFAULT_PRICE[itemKind] ?? 15);
-}
-
-async function loadShopPurchaseQtyByLedgerKey(userId) {
-  const r = await query(
-    `select item, item_id, cost
-     from shop_ledger
-     where user_id = ?`,
-    [userId]
-  );
-  const map = new Map();
-  for (const row of r.rows || []) {
-    const item = String(row.item || "").trim();
-    const rawId = row.item_id == null ? "" : String(row.item_id).trim();
-    const unit = shopUnitPurchasePrice(item, rawId);
-    if (!Number.isFinite(unit) || unit <= 0) continue;
-    const cost = Number(row.cost || 0);
-    const qty = Math.floor(cost / unit);
-    if (qty <= 0) continue;
-    const key = `${item}::${rawId}`;
-    map.set(key, (map.get(key) || 0) + qty);
-  }
-  return map;
-}
-
-function countPlacementsOfItemId(items, itemId) {
-  const id = String(itemId || "").trim();
-  if (!id) return 0;
-  let n = 0;
-  for (const p of items || []) {
-    if (String(p?.itemId || "").trim() === id) n += 1;
-  }
-  return n;
 }
 
 function mondayWeekStartYmd(d = new Date()) {
@@ -1285,6 +1582,9 @@ app.post("/api/recipes/generate", async (req, res, next) => {
     const code = e?.code;
     const modelDown =
       msg === "RECIPE_MODEL_DISABLED" ||
+      msg === "RECIPE_MODEL_COOLDOWN" ||
+      msg === "RECIPE_FAST_MODEL_TIMEOUT" ||
+      msg === "RECIPE_FAST_MODEL_FAILED" ||
       msg === "RECIPE_MODEL_TIMEOUT" ||
       msg === "RECIPE_MODEL_FAILED" ||
       msg === "RECIPE_MODEL_SETUP_INCOMPLETE" ||
@@ -1309,8 +1609,13 @@ app.post("/api/recipes/generate", async (req, res, next) => {
           "服务器上缺少 recipe_model_infer.py 或 .pt 权重。请在 Render 设置 RECIPE_CHECKPOINT（磁盘上的绝对路径）和 RECIPE_PYTHON（已安装 PyTorch 的 Python）。",
         RECIPE_MODEL_FAILED:
           "Python 已运行但推理失败。常见原因：① 该解释器未安装 torch / PyTorch；② torch 与权重或 Python 版本不兼容；③ 内存不足(OOM)。请查看本响应中的 detail（stderr 片段）及 Render 服务「日志」。",
-        RECIPE_MODEL_TIMEOUT: "推理超过 RECIPE_MODEL_TIMEOUT_MS（默认 120s）。可尝试调大超时，或换更小权重/CPU 推理。",
+        RECIPE_MODEL_TIMEOUT: "推理超过 RECIPE_MODEL_TIMEOUT_MS。可尝试调大超时、降低 beam size，或启用常驻 worker。",
         RECIPE_MODEL_DISABLED: "已在服务器设置 RECIPE_MODEL_DISABLED=1，菜谱模型已关闭。",
+        RECIPE_MODEL_COOLDOWN: "模型近期超时或失败，已临时降级。请稍后重试，前端会自动使用模板回退。",
+        RECIPE_FAST_MODEL_TIMEOUT:
+          "快速云端模型响应超时。可适当调大 RECIPE_FAST_TIMEOUT_MS，或稍后重试。",
+        RECIPE_FAST_MODEL_FAILED:
+          "快速云端模型暂不可用。可检查 RECIPE_FAST_MODEL 配置，或启用 RECIPE_FAST_FALLBACK_TO_LOCAL 回退到本地模型。",
       };
       const hintDefault =
         code === "ENOENT"
@@ -1641,9 +1946,6 @@ app.post("/api/scene/select", async (req, res, next) => {
 
 app.post("/api/game/reset", async (req, res, next) => {
   try {
-    if (String(req.body?.confirmReset || "").trim() !== "RESET_CLIMATEQUEST_PROGRESS") {
-      return res.status(400).json({ error: "CONFIRM_RESET_REQUIRED" });
-    }
     const userId = requireAuth(req, res);
     if (!userId) return;
     await ensureUserState(userId);
@@ -1769,14 +2071,6 @@ app.post("/api/scene/place", async (req, res, next) => {
       return res.status(400).json({ error: "INVALID_PLACEMENT" });
     }
 
-    const canonicalKind = getPlacementKindForItemId(itemId);
-    if (!canonicalKind) {
-      return res.status(400).json({ error: "UNKNOWN_ITEM" });
-    }
-    if (canonicalKind !== type) {
-      return res.status(400).json({ error: "TYPE_MISMATCH" });
-    }
-
     const r = await query(
       `select scene_type, placements_json from user_state where user_id = ?`,
       [userId]
@@ -1791,15 +2085,7 @@ app.post("/api/scene/place", async (req, res, next) => {
     const exists = placements.items.some(
       (p) => p && String(p.itemId || "") === itemId && String(p.col) + "," + String(p.row) === k
     );
-
     if (!exists) {
-      const placed = countPlacementsOfItemId(placements.items, itemId);
-      const ledger = await loadShopPurchaseQtyByLedgerKey(userId);
-      const key = `${canonicalKind}::${itemId}`;
-      const purchased = Number(ledger.get(key) || 0);
-      if (placed >= purchased) {
-        return res.status(403).json({ error: "ITEM_NOT_OWNED" });
-      }
       placements.items.push({
         itemId,
         type,
@@ -1983,13 +2269,11 @@ app.get("/api/quiz", async (req, res, next) => {
       const savedCorrect = Number(completedRow.correct || 0) === 1;
       completedResult = {
         correct: savedCorrect,
+        correctAnswer: savedQ.ans,
+        explanation: savedQ.exp,
         selectedAnswer: clampInt(completedRow.answer, 0, 3),
         coinsEarned: savedCorrect ? 25 : 0,
       };
-      if (savedCorrect) {
-        completedResult.correctAnswer = savedQ.ans;
-        completedResult.explanation = savedQ.exp;
-      }
     }
     res.json({
       question: { q: q.q, opts: q.opts },
@@ -2052,18 +2336,15 @@ app.post("/api/quiz/submit", async (req, res, next) => {
     const activeSet = await buildActiveDaySet(userId);
     const streak = streakFromActiveSet(activeSet);
 
-    const payload = {
+    res.json({
       correct,
+      correctAnswer: q.ans,
+      explanation: q.exp,
       coinsEarned,
       totalCoins: Number(state.coins || 0),
       sceneProgress: Number(state.scene_progress || 0),
       streak,
-    };
-    if (correct) {
-      payload.correctAnswer = q.ans;
-      payload.explanation = q.exp;
-    }
-    res.json(payload);
+    });
   } catch (err) {
     next(err);
   }
@@ -2184,8 +2465,11 @@ app.get("/api/leaderboard", async (req, res, next) => {
     if (!userId) return;
     await ensureUserState(userId);
 
+    const me = await query(`select username from users where id = ?`, [userId]);
+    const myUsername = me.rows?.[0]?.username || null;
+
     const r = await query(
-      `select u.id, u.display_name, s.coins, s.xp, s.trees,
+      `select u.id, u.username, u.display_name, s.coins, s.xp, s.trees,
               s.placements_json, s.scene_type
        from user_state s
        join users u on u.id = s.user_id
@@ -2195,28 +2479,6 @@ app.get("/api/leaderboard", async (req, res, next) => {
 
     const rows = r.rows || [];
     const ids = rows.map((x) => x.id);
-
-    let weeklyByUser = new Map();
-    if (ids.length) {
-      const ws = mondayWeekStartYmd();
-      const wEnd = new Date(`${ws}T12:00:00`);
-      wEnd.setDate(wEnd.getDate() + 6);
-      const we = ymdLocal(wEnd);
-      const ph = ids.map(() => "?").join(", ");
-      const wk = await query(
-        `select user_id, count(*) as c
-         from task_logs
-         where user_id in (${ph})
-           and completed_on >= ?
-           and completed_on <= ?
-         group by user_id`,
-        [...ids, ws, we]
-      );
-      for (const row of wk.rows || []) {
-        weeklyByUser.set(Number(row.user_id), Number(row.c || 0));
-      }
-    }
-
     const streakMap = await getStreakMapForUserIds(ids);
     const taskStreakMap = await getTaskOnlyStreakMapForUserIds(ids);
 
@@ -2269,13 +2531,10 @@ app.get("/api/leaderboard", async (req, res, next) => {
 
       board.push({
         rank: i + 1,
-        displayName: String(row.display_name || "").trim() || "Anonymous",
-        nickname: String(row.display_name || "").trim() || "Anonymous",
-        avatarUrl: null,
-        avatarSeed: crypto.createHash("sha256").update(`lb:${uid}`).digest("hex").slice(0, 12),
+        username: row.username,
+        displayName: row.display_name || "",
         coins: Number(row.coins || 0),
         trees: Number(row.trees || 0),
-        weeklyActionCount: weeklyByUser.get(Number(uid)) || 0,
         level: treeLevel,
         streak,
         honors: {
@@ -2285,7 +2544,7 @@ app.get("/api/leaderboard", async (req, res, next) => {
           levelKing,
           activityStreakKing,
         },
-        isYou: Number(uid) === Number(userId),
+        isYou: myUsername ? row.username === myUsername : false,
       });
     }
 
@@ -2389,13 +2648,6 @@ app.post("/api/shop/buy", async (req, res, next) => {
     if (!["tree", "flower", "ground", "decor"].includes(item)) {
       return res.status(400).json({ error: "INVALID_ITEM" });
     }
-    if (!itemId) {
-      return res.status(400).json({ error: "ITEM_ID_REQUIRED" });
-    }
-    const catalogKind = getPlacementKindForItemId(itemId);
-    if (!catalogKind || catalogKind !== item) {
-      return res.status(400).json({ error: "INVALID_ITEM" });
-    }
 
     const unit = shopUnitPurchasePrice(item, itemId);
     const cost = Number(unit) * qty;
@@ -2495,10 +2747,6 @@ app.post("/api/auth/username", async (req, res, next) => {
 });
 
 
-app.use((req, res) => {
-  res.status(404).json({ error: "NOT_FOUND" });
-});
-
 // Basic error handler
 app.use((err, req, res, next) => {
   const status = err && typeof err.status === "number" ? err.status : 500;
@@ -2522,7 +2770,7 @@ app.listen(PORT, async () => {
   await maybeStartupSetCoins();
   // eslint-disable-next-line no-console
   console.log(`EcoQuest auth server listening on :${PORT}`);
-  console.log(`CORS origin: ${FRONTEND_ORIGIN}`);
+  console.log(`CORS origins: ${FRONTEND_ORIGINS.join(", ")}`);
   console.log(`Session cookie secure: ${cookieSecure}, sameSite: ${cookieSameSite}`);
 });
 

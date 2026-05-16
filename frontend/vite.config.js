@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
+<<<<<<< HEAD
 // Keep in sync with `frontend/api/_proxyBase.js` → `DEFAULT_RECIPE_BACKEND_BASE`.
 const DEFAULT_RECIPE_BACKEND_BASE = 'https://fit5120-climatequest-backend.onrender.com'
 
@@ -14,27 +15,28 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiTarget = env.VITE_API_PROXY || (mode === 'development' ? LOCAL_API : RENDER_API)
   const recipeTarget = env.VITE_RECIPE_PROXY || DEFAULT_RECIPE_BACKEND_BASE
+=======
+// https://vite.dev/config/
+// Defaults match `frontend/.env.development` (Render). Override with
+// gitignored `.env.development.local` for a local API on :8080.
+const CLOUD_API = 'https://fit5120-climatequest.onrender.com'
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  const apiTarget = env.VITE_API_PROXY || CLOUD_API
+  const recipeTarget = env.VITE_RECIPE_PROXY || env.VITE_API_PROXY || CLOUD_API
+>>>>>>> origin/main
 
   return {
     plugins: [vue()],
     server: {
-      // Default dev URL. If 5173 is busy Vite picks the next free port — always open the URL
-      // printed in the terminal (embedded browser tabs do not auto-update when the port changes).
-      port: 5173,
-      strictPort: false,
       proxy: {
         '/api/recipes': {
           target: recipeTarget,
           changeOrigin: true,
-          secure: false,
-          // Avoid Set-Cookie Domain mismatches when the browser is on localhost:* but the API is 127.0.0.1
-          cookieDomainRewrite: '',
         },
         '/api': {
           target: apiTarget,
           changeOrigin: true,
-          secure: false,
-          cookieDomainRewrite: '',
         },
       },
     },

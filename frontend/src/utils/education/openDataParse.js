@@ -77,15 +77,32 @@ function parseCsvRows(text) {
   return rows
 }
 
-/** Entity → year → tonnes CO₂e (raw) */
-export function parseGhgByEntity(text) {
+function ghgTotalValueKey(headers) {
+  if (headers.includes('ghg_emissions')) return 'ghg_emissions'
+  return (
+    headers.find(
+      (h) => /greenhouse gas/i.test(h) && !/per capita/i.test(h) && !/capita/i.test(h),
+    ) || null
+  )
+}
+
+function ghgPerCapitaValueKey(headers) {
+  if (headers.includes('ghg_emissions_per_capita')) return 'ghg_emissions_per_capita'
+  return headers.find((h) => /per capita.*greenhouse gas/i.test(h)) || null
+}
+
+/** Entity → [{ year, value }] — tonnes CO₂e (raw annual GHG including LULUCF when present) */
+export function parseGhgByEntity(text, { minYear = 1850 } = {}) {
   const rows = parseCsvRows(text)
+  if (!rows.length) return new Map()
+  const valueKey = ghgTotalValueKey(Object.keys(rows[0]))
+  if (!valueKey) return new Map()
   const map = new Map()
   for (const r of rows) {
     const entity = r.Entity
     const year = Number(r.Year)
-    const v = Number(r.ghg_emissions)
-    if (!entity || !Number.isFinite(year) || !Number.isFinite(v)) continue
+    const v = Number(r[valueKey])
+    if (!entity || !Number.isFinite(year) || year < minYear || !Number.isFinite(v)) continue
     if (!map.has(entity)) map.set(entity, [])
     map.get(entity).push({ year, value: v })
   }
@@ -93,19 +110,27 @@ export function parseGhgByEntity(text) {
   return map
 }
 
-export function parsePerCapitaByEntity(text) {
+export function parsePerCapitaByEntity(text, { minYear = 1850 } = {}) {
   const rows = parseCsvRows(text)
+  if (!rows.length) return new Map()
+  const valueKey = ghgPerCapitaValueKey(Object.keys(rows[0]))
+  if (!valueKey) return new Map()
   const map = new Map()
   for (const r of rows) {
     const entity = r.Entity
     const year = Number(r.Year)
-    const v = Number(r.ghg_emissions_per_capita)
-    if (!entity || !Number.isFinite(year) || !Number.isFinite(v)) continue
+    const v = Number(r[valueKey])
+    if (!entity || !Number.isFinite(year) || year < minYear || !Number.isFinite(v)) continue
     if (!map.has(entity)) map.set(entity, [])
     map.get(entity).push({ year, value: v })
   }
   for (const arr of map.values()) arr.sort((a, b) => a.year - b.year)
   return map
+}
+
+/** Sorted entity names from a parsed emissions map */
+export function listEntitiesFromMap(map) {
+  return [...map.keys()].sort((a, b) => a.localeCompare(b))
 }
 
 /** World forest land area (1000 ha) → million ha */

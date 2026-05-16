@@ -12,8 +12,6 @@ server/.env
 .env
 .env.*
 !.env.example
-# Team default: dev UI proxies to cloud API (override locally with `.env.development.local`).
-!frontend/.env.development
 
 # Build output
 frontend/dist/
@@ -46,4 +44,13 @@ docker-compose.yml
 # Logs / misc
 *.log
 .env.local
+
+# Ephemeral restore dirs (local only; never commit)
+.restore-full-zip/
+.restore-zip/
+
+# Python bytecode (server)
+**/src/__pycache__/
+**/__pycache__/
+*.py[cod]
 
