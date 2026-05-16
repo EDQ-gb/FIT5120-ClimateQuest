@@ -11,7 +11,8 @@ Minimal deployable backend for EcoQuest: Express + MySQL (e.g. Aiven) + HttpOnly
 Copy `.env.example` to `.env` and set:
 - `MYSQL_URL` — MySQL URI (**required**; `DATABASE_URL` is also accepted)
 - `SESSION_SECRET` — session signing secret (**required**; must be strong in production)
-- `FRONTEND_ORIGIN` — browser origin of the frontend (**required** for CORS; must match exactly)
+- `FRONTEND_ORIGINS` — comma-separated browser origins allowed by CORS (recommended)
+- `FRONTEND_ORIGIN` — single-origin fallback for backward compatibility
 
 ## Run locally (recommended)
 1. Install dependencies
@@ -39,7 +40,7 @@ npm run dev
 In `front.html` you will see something like:
 - `apiBase: 'http://localhost:8080'`
 
-Do not open the frontend via `file://` (origin becomes `null` and CORS is awkward). Serve the frontend with a static server (e.g. VS Code Live Server, often `http://localhost:5500`) and set `FRONTEND_ORIGIN` on the server to that same origin.
+Do not open the frontend via `file://` (origin becomes `null` and CORS is awkward). Serve the frontend with a static server (e.g. VS Code Live Server, often `http://localhost:5500`) and set `FRONTEND_ORIGINS` (or `FRONTEND_ORIGIN`) on the server to include that exact origin.
 
 ## HTTP API (legacy snippet)
 - `POST /api/auth/register` `{ email, password, displayName? }`
@@ -55,7 +56,7 @@ Do not open the frontend via `file://` (origin becomes `null` and CORS is awkwar
 - If **frontend and backend use different domains**, you typically need:
   - `COOKIE_SAMESITE=none`
   - HTTPS (browsers reject `SameSite=None` without secure cookies)
-  - CORS: `credentials: true` and `FRONTEND_ORIGIN` must exactly match the frontend origin
+  - CORS: `credentials: true` and frontend origin must be included in `FRONTEND_ORIGINS` (or match `FRONTEND_ORIGIN`)
 
 ### Session store
 The app prefers MySQL (`user_sessions` via `express-mysql-session`), which suits multi-instance deployments.
@@ -75,7 +76,7 @@ mysql://USER:PASSWORD@HOST:PORT/DB?ssl={"rejectUnauthorized":true}
 Set environment variables such as:
 - `NODE_ENV=production`
 - `PORT=8080` (many platforms inject `PORT` automatically)
-- `FRONTEND_ORIGIN=https://your-app.vercel.app`
+- `FRONTEND_ORIGINS=https://your-app.vercel.app,https://tp26.me,https://www.tp26.me`
 - `MYSQL_URL=...` (from Aiven)
 - `SESSION_SECRET=...` (long random)
 - `COOKIE_SAMESITE=none` (when frontend and backend differ)

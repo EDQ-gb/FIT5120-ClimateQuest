@@ -601,6 +601,27 @@ function localRecipe(sourceLabel = 'Template fallback') {
   }
 }
 
+function recipeHintToEnglish(reason, hint) {
+  const reasonText = String(reason || '').trim()
+  if (reasonText === 'RECIPE_MODEL_CLIENT_TIMEOUT') {
+    return 'Model response took too long. Switched to fast local fallback.'
+  }
+  if (reasonText === 'RECIPE_MODEL_TIMEOUT') {
+    return 'Model inference timed out on the server. Switched to local fallback.'
+  }
+  if (reasonText === 'RECIPE_MODEL_FAILED') {
+    return 'Model runtime failed on the server. Switched to local fallback.'
+  }
+  if (reasonText === 'RECIPE_MODEL_SETUP_INCOMPLETE') {
+    return 'Model setup is incomplete on the server. Switched to local fallback.'
+  }
+  if (reasonText === 'RECIPE_MODEL_DISABLED') {
+    return 'Model service is disabled on the server. Switched to local fallback.'
+  }
+  if (String(hint || '').trim()) return String(hint).trim()
+  return 'Model API unavailable. Showing template fallback.'
+}
+
 async function generateRecipe() {
   if (!canGenerateRecipe.value) return
   recipeLoading.value = true
@@ -624,7 +645,7 @@ async function generateRecipe() {
     }
   } catch (e) {
     recipe.value = localRecipe()
-    const hint = e?.hint || e?.reason
+    const hint = recipeHintToEnglish(e?.reason, e?.hint)
     const detail = e?.detail ? String(e.detail) : ''
     const exitPart = e?.exitCode != null ? ` (exit code ${e.exitCode})` : ''
     const detailSuffix = detail ? ` Detail: ${detail}` : ''

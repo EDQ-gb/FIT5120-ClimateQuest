@@ -8,7 +8,7 @@ const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 
-const { FRONTEND_ORIGIN, NODE_ENV, PORT, SESSION_SECRET } = require("./config");
+const { FRONTEND_ORIGINS, NODE_ENV, PORT, SESSION_SECRET } = require("./config");
 const { getPool, query, exec } = require("./db");
 
 const app = express();
@@ -23,7 +23,12 @@ app.use(express.json({ limit: "2mb" }));
 
 app.use(
   cors({
-    origin: FRONTEND_ORIGIN,
+    origin(origin, callback) {
+      // Allow non-browser/server-to-server calls that do not send Origin.
+      if (!origin) return callback(null, true);
+      if (FRONTEND_ORIGINS.includes(origin)) return callback(null, true);
+      return callback(null, false);
+    },
     credentials: true,
   })
 );
@@ -327,9 +332,14 @@ function clampInt(n, lo, hi) {
   return Math.max(lo, Math.min(hi, vv));
 }
 
+let recipeModelCooldownUntil = 0;
+
 function runRecipeModel(ingredients) {
   if (String(process.env.RECIPE_MODEL_DISABLED || "").trim() === "1") {
     return Promise.reject(new Error("RECIPE_MODEL_DISABLED"));
+  }
+  if (Date.now() < recipeModelCooldownUntil) {
+    return Promise.reject(new Error("RECIPE_MODEL_COOLDOWN"));
   }
 
   const pythonExe = process.env.RECIPE_PYTHON || process.env.PYTHON || "python";
@@ -373,6 +383,9 @@ function runRecipeModel(ingredients) {
     let stderr = "";
     const timer = setTimeout(() => {
       child.kill();
+      const cooldownMs = Number(process.env.RECIPE_MODEL_COOLDOWN_MS || 10 * 60 * 1000);
+      const safeCooldown = Number.isFinite(cooldownMs) && cooldownMs > 0 ? cooldownMs : 10 * 60 * 1000;
+      recipeModelCooldownUntil = Date.now() + safeCooldown;
       reject(new Error("RECIPE_MODEL_TIMEOUT"));
     }, Number(process.env.RECIPE_MODEL_TIMEOUT_MS || 120000));
 
@@ -384,6 +397,9 @@ function runRecipeModel(ingredients) {
     });
     child.on("error", (err) => {
       clearTimeout(timer);
+      const cooldownMs = Number(process.env.RECIPE_MODEL_COOLDOWN_MS || 10 * 60 * 1000);
+      const safeCooldown = Number.isFinite(cooldownMs) && cooldownMs > 0 ? cooldownMs : 10 * 60 * 1000;
+      recipeModelCooldownUntil = Date.now() + safeCooldown;
       const wrap = new Error("RECIPE_MODEL_FAILED");
       wrap.cause = err;
       wrap.detail = err && err.message ? String(err.message) : "";
@@ -392,6 +408,9 @@ function runRecipeModel(ingredients) {
     child.on("close", (code) => {
       clearTimeout(timer);
       if (code !== 0) {
+        const cooldownMs = Number(process.env.RECIPE_MODEL_COOLDOWN_MS || 10 * 60 * 1000);
+        const safeCooldown = Number.isFinite(cooldownMs) && cooldownMs > 0 ? cooldownMs : 10 * 60 * 1000;
+        recipeModelCooldownUntil = Date.now() + safeCooldown;
         const err = new Error("RECIPE_MODEL_FAILED");
         const tail = (stderr || stdout || "").trim();
         err.detail = tail
@@ -1189,6 +1208,7 @@ app.post("/api/recipes/generate", async (req, res, next) => {
     const code = e?.code;
     const modelDown =
       msg === "RECIPE_MODEL_DISABLED" ||
+      msg === "RECIPE_MODEL_COOLDOWN" ||
       msg === "RECIPE_MODEL_TIMEOUT" ||
       msg === "RECIPE_MODEL_FAILED" ||
       msg === "RECIPE_MODEL_SETUP_INCOMPLETE" ||
@@ -1215,6 +1235,7 @@ app.post("/api/recipes/generate", async (req, res, next) => {
           "Python 已运行但推理失败。常见原因：① 该解释器未安装 torch / PyTorch；② torch 与权重或 Python 版本不兼容；③ 内存不足(OOM)。请查看本响应中的 detail（stderr 片段）及 Render 服务「日志」。",
         RECIPE_MODEL_TIMEOUT: "推理超过 RECIPE_MODEL_TIMEOUT_MS（默认 120s）。可尝试调大超时，或换更小权重/CPU 推理。",
         RECIPE_MODEL_DISABLED: "已在服务器设置 RECIPE_MODEL_DISABLED=1，菜谱模型已关闭。",
+        RECIPE_MODEL_COOLDOWN: "模型近期超时或失败，已临时降级。请稍后重试，前端会自动使用模板回退。",
       };
       const hintDefault =
         code === "ENOENT"
@@ -2369,7 +2390,7 @@ app.listen(PORT, async () => {
   await maybeStartupSetCoins();
   // eslint-disable-next-line no-console
   console.log(`EcoQuest auth server listening on :${PORT}`);
-  console.log(`CORS origin: ${FRONTEND_ORIGIN}`);
+  console.log(`CORS origins: ${FRONTEND_ORIGINS.join(", ")}`);
   console.log(`Session cookie secure: ${cookieSecure}, sameSite: ${cookieSameSite}`);
 });
 
