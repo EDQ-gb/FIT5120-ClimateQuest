@@ -35,6 +35,17 @@ $env:RECIPE_CHECKPOINT="G:\FIT5120\FIT5120-ClimateQuest\AI Development\Cooking_D
 $env:RECIPE_MODEL_TIMEOUT_MS="120000"
 ```
 
+Performance-focused overrides (real model + faster response):
+
+```powershell
+$env:RECIPE_MODEL_PERSISTENT="1"     # keep Python model loaded between requests
+$env:RECIPE_MODEL_BEAM_SIZE="2"      # lower beam for faster decoding
+$env:RECIPE_MODEL_MAX_LEN="80"
+$env:RECIPE_MODEL_MIN_LEN="10"
+$env:RECIPE_MODEL_TIMEOUT_MS="20000" # per-request timeout
+$env:RECIPE_MODEL_WARMUP_TIMEOUT_MS="90000"
+```
+
 If `RECIPE_PYTHON` is not set, the server tries `python` from PATH.
 
 ## Vercel
@@ -52,6 +63,8 @@ Render’s default Node image usually **does not** include PyTorch or your `.pt`
 
 - Set **`RECIPE_PYTHON`** to a Python binary that has **PyTorch** installed (often a custom build or Docker).
 - Set **`RECIPE_CHECKPOINT`** to an **absolute path** on the instance where the weight file actually exists (do not rely on a relative path if your deploy root omits `AI Development/`).
+- Keep **`RECIPE_MODEL_PERSISTENT=1`** so Render reuses one warm Python worker and avoids reloading torch/checkpoint every request.
+- Tune speed with **`RECIPE_MODEL_BEAM_SIZE=2`**, **`RECIPE_MODEL_MAX_LEN=80`**, and **`RECIPE_MODEL_TIMEOUT_MS=20000`** as a practical baseline.
 - If inference is intentionally off, set **`RECIPE_MODEL_DISABLED=1`**; the API returns **503** with `RECIPE_MODEL_UNAVAILABLE` and the Tasks UI uses the template fallback.
 
 ### 查看 503 / 错误响应（浏览器为中文界面时）

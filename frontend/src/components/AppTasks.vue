@@ -622,6 +622,15 @@ function recipeHintToEnglish(reason, hint) {
   return 'Model API unavailable. Showing template fallback.'
 }
 
+function shouldUseSoftFallbackMessage(reason) {
+  const reasonText = String(reason || '').trim()
+  return (
+    reasonText === 'RECIPE_MODEL_DISABLED' ||
+    reasonText === 'RECIPE_MODEL_COOLDOWN' ||
+    reasonText === 'RECIPE_MODEL_SETUP_INCOMPLETE'
+  )
+}
+
 async function generateRecipe() {
   if (!canGenerateRecipe.value) return
   recipeLoading.value = true
@@ -645,6 +654,10 @@ async function generateRecipe() {
     }
   } catch (e) {
     recipe.value = localRecipe()
+    if (shouldUseSoftFallbackMessage(e?.reason)) {
+      recipeError.value = 'Local recipe mode is active. Generated instantly from template.'
+      return
+    }
     const hint = recipeHintToEnglish(e?.reason, e?.hint)
     const detail = e?.detail ? String(e.detail) : ''
     const exitPart = e?.exitCode != null ? ` (exit code ${e.exitCode})` : ''

@@ -334,7 +334,217 @@ function clampInt(n, lo, hi) {
 
 let recipeModelCooldownUntil = 0;
 
-function runRecipeModel(ingredients) {
+function recipeCooldownMs() {
+  const cooldownMs = Number(process.env.RECIPE_MODEL_COOLDOWN_MS || 10 * 60 * 1000);
+  return Number.isFinite(cooldownMs) && cooldownMs > 0 ? cooldownMs : 10 * 60 * 1000;
+}
+
+function recipeRequestTimeoutMs() {
+  const timeoutMs = Number(process.env.RECIPE_MODEL_TIMEOUT_MS || 20000);
+  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 20000;
+}
+
+function recipeWarmupTimeoutMs() {
+  const timeoutMs = Number(process.env.RECIPE_MODEL_WARMUP_TIMEOUT_MS || 90000);
+  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 90000;
+}
+
+function recipeBeamSize() {
+  const beam = Number(process.env.RECIPE_MODEL_BEAM_SIZE || 2);
+  return Number.isFinite(beam) && beam >= 1 && beam <= 8 ? Math.floor(beam) : 2;
+}
+
+function recipeMaxLen() {
+  const maxLen = Number(process.env.RECIPE_MODEL_MAX_LEN || 80);
+  return Number.isFinite(maxLen) && maxLen >= 20 && maxLen <= 200 ? Math.floor(maxLen) : 80;
+}
+
+function recipeMinLen() {
+  const minLen = Number(process.env.RECIPE_MODEL_MIN_LEN || 10);
+  return Number.isFinite(minLen) && minLen >= 4 && minLen <= 80 ? Math.floor(minLen) : 10;
+}
+
+function recipeUsePersistentWorker() {
+  return String(process.env.RECIPE_MODEL_PERSISTENT || "1").trim() !== "0";
+}
+
+let recipeWorkerState = {
+  child: null,
+  ready: false,
+  readyPromise: null,
+  pending: new Map(),
+  stdoutBuffer: "",
+  nextId: 1,
+};
+
+function cleanupRecipeWorker(reason) {
+  const state = recipeWorkerState;
+  if (state.child) {
+    try {
+      state.child.kill();
+    } catch {
+      // ignore cleanup kill errors
+    }
+  }
+  state.child = null;
+  state.ready = false;
+  state.readyPromise = null;
+  state.stdoutBuffer = "";
+  for (const [, pendingReq] of state.pending) {
+    clearTimeout(pendingReq.timer);
+    const err = new Error("RECIPE_MODEL_FAILED");
+    err.detail = reason || "Persistent recipe worker exited unexpectedly.";
+    pendingReq.reject(err);
+  }
+  state.pending.clear();
+}
+
+function handleRecipeWorkerLine(line) {
+  const state = recipeWorkerState;
+  let msg;
+  try {
+    msg = JSON.parse(line);
+  } catch {
+    return;
+  }
+  if (msg && msg.ready) {
+    state.ready = true;
+    return;
+  }
+  const id = Number(msg?.id);
+  if (!Number.isFinite(id) || !state.pending.has(id)) return;
+  const pendingReq = state.pending.get(id);
+  state.pending.delete(id);
+  clearTimeout(pendingReq.timer);
+  if (msg?.ok && msg?.result) {
+    pendingReq.resolve(msg.result);
+    return;
+  }
+  const err = new Error("RECIPE_MODEL_FAILED");
+  err.detail = String(msg?.error || "Recipe worker returned an invalid response.");
+  pendingReq.reject(err);
+}
+
+function spawnRecipeWorker() {
+  const pythonExe = process.env.RECIPE_PYTHON || process.env.PYTHON || "python";
+  const workerScriptPath =
+    process.env.RECIPE_MODEL_WORKER_SCRIPT ||
+    path.join(__dirname, "recipe_model_worker.py");
+  const checkpointPath =
+    process.env.RECIPE_CHECKPOINT ||
+    path.join(
+      __dirname,
+      "..",
+      "..",
+      "AI Development",
+      "Cooking_Dataset",
+      "best_transformer_copy_v2.pt"
+    );
+  if (!fs.existsSync(workerScriptPath) || !fs.existsSync(checkpointPath)) {
+    throw new Error("RECIPE_MODEL_SETUP_INCOMPLETE");
+  }
+  const workerArgs = [
+    workerScriptPath,
+    "--checkpoint",
+    checkpointPath,
+    "--beam-size",
+    String(recipeBeamSize()),
+    "--max-len",
+    String(recipeMaxLen()),
+    "--min-len",
+    String(recipeMinLen()),
+  ];
+  const configuredDevice = String(process.env.RECIPE_MODEL_DEVICE || "").trim();
+  if (configuredDevice) workerArgs.push("--device", configuredDevice);
+  const child = spawn(pythonExe, workerArgs, { windowsHide: true });
+  recipeWorkerState.child = child;
+  recipeWorkerState.ready = false;
+  recipeWorkerState.stdoutBuffer = "";
+  child.stdout.on("data", (chunk) => {
+    recipeWorkerState.stdoutBuffer += chunk.toString("utf8");
+    let newlineIdx = recipeWorkerState.stdoutBuffer.indexOf("\n");
+    while (newlineIdx >= 0) {
+      const line = recipeWorkerState.stdoutBuffer.slice(0, newlineIdx).trim();
+      recipeWorkerState.stdoutBuffer = recipeWorkerState.stdoutBuffer.slice(newlineIdx + 1);
+      if (line) handleRecipeWorkerLine(line);
+      newlineIdx = recipeWorkerState.stdoutBuffer.indexOf("\n");
+    }
+  });
+  child.stderr.on("data", (chunk) => {
+    // eslint-disable-next-line no-console
+    console.error({ route: "recipe-worker", stderr: chunk.toString("utf8").slice(0, 800) });
+  });
+  child.on("error", (err) => {
+    cleanupRecipeWorker(err && err.message ? String(err.message) : "Recipe worker process errored.");
+  });
+  child.on("close", (code) => {
+    cleanupRecipeWorker(`Recipe worker exited with code ${code}`);
+  });
+}
+
+async function ensureRecipeWorkerReady() {
+  if (recipeWorkerState.child && recipeWorkerState.ready) return;
+  if (!recipeWorkerState.readyPromise) {
+    recipeWorkerState.readyPromise = new Promise((resolve, reject) => {
+      try {
+        spawnRecipeWorker();
+      } catch (e) {
+        recipeWorkerState.readyPromise = null;
+        reject(e);
+        return;
+      }
+      const timer = setTimeout(() => {
+        recipeWorkerState.readyPromise = null;
+        cleanupRecipeWorker("Recipe worker warmup timed out.");
+        reject(new Error("RECIPE_MODEL_TIMEOUT"));
+      }, recipeWarmupTimeoutMs());
+      const poll = setInterval(() => {
+        if (recipeWorkerState.ready) {
+          clearInterval(poll);
+          clearTimeout(timer);
+          recipeWorkerState.readyPromise = null;
+          resolve();
+        } else if (!recipeWorkerState.child) {
+          clearInterval(poll);
+          clearTimeout(timer);
+          recipeWorkerState.readyPromise = null;
+          const err = new Error("RECIPE_MODEL_FAILED");
+          err.detail = "Recipe worker exited before ready signal.";
+          reject(err);
+        }
+      }, 120);
+    });
+  }
+  await recipeWorkerState.readyPromise;
+}
+
+async function runRecipeModelPersistent(ingredients) {
+  await ensureRecipeWorkerReady();
+  return new Promise((resolve, reject) => {
+    const id = recipeWorkerState.nextId++;
+    const timer = setTimeout(() => {
+      recipeWorkerState.pending.delete(id);
+      const err = new Error("RECIPE_MODEL_TIMEOUT");
+      err.detail = "Recipe worker inference timeout.";
+      reject(err);
+    }, recipeRequestTimeoutMs());
+    recipeWorkerState.pending.set(id, { resolve, reject, timer });
+    try {
+      recipeWorkerState.child.stdin.write(
+        `${JSON.stringify({ id, ingredients })}\n`,
+        "utf8"
+      );
+    } catch (e) {
+      clearTimeout(timer);
+      recipeWorkerState.pending.delete(id);
+      const err = new Error("RECIPE_MODEL_FAILED");
+      err.detail = e && e.message ? String(e.message) : "Failed to write request to recipe worker.";
+      reject(err);
+    }
+  });
+}
+
+function runRecipeModelOneShot(ingredients) {
   if (String(process.env.RECIPE_MODEL_DISABLED || "").trim() === "1") {
     return Promise.reject(new Error("RECIPE_MODEL_DISABLED"));
   }
@@ -383,11 +593,9 @@ function runRecipeModel(ingredients) {
     let stderr = "";
     const timer = setTimeout(() => {
       child.kill();
-      const cooldownMs = Number(process.env.RECIPE_MODEL_COOLDOWN_MS || 10 * 60 * 1000);
-      const safeCooldown = Number.isFinite(cooldownMs) && cooldownMs > 0 ? cooldownMs : 10 * 60 * 1000;
-      recipeModelCooldownUntil = Date.now() + safeCooldown;
+      recipeModelCooldownUntil = Date.now() + recipeCooldownMs();
       reject(new Error("RECIPE_MODEL_TIMEOUT"));
-    }, Number(process.env.RECIPE_MODEL_TIMEOUT_MS || 120000));
+    }, recipeRequestTimeoutMs());
 
     child.stdout.on("data", (chunk) => {
       stdout += chunk.toString("utf8");
@@ -397,9 +605,7 @@ function runRecipeModel(ingredients) {
     });
     child.on("error", (err) => {
       clearTimeout(timer);
-      const cooldownMs = Number(process.env.RECIPE_MODEL_COOLDOWN_MS || 10 * 60 * 1000);
-      const safeCooldown = Number.isFinite(cooldownMs) && cooldownMs > 0 ? cooldownMs : 10 * 60 * 1000;
-      recipeModelCooldownUntil = Date.now() + safeCooldown;
+      recipeModelCooldownUntil = Date.now() + recipeCooldownMs();
       const wrap = new Error("RECIPE_MODEL_FAILED");
       wrap.cause = err;
       wrap.detail = err && err.message ? String(err.message) : "";
@@ -408,9 +614,7 @@ function runRecipeModel(ingredients) {
     child.on("close", (code) => {
       clearTimeout(timer);
       if (code !== 0) {
-        const cooldownMs = Number(process.env.RECIPE_MODEL_COOLDOWN_MS || 10 * 60 * 1000);
-        const safeCooldown = Number.isFinite(cooldownMs) && cooldownMs > 0 ? cooldownMs : 10 * 60 * 1000;
-        recipeModelCooldownUntil = Date.now() + safeCooldown;
+        recipeModelCooldownUntil = Date.now() + recipeCooldownMs();
         const err = new Error("RECIPE_MODEL_FAILED");
         const tail = (stderr || stdout || "").trim();
         err.detail = tail
@@ -432,6 +636,27 @@ function runRecipeModel(ingredients) {
       }
     });
   });
+}
+
+async function runRecipeModel(ingredients) {
+  if (String(process.env.RECIPE_MODEL_DISABLED || "").trim() === "1") {
+    throw new Error("RECIPE_MODEL_DISABLED");
+  }
+  if (Date.now() < recipeModelCooldownUntil) {
+    throw new Error("RECIPE_MODEL_COOLDOWN");
+  }
+  try {
+    if (recipeUsePersistentWorker()) {
+      return await runRecipeModelPersistent(ingredients);
+    }
+    return await runRecipeModelOneShot(ingredients);
+  } catch (e) {
+    const msg = String(e?.message || e);
+    if (msg === "RECIPE_MODEL_TIMEOUT" || msg === "RECIPE_MODEL_FAILED") {
+      recipeModelCooldownUntil = Date.now() + recipeCooldownMs();
+    }
+    throw e;
+  }
 }
 
 const TASKS = [
@@ -1233,7 +1458,7 @@ app.post("/api/recipes/generate", async (req, res, next) => {
           "服务器上缺少 recipe_model_infer.py 或 .pt 权重。请在 Render 设置 RECIPE_CHECKPOINT（磁盘上的绝对路径）和 RECIPE_PYTHON（已安装 PyTorch 的 Python）。",
         RECIPE_MODEL_FAILED:
           "Python 已运行但推理失败。常见原因：① 该解释器未安装 torch / PyTorch；② torch 与权重或 Python 版本不兼容；③ 内存不足(OOM)。请查看本响应中的 detail（stderr 片段）及 Render 服务「日志」。",
-        RECIPE_MODEL_TIMEOUT: "推理超过 RECIPE_MODEL_TIMEOUT_MS（默认 120s）。可尝试调大超时，或换更小权重/CPU 推理。",
+        RECIPE_MODEL_TIMEOUT: "推理超过 RECIPE_MODEL_TIMEOUT_MS。可尝试调大超时、降低 beam size，或启用常驻 worker。",
         RECIPE_MODEL_DISABLED: "已在服务器设置 RECIPE_MODEL_DISABLED=1，菜谱模型已关闭。",
         RECIPE_MODEL_COOLDOWN: "模型近期超时或失败，已临时降级。请稍后重试，前端会自动使用模板回退。",
       };
