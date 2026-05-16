@@ -10,8 +10,13 @@ const { spawn } = require("child_process");
 
 const { FRONTEND_ORIGINS, NODE_ENV, PORT, SESSION_SECRET } = require("./config");
 const { getPool, query, exec } = require("./db");
-const recipeModelRouter = require("./recipe_model_router");
-const { buildRecipeFallbackResponse } = require("./recipe_local_ai");
+const {
+  buildRecipeFallbackResponse,
+} = require("./recipe_local_ai");
+const {
+  getRecipeDebugInfo,
+  generateRecipe: generateRecipeViaService,
+} = require("./recipe_generation_service");
 
 const app = express();
 
@@ -660,12 +665,6 @@ async function runRecipeModelBuiltin(ingredients) {
     }
     throw e;
   }
-}
-
-recipeModelRouter.setRecipeBuiltinRunner(runRecipeModelBuiltin);
-
-async function runRecipeModel(ingredients) {
-  return recipeModelRouter.runRecipeModel(ingredients);
 }
 
 const TASKS = [
@@ -1425,25 +1424,35 @@ app.get("/api/quick-actions/catalog", (req, res) => {
   res.json(QUICK_ACTION_CATALOG);
 });
 
-app.post("/api/recipes/generate", async (req, res, next) => {
+app.get("/api/debug/recipe-provider", (req, res) => {
+  const info = getRecipeDebugInfo();
+  res.json({
+    recipeProvider: info.recipeProvider,
+    pollinationsEnabledForRecipe: false,
+    hasLocalAiEndpoint: info.hasLocalAiEndpoint,
+    timeoutMs: info.timeoutMs,
+    recipeApiVersion: info.recipeApiVersion,
+    commit: info.commit,
+  });
+});
+
+app.post("/api/recipes/generate", async (req, res) => {
   const ingredients = Array.isArray(req.body?.ingredients)
     ? req.body.ingredients.map((x) => String(x || "").trim()).filter(Boolean)
     : [];
+  if (ingredients.length < 3 || ingredients.length > 5) {
+    return res.status(400).json({ error: "INGREDIENT_COUNT_MUST_BE_3_TO_5" });
+  }
   try {
-    // Prototype endpoint: keep this independent from auth/DB so the local
-    // trained model can be validated even when MySQL is not configured.
-    if (ingredients.length < 3 || ingredients.length > 5) {
-      return res.status(400).json({ error: "INGREDIENT_COUNT_MUST_BE_3_TO_5" });
-    }
-    const result = await runRecipeModel(ingredients);
-    res.json(result);
+    const result = await generateRecipeViaService(ingredients);
+    return res.status(200).json(result);
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error({
       route: "POST /api/recipes/generate",
       error: e?.message,
     });
-    res.json(
+    return res.status(200).json(
       buildRecipeFallbackResponse(
         ingredients,
         "Recipe generation failed unexpectedly. Returned fallback result."

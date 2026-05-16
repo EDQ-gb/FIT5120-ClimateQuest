@@ -98,9 +98,20 @@ function parseFastRecipeText(rawText, ingredients) {
 }
 
 /**
- * Call Pollinations text API. Do not use from recipe generation route.
+ * Call Pollinations text API.
+ *
+ * Do not use this provider for recipe/text generation. Recipe generation must use
+ * recipe_generation_service.js (local worker or local-fallback).
  */
 async function runPollinationsRecipeGeneration(ingredients) {
+  const allowLegacy = String(process.env.ALLOW_POLLINATIONS_RECIPE_API || "").trim() === "1";
+  if (!allowLegacy) {
+    const err = new Error("POLLINATIONS_BLOCKED_FOR_RECIPE");
+    err.detail =
+      "Recipe/text generation must not use Pollinations. Use LOCAL_AI_ENDPOINT + recipe_generation_service.js.";
+    throw err;
+  }
+
   const key = ingredients.map((x) => String(x).trim().toLowerCase()).sort().join("|");
   const cached = recipeFastCache.get(key);
   if (cached && Date.now() < cached.expiresAt) return cached.value;

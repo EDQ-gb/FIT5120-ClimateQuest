@@ -8,7 +8,7 @@
     "start": "node src/index.js",
     "db:init": "node scripts/init-db.js",
     "db:grant-coins": "node scripts/grant-coins.js",
-    "test": "node --test test/recipe_local_ai.test.js test/recipe_model_router.test.js test/recipe_no_pollinations.test.js"
+    "test": "node --test test/recipe_local_ai.test.js test/recipe_model_router.test.js test/recipe_no_pollinations.test.js test/recipe_generation_service.test.js"
   },
   "keywords": [],
   "author": "",

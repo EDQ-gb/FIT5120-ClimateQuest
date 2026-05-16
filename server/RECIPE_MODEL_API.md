@@ -57,7 +57,9 @@ $env:RECIPE_MODEL_TIMEOUT_MS="120000"
 <<<<<<< HEAD
 Use **`best_transformer_copy_v3.pt`** instead for the newer run (4 encoder / 4 decoder layers in the saved `model_config`; the inference script reads that from the checkpoint).
 
-**Local dev (`npm run dev` in `frontend`):** `/api/recipes/*` is proxied to **`https://fit5120-climatequest-backend.onrender.com`** by default (see `vite.config.js`). Set **`VITE_RECIPE_PROXY=http://127.0.0.1:8080`** if you run the Express server + model on your machine instead.
+**Local dev (`npm run dev` in `frontend`):** `/api/recipes/*` uses the **same target as `/api`** (`https://fit5120-climatequest.onrender.com` by default). Set **`VITE_RECIPE_PROXY`** only to override (e.g. `http://127.0.0.1:8080`).
+
+**Debug:** `GET /api/debug/recipe-provider` — must show `pollinationsEnabledForRecipe: false` and `recipeApiVersion: "2-local-worker-only"`.
 
 **Vercel:** set **`RECIPE_BACKEND_BASE`** only when the recipe host is not the default dedicated Render URL (see `frontend/api/_proxyBase.js` → `DEFAULT_RECIPE_BACKEND_BASE`).
 =======

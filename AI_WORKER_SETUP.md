@@ -45,12 +45,12 @@ AI_WORKER_TOKEN=your-secret
 
 ### 若仍看到 Pollinations / Queue full / 快速云端模型
 
-说明 Render 可能还在跑**旧版** Node 代码，或环境变量仍启用旧路径。请：
-
-1. 部署包含 `recipe_model_router.js` 的最新 `server` 代码。  
-2. 在 Render 删除或不要设置：`RECIPE_FAST_CLOUD_ENABLED`、`RECIPE_FAST_FALLBACK_TO_LOCAL`、`RECIPE_FAST_MODEL`。  
-3. 设置 `RECIPE_MODEL_PROVIDER=local_worker` 与 `LOCAL_AI_ENDPOINT`（Tunnel URL）。  
-4. 重新部署后，菜谱 API 应返回 200（真实结果或 `fallback: true`），不应再出现 503 + `RECIPE_FAST_MODEL_FAILED`。
+1. 打开 **`GET https://<你的-Render>/api/debug/recipe-provider`**  
+   - 必须看到：`pollinationsEnabledForRecipe: false`、`recipeApiVersion: "2-local-worker-only"`  
+   - 若仍是旧行为（无此接口或 `fast_cloud`），说明 **Render 未部署最新 server**  
+2. 确认前端/Vercel **没有**把 `/api/recipes` 指到旧的 `fit5120-climatequest-backend`（现默认与主 API 同一 `fit5120-climatequest.onrender.com`）  
+3. Render 环境变量：`RECIPE_MODEL_PROVIDER=local_worker`、`LOCAL_AI_ENDPOINT=<tunnel>`；**删除** `RECIPE_FAST_*`  
+4. Render **Manual Deploy** 或 push 触发重新构建 **Root Directory = `server`**，`Start Command = npm start`
 
 ### 本地 AI worker
 
