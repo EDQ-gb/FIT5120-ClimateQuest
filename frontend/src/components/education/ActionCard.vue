@@ -1,6 +1,7 @@
 <script setup>
 defineProps({
-  icon: { type: String, required: true },
+  imageSrc: { type: String, default: '' },
+  icon: { type: String, default: '' },
   title: { type: String, required: true },
   subtitle: { type: String, default: '' },
 })
@@ -8,7 +9,10 @@ defineProps({
 
 <template>
   <div class="ac">
-    <span class="ac-icon" aria-hidden="true">{{ icon }}</span>
+    <div class="ac-media">
+      <img v-if="imageSrc" class="ac-img" :src="imageSrc" :alt="title" loading="lazy" />
+      <span v-else class="ac-icon" aria-hidden="true">{{ icon }}</span>
+    </div>
     <div class="ac-text">
       <div class="ac-title">{{ title }}</div>
       <p v-if="subtitle" class="ac-sub">{{ subtitle }}</p>
@@ -23,34 +27,38 @@ defineProps({
   gap: 12px;
   padding: 12px 14px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.28);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.07);
 }
-.ac:hover {
-  border-color: rgba(0, 242, 255, 0.22);
-  background: rgba(0, 242, 255, 0.06);
-  transform: translateY(-1px);
+.ac-media {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ac-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .ac-icon {
-  font-size: 1.65rem;
-  line-height: 1;
-  filter: drop-shadow(0 0 10px rgba(0, 242, 255, 0.25));
-}
-.ac-text {
-  min-width: 0;
+  font-size: 1.5rem;
 }
 .ac-title {
   font-size: 0.88rem;
   font-weight: 800;
   color: rgba(255, 255, 255, 0.95);
-  letter-spacing: 0.02em;
 }
 .ac-sub {
   margin: 2px 0 0;
   font-size: 0.72rem;
   line-height: 1.35;
-  color: rgba(200, 230, 220, 0.62);
+  color: rgba(255, 255, 255, 0.55);
 }
 </style>

@@ -89,6 +89,7 @@
             :user="user"
             :coins="shellCoins"
             @coins-updated="refreshShellStats"
+            @navigate="onNavigate"
           />
           <AppScene v-else-if="currentView === 'scene'" :user="user" />
           <AppQuiz
@@ -100,7 +101,7 @@
             @stay-on-quiz="onStayOnQuiz"
           />
           <AppLeaderboard v-else-if="currentView === 'leaderboard'" :user="user" />
-          <AppEducation v-else-if="currentView === 'education'" />
+          <AppEducation v-else-if="currentView === 'education'" @navigate="onNavigate" />
         </div>
       </div>
     </div>

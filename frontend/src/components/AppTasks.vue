@@ -52,6 +52,11 @@
                 <span class="badge">{{ task.cat }}</span>
               </div>
               <div class="task-desc">{{ task.desc }}</div>
+              <div v-if="isEnergyTipTask(task)" class="edu-tip-link-wrap">
+                <button type="button" class="edu-tip-link-btn" @click="emit('navigate', 'education')">
+                  Open Education page to learn
+                </button>
+              </div>
               <section v-if="isAiVisionTask(task)" class="vision-helper" aria-label="AI image verification">
                 <div class="vision-helper__head">
                   <span class="vision-helper__title">AI image verification</span>
@@ -252,7 +257,7 @@ import {
 } from '../api/imageRecognition.js'
 // We emit the *resulting* totals so the shell can update immediately
 // without waiting for a separate refresh roundtrip.
-const emit = defineEmits(['coins-updated'])
+const emit = defineEmits(['coins-updated', 'navigate'])
 const props = defineProps({
   user: Object,
   coins: { type: Number, default: 0 },
@@ -301,6 +306,10 @@ function isClimateArticleTask(task) {
 
 function isStandbyTask(task) {
   return Number(task?.id) === 4
+}
+
+function isEnergyTipTask(task) {
+  return Number(task?.id) === 9
 }
 
 function isProduceTask(task) {
@@ -843,6 +852,22 @@ watch(() => props.user?.id || props.user?.username || null, () => {
 .task-main { display:flex; flex-direction:column; gap:8px; }
 .task-title { font-size:.9rem; font-weight:700; color:#fff; line-height:1.2; }
 .task-desc  { font-size:.74rem; color:rgba(255,255,255,0.56); line-height:1.42; min-height:44px; }
+.edu-tip-link-wrap { margin-top: 2px; }
+.edu-tip-link-btn {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 242, 255, 0.28);
+  background: rgba(0, 242, 255, 0.1);
+  color: #d8fdff;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+}
+.edu-tip-link-btn:hover {
+  background: rgba(0, 242, 255, 0.18);
+}
 .badges     { display:flex; gap:5px; flex-wrap:wrap; }
 .badge      { font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7); }
 .badge.gold { background:rgba(244,196,48,0.15);color:#f4c430; }
