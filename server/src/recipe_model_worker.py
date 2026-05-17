@@ -68,12 +68,12 @@ def main():
             payload = json.loads(raw)
             req_id = payload.get("id")
             ingredients = normalize_ingredients(payload.get("ingredients"))
-            if len(ingredients) < 3 or len(ingredients) > 5:
+            if len(ingredients) < 1 or len(ingredients) > 3:
                 emit(
                     {
                         "id": req_id,
                         "ok": False,
-                        "error": "INGREDIENT_COUNT_MUST_BE_3_TO_5",
+                        "error": "INGREDIENT_COUNT_INVALID",
                     }
                 )
                 continue

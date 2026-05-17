@@ -171,19 +171,24 @@
               </section>
               <section v-if="isPlantMealTask(task) && mealBuilderTaskId === task.id" class="recipe-helper" aria-label="Light emission meal helper">
                 <div class="recipe-helper__head">
-                  <span class="recipe-helper__title">Choose 3-5 ingredients</span>
+                  <span class="recipe-helper__title">Choose up to 3 ingredients</span>
                   <button class="recipe-helper__generate" type="button" @click="refreshIngredientOptions">
                     New 10
                   </button>
                 </div>
                 <div class="recipe-helper__hint">{{ ingredientSelectionHint }}</div>
+                <p class="recipe-helper__limit">Select up to 3 ingredients for faster and more reliable generation.</p>
                 <div class="ingredient-picker">
                   <button
                     v-for="ingredient in visibleIngredients"
                     :key="ingredient"
                     type="button"
                     class="ingredient-chip"
-                    :class="{ selected: selectedIngredients.includes(ingredient) }"
+                    :class="{
+                      selected: selectedIngredients.includes(ingredient),
+                      disabled: isIngredientDisabled(ingredient),
+                    }"
+                    :disabled="isIngredientDisabled(ingredient)"
                     @click="toggleIngredient(ingredient)"
                   >
                     {{ ingredient }}
@@ -293,13 +298,23 @@ function logRecipeUi(message) {
 const doneCount = computed(() => tasks.value.filter(t => t.completed).length)
 const pct       = computed(() => tasks.value.length ? Math.round(doneCount.value/tasks.value.length*100) : 0)
 const coinText  = computed(() => Number(props.coins || 0).toLocaleString())
-const canGenerateRecipe = computed(() => selectedIngredients.value.length >= 3 && selectedIngredients.value.length <= 5)
+const MAX_RECIPE_INGREDIENTS = 3
+const canGenerateRecipe = computed(
+  () =>
+    selectedIngredients.value.length >= 1 &&
+    selectedIngredients.value.length <= MAX_RECIPE_INGREDIENTS,
+)
 const ingredientSelectionHint = computed(() => {
   const count = selectedIngredients.value.length
-  if (count < 3) return `Pick ${3 - count} more to generate.`
-  if (count === 5) return '5 selected — more ingredients can take longer to generate.'
-  return `${count} selected. You can add ${5 - count} more.`
+  if (count === 0) return 'Pick 1–3 ingredients, then generate.'
+  if (count >= MAX_RECIPE_INGREDIENTS) return 'Maximum selected (3). Tap one to swap or generate.'
+  return `${count} selected. You can add ${MAX_RECIPE_INGREDIENTS - count} more.`
 })
+
+function isIngredientDisabled(ingredient) {
+  if (selectedIngredients.value.includes(ingredient)) return false
+  return selectedIngredients.value.length >= MAX_RECIPE_INGREDIENTS
+}
 
 function resetRecipeGenerationFeedback({ clearRecipe = false } = {}) {
   recipeError.value = ''
@@ -605,7 +620,9 @@ function actionLabel(task) {
 function refreshIngredientOptions() {
   const nextBatch = getBalancedIngredientBatch(ingredientWindow)
   visibleIngredients.value = nextBatch
-  selectedIngredients.value = selectedIngredients.value.filter(item => visibleIngredients.value.includes(item))
+  selectedIngredients.value = selectedIngredients.value
+    .filter(item => visibleIngredients.value.includes(item))
+    .slice(0, MAX_RECIPE_INGREDIENTS)
   recipeGenerationSeq += 1
   resetRecipeGenerationFeedback({ clearRecipe: selectedIngredients.value.length < 3 })
   ingredientWindow += 1
@@ -615,6 +632,8 @@ function openMealBuilder(taskId) {
   mealBuilderTaskId.value = taskId
   selectedIngredients.value = []
   recipeGenerationSeq += 1
+  recipeActiveRequestId += 1
+  recipeLoading.value = false
   resetRecipeGenerationFeedback({ clearRecipe: true })
   refreshIngredientOptions()
 }
@@ -623,10 +642,10 @@ function toggleIngredient(ingredient) {
   const current = selectedIngredients.value
   if (current.includes(ingredient)) {
     selectedIngredients.value = current.filter(item => item !== ingredient)
-  } else {
-    if (current.length >= 5) return
-    selectedIngredients.value = [...current, ingredient]
+    return
   }
+  if (current.length >= MAX_RECIPE_INGREDIENTS) return
+  selectedIngredients.value = [...current, ingredient]
 }
 
 /** Test-only escape hatch. Final version should not return template fallback. */
@@ -648,10 +667,11 @@ async function generateRecipe() {
   const requestId = createRecipeRequestId()
   const uiToken = ++recipeActiveRequestId
   const seq = ++recipeGenerationSeq
-  logRecipeUi(`[recipe-ui] generate clicked requestId=${requestId}`)
-  recipeLoading.value = true
+  logRecipeUi(`[recipe-ui] Generate clicked requestId=${requestId}`)
   resetRecipeGenerationFeedback({ clearRecipe: true })
-  logRecipeUi(`[recipe-ui] error cleared requestId=${requestId}`)
+  logRecipeUi(`[recipe-ui] old error cleared requestId=${requestId}`)
+  recipeLoading.value = true
+  logRecipeUi(`[recipe-ui] request started requestId=${requestId}`)
   try {
     const modelRecipe = await generateRecipeFromModel(selectedIngredients.value, requestId)
     if (uiToken !== recipeActiveRequestId || seq !== recipeGenerationSeq) {
@@ -674,7 +694,7 @@ async function generateRecipe() {
       sourceLabel: augmented ? 'Transformer model · clarity edits' : 'Transformer model',
     }
     recipeError.value = ''
-    logRecipeUi(`[recipe-ui] request completed requestId=${requestId}`)
+    logRecipeUi(`[recipe-ui] request succeeded requestId=${requestId}`)
   } catch (e) {
     if (uiToken !== recipeActiveRequestId || seq !== recipeGenerationSeq) {
       logRecipeUi(`[recipe-ui] stale failure ignored requestId=${requestId}`)
@@ -691,7 +711,7 @@ async function generateRecipe() {
     )
   } finally {
     recipeLoading.value = false
-    logRecipeUi(`[recipe-ui] loading false requestId=${requestId}`)
+    logRecipeUi(`[recipe-ui] loading reset requestId=${requestId}`)
   }
 }
 
@@ -1102,6 +1122,17 @@ watch(() => props.user?.id || props.user?.username || null, () => {
   color: #081c12;
   background: #9df7cf;
   border-color: #9df7cf;
+}
+.ingredient-chip.disabled,
+.ingredient-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.recipe-helper__limit {
+  margin: 4px 0 6px;
+  font-size: 0.62rem;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.55);
 }
 .recipe-action {
   width: 100%;

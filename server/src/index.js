@@ -488,23 +488,33 @@ async function runRecipeModelFastCloud(ingredients) {
 }
 
 function recipeCooldownMs() {
-  // Short default so one timeout does not block retries for minutes (override via env).
-  const cooldownMs = Number(process.env.RECIPE_MODEL_COOLDOWN_MS || 30 * 1000);
-  return Number.isFinite(cooldownMs) && cooldownMs > 0 ? cooldownMs : 30 * 1000;
+  // Default 0: do not block retries after timeout (set RECIPE_MODEL_COOLDOWN_MS to enable).
+  const cooldownMs = Number(process.env.RECIPE_MODEL_COOLDOWN_MS || 0);
+  return Number.isFinite(cooldownMs) && cooldownMs > 0 ? cooldownMs : 0;
+}
+
+function recipeGenerationTimeoutMs() {
+  const timeoutMs = Number(
+    process.env.RECIPE_GENERATION_TIMEOUT_MS ||
+      process.env.RECIPE_MODEL_TIMEOUT_MS ||
+      45000
+  );
+  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 45000;
 }
 
 function setRecipeModelCooldown(reason) {
-  recipeModelCooldownUntil = Date.now() + recipeCooldownMs();
+  const cooldownMs = recipeCooldownMs();
+  if (cooldownMs <= 0) return;
+  recipeModelCooldownUntil = Date.now() + cooldownMs;
   // eslint-disable-next-line no-console
-  console.log("[recipe-generation] cooldown set", {
+  console.log("[recipe-api] cooldown set", {
     reason,
-    cooldownMs: recipeCooldownMs(),
+    cooldownMs,
   });
 }
 
 function recipeRequestTimeoutMs() {
-  const timeoutMs = Number(process.env.RECIPE_MODEL_TIMEOUT_MS || 20000);
-  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 20000;
+  return recipeGenerationTimeoutMs();
 }
 
 function recipeWarmupTimeoutMs() {
@@ -866,7 +876,7 @@ async function runRecipeModel(ingredients, requestId = "unknown") {
   if (String(process.env.RECIPE_MODEL_DISABLED || "").trim() === "1") {
     throw new Error("RECIPE_MODEL_DISABLED");
   }
-  if (Date.now() < recipeModelCooldownUntil) {
+  if (recipeCooldownMs() > 0 && Date.now() < recipeModelCooldownUntil) {
     const remainingMs = recipeModelCooldownUntil - Date.now();
     logRecipeApi(`[recipe-api] immediate reject requestId=${requestId}`, {
       kind: "cooldown_active",
@@ -1660,10 +1670,26 @@ app.post("/api/recipes/generate", async (req, res, next) => {
     ingredientCount: ingredients.length,
   });
   try {
-    if (ingredients.length < 3 || ingredients.length > 5) {
-      logRecipeApi(`[recipe-api] response sent requestId=${requestId}`, { status: 400 });
-      return res.status(400).json({ error: "INGREDIENT_COUNT_MUST_BE_3_TO_5" });
+    if (ingredients.length > 3) {
+      logRecipeApi(`[recipe-api] response sent requestId=${requestId}`, {
+        status: 400,
+        code: "TOO_MANY_INGREDIENTS",
+      });
+      return res.status(400).json({
+        error: "Please select no more than 3 ingredients.",
+        code: "TOO_MANY_INGREDIENTS",
+      });
     }
+    if (ingredients.length < 1) {
+      logRecipeApi(`[recipe-api] response sent requestId=${requestId}`, { status: 400 });
+      return res.status(400).json({
+        error: "Please select at least one ingredient.",
+        code: "INGREDIENT_COUNT_TOO_LOW",
+      });
+    }
+    logRecipeApi(`[recipe-api] generation started requestId=${requestId}`, {
+      ingredientCount: ingredients.length,
+    });
     const result = await runRecipeModel(ingredients, requestId);
     logRecipeApi(`[recipe-api] response sent requestId=${requestId}`, {
       status: 200,
