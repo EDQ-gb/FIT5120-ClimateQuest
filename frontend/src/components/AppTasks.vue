@@ -177,7 +177,6 @@
                   </button>
                 </div>
                 <div class="recipe-helper__hint">{{ ingredientSelectionHint }}</div>
-                <p class="recipe-helper__limit">Select exactly 3 ingredients for faster and more reliable generation.</p>
                 <div class="ingredient-picker">
                   <button
                     v-for="ingredient in visibleIngredients"
@@ -1127,12 +1126,6 @@ watch(() => props.user?.id || props.user?.username || null, () => {
 .ingredient-chip:disabled {
   opacity: 0.45;
   cursor: not-allowed;
-}
-.recipe-helper__limit {
-  margin: 4px 0 6px;
-  font-size: 0.62rem;
-  line-height: 1.35;
-  color: rgba(255, 255, 255, 0.55);
 }
 .recipe-action {
   width: 100%;
