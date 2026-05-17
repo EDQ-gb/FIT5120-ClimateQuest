@@ -10,6 +10,7 @@ const { spawn } = require("child_process");
 
 const { FRONTEND_ORIGINS, NODE_ENV, PORT, SESSION_SECRET } = require("./config");
 const { getPool, query, exec } = require("./db");
+const { recipeErrorToClientResponse } = require("./recipe_user_errors");
 
 const app = express();
 
@@ -347,22 +348,6 @@ function textToSteps(text) {
     .map((x) => x.replace(/^[-*]\s*/, "").trim())
     .filter(Boolean)
     .slice(0, 8);
-}
-
-/** Strip Pollinations / third-party bodies from recipe API error payloads. */
-function sanitizeRecipeErrorDetail(detail) {
-  const s = String(detail || "")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!s) return undefined;
-  if (
-    /pollinations|queue full for ip|enter\.pollinations|text\.pollinations|deprecation_notice/i.test(
-      s
-    )
-  ) {
-    return undefined;
-  }
-  return s.slice(0, 450);
 }
 
 function recipeFastCloudEnabled() {
@@ -1583,72 +1568,18 @@ app.get("/api/quick-actions/catalog", (req, res) => {
 });
 
 app.post("/api/recipes/generate", async (req, res, next) => {
+  const ingredients = Array.isArray(req.body?.ingredients)
+    ? req.body.ingredients.map((x) => String(x || "").trim()).filter(Boolean)
+    : [];
   try {
-    // Prototype endpoint: keep this independent from auth/DB so the local
-    // trained model can be validated even when MySQL is not configured.
-    const ingredients = Array.isArray(req.body?.ingredients)
-      ? req.body.ingredients.map((x) => String(x || "").trim()).filter(Boolean)
-      : [];
     if (ingredients.length < 3 || ingredients.length > 5) {
       return res.status(400).json({ error: "INGREDIENT_COUNT_MUST_BE_3_TO_5" });
     }
     const result = await runRecipeModel(ingredients);
-    res.json(result);
+    return res.json(result);
   } catch (e) {
-    const msg = String(e?.message || e);
-    const code = e?.code;
-    const detailSnippet = sanitizeRecipeErrorDetail(e?.detail);
-
-    if (msg === "RECIPE_MODEL_TIMEOUT") {
-      // eslint-disable-next-line no-console
-      console.log(
-        "[recipe-generation] primary model timeout; returning 408 without Pollinations"
-      );
-      return res.status(408).json({
-        error: "RECIPE_MODEL_TIMEOUT",
-        reason: msg,
-        hint: "The recipe model took too long to respond. Please try again.",
-        ...(detailSnippet ? { detail: detailSnippet } : {}),
-      });
-    }
-
-    const modelDown =
-      msg === "RECIPE_MODEL_DISABLED" ||
-      msg === "RECIPE_MODEL_COOLDOWN" ||
-      msg === "RECIPE_MODEL_FAILED" ||
-      msg === "RECIPE_MODEL_SETUP_INCOMPLETE" ||
-      code === "ENOENT";
-    if (modelDown) {
-      // eslint-disable-next-line no-console
-      console.error({
-        route: "POST /api/recipes/generate",
-        code: msg,
-        errno: code,
-        detail: detailSnippet,
-      });
-      const hints = {
-        RECIPE_MODEL_SETUP_INCOMPLETE:
-          "服务器上缺少 recipe_model_infer.py 或 .pt 权重。请在 Render 设置 RECIPE_CHECKPOINT（磁盘上的绝对路径）和 RECIPE_PYTHON（已安装 PyTorch 的 Python）。",
-        RECIPE_MODEL_FAILED:
-          "Python 已运行但推理失败。常见原因：① 该解释器未安装 torch / PyTorch；② torch 与权重或 Python 版本不兼容；③ 内存不足(OOM)。请查看本响应中的 detail（stderr 片段）及 Render 服务「日志」。",
-        RECIPE_MODEL_DISABLED: "已在服务器设置 RECIPE_MODEL_DISABLED=1，菜谱模型已关闭。",
-        RECIPE_MODEL_COOLDOWN: "模型近期超时或失败，已临时降级。请稍后重试，前端会自动使用模板回退。",
-      };
-      const hintDefault =
-        code === "ENOENT"
-          ? "找不到 python 可执行文件。请在 Render 设置 RECIPE_PYTHON 为带 torch 的 Python 绝对路径。"
-          : "The recipe model is temporarily unavailable. Please try again.";
-      const exitCode =
-        e?.exitCode != null && Number.isFinite(Number(e.exitCode)) ? Number(e.exitCode) : undefined;
-      return res.status(503).json({
-        error: "RECIPE_MODEL_UNAVAILABLE",
-        reason: msg,
-        hint: hints[msg] || hintDefault,
-        ...(detailSnippet ? { detail: detailSnippet } : {}),
-        ...(exitCode != null ? { exitCode } : {}),
-      });
-    }
-    next(e);
+    const safe = recipeErrorToClientResponse(e);
+    return res.status(safe.status).json(safe.body);
   }
 });
 

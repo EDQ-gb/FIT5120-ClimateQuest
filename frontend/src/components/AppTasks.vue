@@ -232,6 +232,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { getTasks, completeTask, generateRecipeFromModel } from '../api/features.js'
+import { recipeGenerationUserMessage } from '../utils/recipeErrorSanitize.js'
 import {
   getBalancedIngredientBatch,
   generatePlantBasedRecipe,
@@ -667,13 +668,7 @@ async function generateRecipe() {
       recipeError.value = 'Local recipe mode is active. Generated instantly from template.'
       return
     }
-    const hint = recipeHintToEnglish(e?.reason, e?.hint)
-    const detail = e?.detail ? String(e.detail) : ''
-    const exitPart = e?.exitCode != null ? ` (exit code ${e.exitCode})` : ''
-    const detailSuffix = detail ? ` Detail: ${detail}` : ''
-    recipeError.value = hint
-      ? `Model service unavailable (${e.status || '?'})${exitPart}: ${hint}${detailSuffix}`
-      : 'Model API unavailable, showing template fallback.'
+    recipeError.value = recipeGenerationUserMessage(e)
   } finally {
     recipeLoading.value = false
   }
