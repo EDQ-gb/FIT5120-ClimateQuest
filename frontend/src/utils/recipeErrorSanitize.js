@@ -25,6 +25,9 @@ export function sanitizeRecipeErrorMessage(...parts) {
 export function recipeGenerationUserMessage(error) {
   const status = error?.status
   const reason = String(error?.reason || '').trim()
+  if (reason === 'TOO_MANY_INGREDIENTS') {
+    return 'Please select no more than 3 ingredients.'
+  }
   if (
     status === 408 ||
     reason === 'RECIPE_GENERATION_TIMEOUT' ||

@@ -369,9 +369,12 @@ export async function logQuickAction(actionKey) {
 
 export async function generateRecipeFromModel(ingredients, requestId) {
   const rid = String(requestId || '').trim() || 'unknown'
-  const timeoutFromEnv = Number(import.meta?.env?.VITE_RECIPE_MODEL_CLIENT_TIMEOUT_MS)
-  // Default slightly above server RECIPE_MODEL_TIMEOUT_MS (20s) to avoid false client aborts.
-  const timeoutMs = Number.isFinite(timeoutFromEnv) && timeoutFromEnv > 0 ? timeoutFromEnv : 22000
+  const timeoutFromEnv = Number(
+    import.meta?.env?.VITE_RECIPE_GENERATION_TIMEOUT_MS ||
+      import.meta?.env?.VITE_RECIPE_MODEL_CLIENT_TIMEOUT_MS,
+  )
+  // Slightly above server RECIPE_GENERATION_TIMEOUT_MS (45s default) to avoid false client aborts.
+  const timeoutMs = Number.isFinite(timeoutFromEnv) && timeoutFromEnv > 0 ? timeoutFromEnv : 48000
   // eslint-disable-next-line no-console
   console.log(`[recipe-ui] request started requestId=${rid}`, {
     ingredientCount: ingredients?.length,

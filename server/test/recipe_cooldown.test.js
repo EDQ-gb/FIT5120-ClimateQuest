@@ -18,6 +18,11 @@ test("cooldown is only set on explicit timeout paths, not generic model failed",
   );
 });
 
-test("default cooldown is short unless env overrides", () => {
-  assert.match(indexSrc, /RECIPE_MODEL_COOLDOWN_MS \|\| 30 \* 1000/);
+test("default cooldown is disabled unless env overrides", () => {
+  assert.match(indexSrc, /RECIPE_MODEL_COOLDOWN_MS \|\| 0/);
+});
+
+test("recipe generation timeout defaults to 45s", () => {
+  assert.match(indexSrc, /RECIPE_GENERATION_TIMEOUT_MS/);
+  assert.match(indexSrc, /45000/);
 });

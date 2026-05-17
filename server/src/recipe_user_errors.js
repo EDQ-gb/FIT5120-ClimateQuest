@@ -88,6 +88,8 @@ function recipeErrorToClientResponse(e, meta = {}) {
   logRecipeGenerationFailure(e, meta);
 
   if (isRecipeTimeoutError(msg)) {
+    // eslint-disable-next-line no-console
+    console.log("[recipe-api] timeout happened", { requestId: meta?.requestId, code: msg });
     return buildRecipeTimeoutResponse();
   }
 
