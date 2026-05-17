@@ -349,6 +349,22 @@ function textToSteps(text) {
     .slice(0, 8);
 }
 
+/** Strip Pollinations / third-party bodies from recipe API error payloads. */
+function sanitizeRecipeErrorDetail(detail) {
+  const s = String(detail || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!s) return undefined;
+  if (
+    /pollinations|queue full for ip|enter\.pollinations|text\.pollinations|deprecation_notice/i.test(
+      s
+    )
+  ) {
+    return undefined;
+  }
+  return s.slice(0, 450);
+}
+
 function recipeFastCloudEnabled() {
   return String(process.env.RECIPE_FAST_CLOUD_ENABLED || "1").trim() !== "0";
 }
@@ -427,6 +443,7 @@ function parseFastRecipeText(rawText, ingredients) {
   };
 }
 
+/** Pollinations text API — not used by POST /api/recipes/generate (see runRecipeModel). */
 async function runRecipeModelFastCloud(ingredients) {
   const key = ingredients.map((x) => String(x).trim().toLowerCase()).sort().join("|");
   const cached = recipeFastCache.get(key);
@@ -780,16 +797,16 @@ function runRecipeModelOneShot(ingredients) {
 }
 
 async function runRecipeModel(ingredients) {
+  // Recipe generation must not fallback to Pollinations (text.pollinations.ai): it may return
+  // 429 queue-full errors surfaced as 503 to the frontend. runRecipeModelFastCloud() remains
+  // in this file for other modules/routes that may call it explicitly.
+  // eslint-disable-next-line no-console
+  console.log("[recipe-generation] pollinations fallback disabled");
+  // eslint-disable-next-line no-console
+  console.log("[recipe-generation] using primary recipe model");
+
   if (String(process.env.RECIPE_MODEL_DISABLED || "").trim() === "1") {
     throw new Error("RECIPE_MODEL_DISABLED");
-  }
-  if (recipeFastCloudEnabled()) {
-    try {
-      return await runRecipeModelFastCloud(ingredients);
-    } catch (e) {
-      if (!recipeFastFallbackToLocal()) throw e;
-      // fallback explicitly enabled; continue to local heavy model path below
-    }
   }
   if (Date.now() < recipeModelCooldownUntil) {
     throw new Error("RECIPE_MODEL_COOLDOWN");
@@ -1580,23 +1597,28 @@ app.post("/api/recipes/generate", async (req, res, next) => {
   } catch (e) {
     const msg = String(e?.message || e);
     const code = e?.code;
+    const detailSnippet = sanitizeRecipeErrorDetail(e?.detail);
+
+    if (msg === "RECIPE_MODEL_TIMEOUT") {
+      // eslint-disable-next-line no-console
+      console.log(
+        "[recipe-generation] primary model timeout; returning 408 without Pollinations"
+      );
+      return res.status(408).json({
+        error: "RECIPE_MODEL_TIMEOUT",
+        reason: msg,
+        hint: "The recipe model took too long to respond. Please try again.",
+        ...(detailSnippet ? { detail: detailSnippet } : {}),
+      });
+    }
+
     const modelDown =
       msg === "RECIPE_MODEL_DISABLED" ||
       msg === "RECIPE_MODEL_COOLDOWN" ||
-      msg === "RECIPE_FAST_MODEL_TIMEOUT" ||
-      msg === "RECIPE_FAST_MODEL_FAILED" ||
-      msg === "RECIPE_MODEL_TIMEOUT" ||
       msg === "RECIPE_MODEL_FAILED" ||
       msg === "RECIPE_MODEL_SETUP_INCOMPLETE" ||
       code === "ENOENT";
     if (modelDown) {
-      const detailSnippet =
-        e?.detail != null
-          ? String(e.detail)
-              .replace(/\s+/g, " ")
-              .trim()
-              .slice(0, 450)
-          : undefined;
       // eslint-disable-next-line no-console
       console.error({
         route: "POST /api/recipes/generate",
@@ -1609,18 +1631,13 @@ app.post("/api/recipes/generate", async (req, res, next) => {
           "服务器上缺少 recipe_model_infer.py 或 .pt 权重。请在 Render 设置 RECIPE_CHECKPOINT（磁盘上的绝对路径）和 RECIPE_PYTHON（已安装 PyTorch 的 Python）。",
         RECIPE_MODEL_FAILED:
           "Python 已运行但推理失败。常见原因：① 该解释器未安装 torch / PyTorch；② torch 与权重或 Python 版本不兼容；③ 内存不足(OOM)。请查看本响应中的 detail（stderr 片段）及 Render 服务「日志」。",
-        RECIPE_MODEL_TIMEOUT: "推理超过 RECIPE_MODEL_TIMEOUT_MS。可尝试调大超时、降低 beam size，或启用常驻 worker。",
         RECIPE_MODEL_DISABLED: "已在服务器设置 RECIPE_MODEL_DISABLED=1，菜谱模型已关闭。",
         RECIPE_MODEL_COOLDOWN: "模型近期超时或失败，已临时降级。请稍后重试，前端会自动使用模板回退。",
-        RECIPE_FAST_MODEL_TIMEOUT:
-          "快速云端模型响应超时。可适当调大 RECIPE_FAST_TIMEOUT_MS，或稍后重试。",
-        RECIPE_FAST_MODEL_FAILED:
-          "快速云端模型暂不可用。可检查 RECIPE_FAST_MODEL 配置，或启用 RECIPE_FAST_FALLBACK_TO_LOCAL 回退到本地模型。",
       };
       const hintDefault =
         code === "ENOENT"
           ? "找不到 python 可执行文件。请在 Render 设置 RECIPE_PYTHON 为带 torch 的 Python 绝对路径。"
-          : "模型不可用。详见 server/RECIPE_MODEL_API.md。";
+          : "The recipe model is temporarily unavailable. Please try again.";
       const exitCode =
         e?.exitCode != null && Number.isFinite(Number(e.exitCode)) ? Number(e.exitCode) : undefined;
       return res.status(503).json({
