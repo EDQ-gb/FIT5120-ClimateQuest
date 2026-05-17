@@ -369,7 +369,8 @@ export async function logQuickAction(actionKey) {
 
 export async function generateRecipeFromModel(ingredients) {
   const timeoutFromEnv = Number(import.meta?.env?.VITE_RECIPE_MODEL_CLIENT_TIMEOUT_MS)
-  const timeoutMs = Number.isFinite(timeoutFromEnv) && timeoutFromEnv > 0 ? timeoutFromEnv : 8000
+  // Default slightly above server RECIPE_MODEL_TIMEOUT_MS (20s) to avoid false client aborts.
+  const timeoutMs = Number.isFinite(timeoutFromEnv) && timeoutFromEnv > 0 ? timeoutFromEnv : 22000
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort('CLIENT_TIMEOUT'), timeoutMs)
   let res
@@ -386,7 +387,7 @@ export async function generateRecipeFromModel(ingredients) {
       const err = new Error('RECIPE_MODEL_CLIENT_TIMEOUT')
       err.status = 408
       err.reason = 'RECIPE_MODEL_CLIENT_TIMEOUT'
-      err.hint = `Model response exceeded ${timeoutMs}ms, switched to local fallback.`
+      err.hint = `Model response exceeded ${timeoutMs}ms. Please try again.`
       throw err
     }
     throw e

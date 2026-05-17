@@ -781,6 +781,21 @@ function runRecipeModelOneShot(ingredients) {
   });
 }
 
+const recipePrimaryResultCache = new Map();
+
+function recipeModelCacheKey(ingredients) {
+  return ingredients
+    .map((x) => String(x || "").trim().toLowerCase())
+    .filter(Boolean)
+    .sort()
+    .join("|");
+}
+
+function recipeModelCacheTtlMs() {
+  const ttlMs = Number(process.env.RECIPE_MODEL_CACHE_TTL_MS || 60 * 60 * 1000);
+  return Number.isFinite(ttlMs) && ttlMs > 0 ? ttlMs : 60 * 60 * 1000;
+}
+
 async function runRecipeModel(ingredients) {
   // Recipe generation must not fallback to Pollinations (text.pollinations.ai): it may return
   // 429 queue-full errors surfaced as 503 to the frontend. runRecipeModelFastCloud() remains
@@ -790,6 +805,14 @@ async function runRecipeModel(ingredients) {
   // eslint-disable-next-line no-console
   console.log("[recipe-generation] using primary recipe model");
 
+  const cacheKey = recipeModelCacheKey(ingredients);
+  const cached = recipePrimaryResultCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiresAt) {
+    // eslint-disable-next-line no-console
+    console.log("[recipe-generation] returning cached primary model result");
+    return cached.value;
+  }
+
   if (String(process.env.RECIPE_MODEL_DISABLED || "").trim() === "1") {
     throw new Error("RECIPE_MODEL_DISABLED");
   }
@@ -797,10 +820,14 @@ async function runRecipeModel(ingredients) {
     throw new Error("RECIPE_MODEL_COOLDOWN");
   }
   try {
-    if (recipeUsePersistentWorker()) {
-      return await runRecipeModelPersistent(ingredients);
-    }
-    return await runRecipeModelOneShot(ingredients);
+    const result = recipeUsePersistentWorker()
+      ? await runRecipeModelPersistent(ingredients)
+      : await runRecipeModelOneShot(ingredients);
+    recipePrimaryResultCache.set(cacheKey, {
+      value: result,
+      expiresAt: Date.now() + recipeModelCacheTtlMs(),
+    });
+    return result;
   } catch (e) {
     const msg = String(e?.message || e);
     if (msg === "RECIPE_MODEL_TIMEOUT" || msg === "RECIPE_MODEL_FAILED") {
