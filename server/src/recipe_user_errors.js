@@ -94,11 +94,18 @@ function recipeErrorToClientResponse(e) {
     return buildRecipeBusyResponse();
   }
 
+  if (msg === "RECIPE_MODEL_COOLDOWN") {
+    // eslint-disable-next-line no-console
+    console.log("[recipe-generation] returning retryable busy (cooldown)", {
+      remainingMs: e?.remainingMs,
+    });
+    return buildRecipeBusyResponse();
+  }
+
   if (
     msg === "RECIPE_MODEL_FAILED" ||
     msg === "RECIPE_MODEL_SETUP_INCOMPLETE" ||
     msg === "RECIPE_MODEL_DISABLED" ||
-    msg === "RECIPE_MODEL_COOLDOWN" ||
     e?.code === "ENOENT" ||
     containsUnsafeRecipeUserText(e?.detail)
   ) {

@@ -278,9 +278,16 @@ const aiChecks = ref({})
 let ingredientWindow = 0
 let celebrationTimer = 0
 let recipeGenerationSeq = 0
+/** Monotonic id for the active UI request; stale HTTP responses are ignored. */
+let recipeActiveRequestId = 0
 
 // TODO(final): set to false and remove buildTemplateFallbackRecipe() once model-only UX ships.
 const RECIPE_USE_TEMPLATE_FALLBACK = false
+
+function logRecipeUi(event, extra) {
+  // eslint-disable-next-line no-console
+  console.log('[recipe-generation]', event, extra || '')
+}
 
 const doneCount = computed(() => tasks.value.filter(t => t.completed).length)
 const pct       = computed(() => tasks.value.length ? Math.round(doneCount.value/tasks.value.length*100) : 0)
@@ -302,7 +309,10 @@ watch(
   selectedIngredients,
   () => {
     recipeGenerationSeq += 1
+    recipeActiveRequestId += 1
+    recipeLoading.value = false
     resetRecipeGenerationFeedback({ clearRecipe: true })
+    logRecipeUi('error cleared (ingredients changed)')
   },
   { deep: true },
 )
@@ -629,13 +639,24 @@ function buildTemplateFallbackRecipe(sourceLabel = 'Template fallback') {
 }
 
 async function generateRecipe() {
-  if (!canGenerateRecipe.value || recipeLoading.value) return
+  if (!canGenerateRecipe.value) return
+  if (recipeLoading.value) {
+    logRecipeUi('Generate ignored (already loading)')
+    return
+  }
+  logRecipeUi('Generate clicked', { ingredients: selectedIngredients.value.length })
+  const requestId = ++recipeActiveRequestId
   const seq = ++recipeGenerationSeq
   recipeLoading.value = true
   resetRecipeGenerationFeedback({ clearRecipe: true })
+  logRecipeUi('error cleared (new request)')
+  logRecipeUi('request started', { requestId, seq })
   try {
     const modelRecipe = await generateRecipeFromModel(selectedIngredients.value)
-    if (seq !== recipeGenerationSeq) return
+    if (requestId !== recipeActiveRequestId || seq !== recipeGenerationSeq) {
+      logRecipeUi('stale response ignored', { requestId, seq })
+      return
+    }
     const rawSteps = Array.isArray(modelRecipe?.steps) && modelRecipe.steps.length
       ? modelRecipe.steps
       : String(modelRecipe?.text || '').split('.').map(s => s.trim()).filter(Boolean)
@@ -652,17 +673,23 @@ async function generateRecipe() {
       sourceLabel: augmented ? 'Transformer model · clarity edits' : 'Transformer model',
     }
     recipeError.value = ''
+    logRecipeUi('request completed', { requestId })
   } catch (e) {
-    if (seq !== recipeGenerationSeq) return
+    if (requestId !== recipeActiveRequestId || seq !== recipeGenerationSeq) {
+      logRecipeUi('stale failure ignored', { requestId, seq })
+      return
+    }
     if (RECIPE_USE_TEMPLATE_FALLBACK) {
       recipe.value = buildTemplateFallbackRecipe()
     } else {
       recipe.value = null
     }
     recipeError.value = recipeGenerationUserMessage(e)
+    logRecipeUi('request failed', { requestId, status: e?.status, reason: e?.reason })
   } finally {
-    if (seq === recipeGenerationSeq) {
+    if (requestId === recipeActiveRequestId) {
       recipeLoading.value = false
+      logRecipeUi('loading false', { requestId })
     }
   }
 }
