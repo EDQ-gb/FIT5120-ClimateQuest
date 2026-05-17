@@ -371,6 +371,8 @@ export async function generateRecipeFromModel(ingredients) {
   const timeoutFromEnv = Number(import.meta?.env?.VITE_RECIPE_MODEL_CLIENT_TIMEOUT_MS)
   // Default slightly above server RECIPE_MODEL_TIMEOUT_MS (20s) to avoid false client aborts.
   const timeoutMs = Number.isFinite(timeoutFromEnv) && timeoutFromEnv > 0 ? timeoutFromEnv : 22000
+  // eslint-disable-next-line no-console
+  console.log('[recipe-generation] fetch started', { count: ingredients?.length, timeoutMs })
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort('CLIENT_TIMEOUT'), timeoutMs)
   let res
@@ -395,6 +397,8 @@ export async function generateRecipeFromModel(ingredients) {
     clearTimeout(timer)
   }
   const data = await res.json().catch(() => ({}))
+  // eslint-disable-next-line no-console
+  console.log('[recipe-generation] fetch finished', { status: res.status, ok: res.ok })
   if (!res.ok) {
     const err = new Error(data?.error || `HTTP_${res.status}`)
     err.status = res.status

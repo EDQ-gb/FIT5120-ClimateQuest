@@ -478,8 +478,18 @@ async function runRecipeModelFastCloud(ingredients) {
 }
 
 function recipeCooldownMs() {
-  const cooldownMs = Number(process.env.RECIPE_MODEL_COOLDOWN_MS || 10 * 60 * 1000);
-  return Number.isFinite(cooldownMs) && cooldownMs > 0 ? cooldownMs : 10 * 60 * 1000;
+  // Short default so one timeout does not block retries for minutes (override via env).
+  const cooldownMs = Number(process.env.RECIPE_MODEL_COOLDOWN_MS || 30 * 1000);
+  return Number.isFinite(cooldownMs) && cooldownMs > 0 ? cooldownMs : 30 * 1000;
+}
+
+function setRecipeModelCooldown(reason) {
+  recipeModelCooldownUntil = Date.now() + recipeCooldownMs();
+  // eslint-disable-next-line no-console
+  console.log("[recipe-generation] cooldown set", {
+    reason,
+    cooldownMs: recipeCooldownMs(),
+  });
 }
 
 function recipeRequestTimeoutMs() {
@@ -667,6 +677,7 @@ async function runRecipeModelPersistent(ingredients) {
     const id = recipeWorkerState.nextId++;
     const timer = setTimeout(() => {
       recipeWorkerState.pending.delete(id);
+      setRecipeModelCooldown("worker_request_timeout");
       const err = new Error("RECIPE_MODEL_TIMEOUT");
       err.detail = "Recipe worker inference timeout.";
       reject(err);
@@ -736,7 +747,7 @@ function runRecipeModelOneShot(ingredients) {
     let stderr = "";
     const timer = setTimeout(() => {
       child.kill();
-      recipeModelCooldownUntil = Date.now() + recipeCooldownMs();
+      setRecipeModelCooldown("one_shot_timeout");
       reject(new Error("RECIPE_MODEL_TIMEOUT"));
     }, recipeRequestTimeoutMs());
 
@@ -748,7 +759,6 @@ function runRecipeModelOneShot(ingredients) {
     });
     child.on("error", (err) => {
       clearTimeout(timer);
-      recipeModelCooldownUntil = Date.now() + recipeCooldownMs();
       const wrap = new Error("RECIPE_MODEL_FAILED");
       wrap.cause = err;
       wrap.detail = err && err.message ? String(err.message) : "";
@@ -757,7 +767,6 @@ function runRecipeModelOneShot(ingredients) {
     child.on("close", (code) => {
       clearTimeout(timer);
       if (code !== 0) {
-        recipeModelCooldownUntil = Date.now() + recipeCooldownMs();
         const err = new Error("RECIPE_MODEL_FAILED");
         const tail = (stderr || stdout || "").trim();
         err.detail = tail
@@ -817,7 +826,12 @@ async function runRecipeModel(ingredients) {
     throw new Error("RECIPE_MODEL_DISABLED");
   }
   if (Date.now() < recipeModelCooldownUntil) {
-    throw new Error("RECIPE_MODEL_COOLDOWN");
+    const remainingMs = recipeModelCooldownUntil - Date.now();
+    // eslint-disable-next-line no-console
+    console.log("[recipe-generation] rejected: cooldown active", { remainingMs });
+    const err = new Error("RECIPE_MODEL_COOLDOWN");
+    err.remainingMs = remainingMs;
+    throw err;
   }
   try {
     const result = recipeUsePersistentWorker()
@@ -830,8 +844,8 @@ async function runRecipeModel(ingredients) {
     return result;
   } catch (e) {
     const msg = String(e?.message || e);
-    if (msg === "RECIPE_MODEL_TIMEOUT" || msg === "RECIPE_MODEL_FAILED") {
-      recipeModelCooldownUntil = Date.now() + recipeCooldownMs();
+    if (msg === "RECIPE_MODEL_TIMEOUT") {
+      setRecipeModelCooldown("model_timeout");
     }
     throw e;
   }
@@ -1598,11 +1612,21 @@ app.post("/api/recipes/generate", async (req, res, next) => {
   const ingredients = Array.isArray(req.body?.ingredients)
     ? req.body.ingredients.map((x) => String(x || "").trim()).filter(Boolean)
     : [];
+  // eslint-disable-next-line no-console
+  console.log("[recipe-generation] request received", {
+    ingredientCount: ingredients.length,
+    provider: recipeUsePersistentWorker() ? "persistent_worker" : "one_shot",
+  });
   try {
     if (ingredients.length < 3 || ingredients.length > 5) {
       return res.status(400).json({ error: "INGREDIENT_COUNT_MUST_BE_3_TO_5" });
     }
     const result = await runRecipeModel(ingredients);
+    // eslint-disable-next-line no-console
+    console.log("[recipe-generation] request succeeded", {
+      ingredientCount: ingredients.length,
+      source: result?.source,
+    });
     return res.json(result);
   } catch (e) {
     const safe = recipeErrorToClientResponse(e);
