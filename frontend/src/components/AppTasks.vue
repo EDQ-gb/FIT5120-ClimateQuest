@@ -233,6 +233,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { getTasks, completeTask, generateRecipeFromModel } from '../api/features.js'
 import { recipeGenerationUserMessage } from '../utils/recipeErrorSanitize.js'
+import { createRecipeRequestId } from '../utils/recipeRequestId.js'
 import {
   getBalancedIngredientBatch,
   generatePlantBasedRecipe,
@@ -284,9 +285,9 @@ let recipeActiveRequestId = 0
 // TODO(final): set to false and remove buildTemplateFallbackRecipe() once model-only UX ships.
 const RECIPE_USE_TEMPLATE_FALLBACK = false
 
-function logRecipeUi(event, extra) {
+function logRecipeUi(message) {
   // eslint-disable-next-line no-console
-  console.log('[recipe-generation]', event, extra || '')
+  console.log(message)
 }
 
 const doneCount = computed(() => tasks.value.filter(t => t.completed).length)
@@ -312,7 +313,7 @@ watch(
     recipeActiveRequestId += 1
     recipeLoading.value = false
     resetRecipeGenerationFeedback({ clearRecipe: true })
-    logRecipeUi('error cleared (ingredients changed)')
+    logRecipeUi('[recipe-ui] error cleared (ingredients changed)')
   },
   { deep: true },
 )
@@ -641,20 +642,20 @@ function buildTemplateFallbackRecipe(sourceLabel = 'Template fallback') {
 async function generateRecipe() {
   if (!canGenerateRecipe.value) return
   if (recipeLoading.value) {
-    logRecipeUi('Generate ignored (already loading)')
+    logRecipeUi('[recipe-ui] generate ignored (loading=true, duplicate click blocked)')
     return
   }
-  logRecipeUi('Generate clicked', { ingredients: selectedIngredients.value.length })
-  const requestId = ++recipeActiveRequestId
+  const requestId = createRecipeRequestId()
+  const uiToken = ++recipeActiveRequestId
   const seq = ++recipeGenerationSeq
+  logRecipeUi(`[recipe-ui] generate clicked requestId=${requestId}`)
   recipeLoading.value = true
   resetRecipeGenerationFeedback({ clearRecipe: true })
-  logRecipeUi('error cleared (new request)')
-  logRecipeUi('request started', { requestId, seq })
+  logRecipeUi(`[recipe-ui] error cleared requestId=${requestId}`)
   try {
-    const modelRecipe = await generateRecipeFromModel(selectedIngredients.value)
-    if (requestId !== recipeActiveRequestId || seq !== recipeGenerationSeq) {
-      logRecipeUi('stale response ignored', { requestId, seq })
+    const modelRecipe = await generateRecipeFromModel(selectedIngredients.value, requestId)
+    if (uiToken !== recipeActiveRequestId || seq !== recipeGenerationSeq) {
+      logRecipeUi(`[recipe-ui] stale response ignored requestId=${requestId}`)
       return
     }
     const rawSteps = Array.isArray(modelRecipe?.steps) && modelRecipe.steps.length
@@ -673,10 +674,10 @@ async function generateRecipe() {
       sourceLabel: augmented ? 'Transformer model · clarity edits' : 'Transformer model',
     }
     recipeError.value = ''
-    logRecipeUi('request completed', { requestId })
+    logRecipeUi(`[recipe-ui] request completed requestId=${requestId}`)
   } catch (e) {
-    if (requestId !== recipeActiveRequestId || seq !== recipeGenerationSeq) {
-      logRecipeUi('stale failure ignored', { requestId, seq })
+    if (uiToken !== recipeActiveRequestId || seq !== recipeGenerationSeq) {
+      logRecipeUi(`[recipe-ui] stale failure ignored requestId=${requestId}`)
       return
     }
     if (RECIPE_USE_TEMPLATE_FALLBACK) {
@@ -685,12 +686,12 @@ async function generateRecipe() {
       recipe.value = null
     }
     recipeError.value = recipeGenerationUserMessage(e)
-    logRecipeUi('request failed', { requestId, status: e?.status, reason: e?.reason })
+    logRecipeUi(
+      `[recipe-ui] request failed requestId=${requestId} status=${e?.status || '?'} code=${e?.reason || '?'}`,
+    )
   } finally {
-    if (requestId === recipeActiveRequestId) {
-      recipeLoading.value = false
-      logRecipeUi('loading false', { requestId })
-    }
+    recipeLoading.value = false
+    logRecipeUi(`[recipe-ui] loading false requestId=${requestId}`)
   }
 }
 

@@ -367,45 +367,65 @@ export async function logQuickAction(actionKey) {
   })
 }
 
-export async function generateRecipeFromModel(ingredients) {
+export async function generateRecipeFromModel(ingredients, requestId) {
+  const rid = String(requestId || '').trim() || 'unknown'
   const timeoutFromEnv = Number(import.meta?.env?.VITE_RECIPE_MODEL_CLIENT_TIMEOUT_MS)
   // Default slightly above server RECIPE_MODEL_TIMEOUT_MS (20s) to avoid false client aborts.
   const timeoutMs = Number.isFinite(timeoutFromEnv) && timeoutFromEnv > 0 ? timeoutFromEnv : 22000
   // eslint-disable-next-line no-console
-  console.log('[recipe-generation] fetch started', { count: ingredients?.length, timeoutMs })
+  console.log(`[recipe-ui] request started requestId=${rid}`, {
+    ingredientCount: ingredients?.length,
+    timeoutMs,
+  })
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort('CLIENT_TIMEOUT'), timeoutMs)
   let res
   try {
     res = await fetch('/api/recipes/generate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Recipe-Request-Id': rid,
+      },
       credentials: 'include',
-      body: JSON.stringify({ ingredients }),
+      body: JSON.stringify({ ingredients, requestId: rid }),
       signal: controller.signal,
     })
   } catch (e) {
     if (e?.name === 'AbortError') {
+      // eslint-disable-next-line no-console
+      console.log(`[recipe-ui] request failed requestId=${rid}`, { kind: 'client_abort', timeoutMs })
       const err = new Error('RECIPE_MODEL_CLIENT_TIMEOUT')
       err.status = 408
       err.reason = 'RECIPE_MODEL_CLIENT_TIMEOUT'
       err.hint = `Model response exceeded ${timeoutMs}ms. Please try again.`
+      err.requestId = rid
       throw err
     }
+    // eslint-disable-next-line no-console
+    console.log(`[recipe-ui] request failed requestId=${rid}`, { kind: 'network', message: e?.message })
     throw e
   } finally {
     clearTimeout(timer)
   }
   const data = await res.json().catch(() => ({}))
   // eslint-disable-next-line no-console
-  console.log('[recipe-generation] fetch finished', { status: res.status, ok: res.ok })
+  console.log(`[recipe-ui] fetch settled requestId=${rid}`, { status: res.status, ok: res.ok })
   if (!res.ok) {
     const err = new Error(data?.error || `HTTP_${res.status}`)
     err.status = res.status
     err.reason = data?.code || data?.reason
     err.hint = data?.error || data?.hint
     err.retryable = data?.retryable === true
+    err.requestId = rid
+    // eslint-disable-next-line no-console
+    console.log(`[recipe-ui] request failed requestId=${rid}`, {
+      status: res.status,
+      code: err.reason,
+    })
     throw err
   }
+  // eslint-disable-next-line no-console
+  console.log(`[recipe-ui] request completed requestId=${rid}`)
   return data
 }

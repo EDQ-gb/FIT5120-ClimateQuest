@@ -32,6 +32,7 @@ function logRecipeGenerationFailure(e, extra = {}) {
   // eslint-disable-next-line no-console
   console.error({
     route: "POST /api/recipes/generate",
+    requestId: extra?.requestId,
     code: msg,
     errno: e?.code,
     providerStatus: Number.isFinite(providerStatus) ? providerStatus : undefined,
@@ -82,9 +83,9 @@ function buildRecipeBusyResponse() {
 /**
  * Map any recipe-generation failure to a safe HTTP response (no hint/detail/reason for clients).
  */
-function recipeErrorToClientResponse(e) {
+function recipeErrorToClientResponse(e, meta = {}) {
   const msg = String(e?.message || e);
-  logRecipeGenerationFailure(e);
+  logRecipeGenerationFailure(e, meta);
 
   if (isRecipeTimeoutError(msg)) {
     return buildRecipeTimeoutResponse();
@@ -96,7 +97,8 @@ function recipeErrorToClientResponse(e) {
 
   if (msg === "RECIPE_MODEL_COOLDOWN") {
     // eslint-disable-next-line no-console
-    console.log("[recipe-generation] returning retryable busy (cooldown)", {
+    console.log("[recipe-api] returning retryable busy (cooldown)", {
+      requestId: meta?.requestId,
       remainingMs: e?.remainingMs,
     });
     return buildRecipeBusyResponse();

@@ -336,6 +336,16 @@ function clampInt(n, lo, hi) {
 let recipeModelCooldownUntil = 0;
 const recipeFastCache = new Map();
 
+function recipeRequestIdFromReq(req) {
+  const raw = req?.headers?.["x-recipe-request-id"] || req?.body?.requestId || "unknown";
+  return String(raw).trim().slice(0, 80) || "unknown";
+}
+
+function logRecipeApi(message, extra = {}) {
+  // eslint-disable-next-line no-console
+  console.log(message, Object.keys(extra).length ? extra : "");
+}
+
 function textToSteps(text) {
   const normalized = String(text || "")
     .replace(/\r/g, " ")
@@ -565,16 +575,32 @@ function handleRecipeWorkerLine(line) {
     return;
   }
   const id = Number(msg?.id);
-  if (!Number.isFinite(id) || !state.pending.has(id)) return;
+  if (!Number.isFinite(id) || !state.pending.has(id)) {
+    if (Number.isFinite(id) && msg && !msg.ready) {
+      logRecipeApi("[recipe-api] orphan worker response (no pending handler)", {
+        workerJobId: id,
+        pending: state.pending.size,
+      });
+    }
+    return;
+  }
   const pendingReq = state.pending.get(id);
   state.pending.delete(id);
   clearTimeout(pendingReq.timer);
   if (msg?.ok && msg?.result) {
+    logRecipeApi(
+      `[recipe-api] upstream call completed requestId=${pendingReq.requestId || "unknown"}`,
+      { workerJobId: id, workerPending: state.pending.size }
+    );
     pendingReq.resolve(msg.result);
     return;
   }
   const err = new Error("RECIPE_MODEL_FAILED");
   err.detail = String(msg?.error || "Recipe worker returned an invalid response.");
+  logRecipeApi(`[recipe-api] upstream call failed requestId=${pendingReq.requestId || "unknown"}`, {
+    workerJobId: id,
+    workerPending: state.pending.size,
+  });
   pendingReq.reject(err);
 }
 
@@ -671,18 +697,28 @@ async function ensureRecipeWorkerReady() {
   await recipeWorkerState.readyPromise;
 }
 
-async function runRecipeModelPersistent(ingredients) {
+async function runRecipeModelPersistent(ingredients, requestId = "unknown") {
   await ensureRecipeWorkerReady();
   return new Promise((resolve, reject) => {
     const id = recipeWorkerState.nextId++;
     const timer = setTimeout(() => {
       recipeWorkerState.pending.delete(id);
-      setRecipeModelCooldown("worker_request_timeout");
       const err = new Error("RECIPE_MODEL_TIMEOUT");
       err.detail = "Recipe worker inference timeout.";
+      logRecipeApi(`[recipe-api] upstream call failed requestId=${requestId}`, {
+        kind: "worker_timeout",
+        workerJobId: id,
+        pendingAfterDelete: recipeWorkerState.pending.size,
+        note: "python_worker_may_still_be_inferring_prior_job",
+      });
       reject(err);
     }, recipeRequestTimeoutMs());
-    recipeWorkerState.pending.set(id, { resolve, reject, timer });
+    recipeWorkerState.pending.set(id, { resolve, reject, timer, requestId });
+    logRecipeApi(`[recipe-api] upstream call started requestId=${requestId}`, {
+      provider: "persistent_worker",
+      workerJobId: id,
+      workerPending: recipeWorkerState.pending.size,
+    });
     try {
       recipeWorkerState.child.stdin.write(
         `${JSON.stringify({ id, ingredients })}\n`,
@@ -693,6 +729,10 @@ async function runRecipeModelPersistent(ingredients) {
       recipeWorkerState.pending.delete(id);
       const err = new Error("RECIPE_MODEL_FAILED");
       err.detail = e && e.message ? String(e.message) : "Failed to write request to recipe worker.";
+      logRecipeApi(`[recipe-api] upstream call failed requestId=${requestId}`, {
+        kind: "worker_stdin_write_failed",
+        workerJobId: id,
+      });
       reject(err);
     }
   });
@@ -805,20 +845,21 @@ function recipeModelCacheTtlMs() {
   return Number.isFinite(ttlMs) && ttlMs > 0 ? ttlMs : 60 * 60 * 1000;
 }
 
-async function runRecipeModel(ingredients) {
+async function runRecipeModel(ingredients, requestId = "unknown") {
   // Recipe generation must not fallback to Pollinations (text.pollinations.ai): it may return
   // 429 queue-full errors surfaced as 503 to the frontend. runRecipeModelFastCloud() remains
   // in this file for other modules/routes that may call it explicitly.
-  // eslint-disable-next-line no-console
-  console.log("[recipe-generation] pollinations fallback disabled");
-  // eslint-disable-next-line no-console
-  console.log("[recipe-generation] using primary recipe model");
+  logRecipeApi(`[recipe-api] provider selected requestId=${requestId}`, {
+    provider: recipeUsePersistentWorker() ? "persistent_worker" : "one_shot",
+    pollinations: false,
+  });
 
   const cacheKey = recipeModelCacheKey(ingredients);
   const cached = recipePrimaryResultCache.get(cacheKey);
   if (cached && Date.now() < cached.expiresAt) {
-    // eslint-disable-next-line no-console
-    console.log("[recipe-generation] returning cached primary model result");
+    logRecipeApi(`[recipe-api] upstream call completed requestId=${requestId}`, {
+      kind: "primary_cache_hit",
+    });
     return cached.value;
   }
 
@@ -827,15 +868,17 @@ async function runRecipeModel(ingredients) {
   }
   if (Date.now() < recipeModelCooldownUntil) {
     const remainingMs = recipeModelCooldownUntil - Date.now();
-    // eslint-disable-next-line no-console
-    console.log("[recipe-generation] rejected: cooldown active", { remainingMs });
+    logRecipeApi(`[recipe-api] immediate reject requestId=${requestId}`, {
+      kind: "cooldown_active",
+      remainingMs,
+    });
     const err = new Error("RECIPE_MODEL_COOLDOWN");
     err.remainingMs = remainingMs;
     throw err;
   }
   try {
     const result = recipeUsePersistentWorker()
-      ? await runRecipeModelPersistent(ingredients)
+      ? await runRecipeModelPersistent(ingredients, requestId)
       : await runRecipeModelOneShot(ingredients);
     recipePrimaryResultCache.set(cacheKey, {
       value: result,
@@ -1609,27 +1652,30 @@ app.get("/api/quick-actions/catalog", (req, res) => {
 });
 
 app.post("/api/recipes/generate", async (req, res, next) => {
+  const requestId = recipeRequestIdFromReq(req);
   const ingredients = Array.isArray(req.body?.ingredients)
     ? req.body.ingredients.map((x) => String(x || "").trim()).filter(Boolean)
     : [];
-  // eslint-disable-next-line no-console
-  console.log("[recipe-generation] request received", {
+  logRecipeApi(`[recipe-api] received requestId=${requestId}`, {
     ingredientCount: ingredients.length,
-    provider: recipeUsePersistentWorker() ? "persistent_worker" : "one_shot",
   });
   try {
     if (ingredients.length < 3 || ingredients.length > 5) {
+      logRecipeApi(`[recipe-api] response sent requestId=${requestId}`, { status: 400 });
       return res.status(400).json({ error: "INGREDIENT_COUNT_MUST_BE_3_TO_5" });
     }
-    const result = await runRecipeModel(ingredients);
-    // eslint-disable-next-line no-console
-    console.log("[recipe-generation] request succeeded", {
-      ingredientCount: ingredients.length,
+    const result = await runRecipeModel(ingredients, requestId);
+    logRecipeApi(`[recipe-api] response sent requestId=${requestId}`, {
+      status: 200,
       source: result?.source,
     });
     return res.json(result);
   } catch (e) {
-    const safe = recipeErrorToClientResponse(e);
+    const safe = recipeErrorToClientResponse(e, { requestId });
+    logRecipeApi(`[recipe-api] response sent requestId=${requestId}`, {
+      status: safe.status,
+      code: safe.body?.code,
+    });
     return res.status(safe.status).json(safe.body);
   }
 });
