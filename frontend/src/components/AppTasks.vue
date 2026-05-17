@@ -197,7 +197,7 @@
                 >
                   {{ recipeLoading ? 'Generating...' : 'Generate meal idea' }}
                 </button>
-                <div v-if="recipeError" class="recipe-error">{{ recipeError }}</div>
+                <div v-if="recipeError && !recipeLoading" class="recipe-error">{{ recipeError }}</div>
                 <div v-if="recipe" class="recipe-result">
                   <div class="recipe-result__title">{{ recipe.title }}</div>
                   <div class="recipe-result__source">{{ recipe.sourceLabel }}</div>
@@ -277,6 +277,10 @@ const recipeError = ref('')
 const aiChecks = ref({})
 let ingredientWindow = 0
 let celebrationTimer = 0
+let recipeGenerationSeq = 0
+
+// TODO(final): set to false and remove buildTemplateFallbackRecipe() once model-only UX ships.
+const RECIPE_USE_TEMPLATE_FALLBACK = false
 
 const doneCount = computed(() => tasks.value.filter(t => t.completed).length)
 const pct       = computed(() => tasks.value.length ? Math.round(doneCount.value/tasks.value.length*100) : 0)
@@ -285,9 +289,23 @@ const canGenerateRecipe = computed(() => selectedIngredients.value.length >= 3 &
 const ingredientSelectionHint = computed(() => {
   const count = selectedIngredients.value.length
   if (count < 3) return `Pick ${3 - count} more to generate.`
-  if (count === 5) return 'Maximum selected. Generate or swap one out.'
+  if (count === 5) return '5 selected — more ingredients can take longer to generate.'
   return `${count} selected. You can add ${5 - count} more.`
 })
+
+function resetRecipeGenerationFeedback({ clearRecipe = false } = {}) {
+  recipeError.value = ''
+  if (clearRecipe) recipe.value = null
+}
+
+watch(
+  selectedIngredients,
+  () => {
+    recipeGenerationSeq += 1
+    resetRecipeGenerationFeedback({ clearRecipe: true })
+  },
+  { deep: true },
+)
 
 function isPlantMealTask(task) {
   return Number(task?.id) === 5 || String(task?.title || '').toLowerCase() === 'light emission meal'
@@ -577,14 +595,16 @@ function refreshIngredientOptions() {
   const nextBatch = getBalancedIngredientBatch(ingredientWindow)
   visibleIngredients.value = nextBatch
   selectedIngredients.value = selectedIngredients.value.filter(item => visibleIngredients.value.includes(item))
-  if (selectedIngredients.value.length < 3) recipe.value = null
+  recipeGenerationSeq += 1
+  resetRecipeGenerationFeedback({ clearRecipe: selectedIngredients.value.length < 3 })
   ingredientWindow += 1
 }
 
 function openMealBuilder(taskId) {
   mealBuilderTaskId.value = taskId
   selectedIngredients.value = []
-  recipe.value = null
+  recipeGenerationSeq += 1
+  resetRecipeGenerationFeedback({ clearRecipe: true })
   refreshIngredientOptions()
 }
 
@@ -592,17 +612,14 @@ function toggleIngredient(ingredient) {
   const current = selectedIngredients.value
   if (current.includes(ingredient)) {
     selectedIngredients.value = current.filter(item => item !== ingredient)
-    recipe.value = null
-    recipeError.value = ''
   } else {
     if (current.length >= 5) return
     selectedIngredients.value = [...current, ingredient]
-    recipe.value = null
-    recipeError.value = ''
   }
 }
 
-function localRecipe(sourceLabel = 'Template fallback') {
+/** Test-only escape hatch. Final version should not return template fallback. */
+function buildTemplateFallbackRecipe(sourceLabel = 'Template fallback') {
   const base = generatePlantBasedRecipe(selectedIngredients.value)
   return {
     ...base,
@@ -611,42 +628,14 @@ function localRecipe(sourceLabel = 'Template fallback') {
   }
 }
 
-function recipeHintToEnglish(reason, hint) {
-  const reasonText = String(reason || '').trim()
-  if (reasonText === 'RECIPE_MODEL_CLIENT_TIMEOUT') {
-    return 'Model response took too long. Switched to fast local fallback.'
-  }
-  if (reasonText === 'RECIPE_MODEL_TIMEOUT') {
-    return 'Model inference timed out on the server. Switched to local fallback.'
-  }
-  if (reasonText === 'RECIPE_MODEL_FAILED') {
-    return 'Model runtime failed on the server. Switched to local fallback.'
-  }
-  if (reasonText === 'RECIPE_MODEL_SETUP_INCOMPLETE') {
-    return 'Model setup is incomplete on the server. Switched to local fallback.'
-  }
-  if (reasonText === 'RECIPE_MODEL_DISABLED') {
-    return 'Model service is disabled on the server. Switched to local fallback.'
-  }
-  if (String(hint || '').trim()) return String(hint).trim()
-  return 'Model API unavailable. Showing template fallback.'
-}
-
-function shouldUseSoftFallbackMessage(reason) {
-  const reasonText = String(reason || '').trim()
-  return (
-    reasonText === 'RECIPE_MODEL_DISABLED' ||
-    reasonText === 'RECIPE_MODEL_COOLDOWN' ||
-    reasonText === 'RECIPE_MODEL_SETUP_INCOMPLETE'
-  )
-}
-
 async function generateRecipe() {
-  if (!canGenerateRecipe.value) return
+  if (!canGenerateRecipe.value || recipeLoading.value) return
+  const seq = ++recipeGenerationSeq
   recipeLoading.value = true
-  recipeError.value = ''
+  resetRecipeGenerationFeedback({ clearRecipe: true })
   try {
     const modelRecipe = await generateRecipeFromModel(selectedIngredients.value)
+    if (seq !== recipeGenerationSeq) return
     const rawSteps = Array.isArray(modelRecipe?.steps) && modelRecipe.steps.length
       ? modelRecipe.steps
       : String(modelRecipe?.text || '').split('.').map(s => s.trim()).filter(Boolean)
@@ -662,15 +651,19 @@ async function generateRecipe() {
       seasoningNote: buildSeasoningGuidance(selectedIngredients.value),
       sourceLabel: augmented ? 'Transformer model · clarity edits' : 'Transformer model',
     }
+    recipeError.value = ''
   } catch (e) {
-    recipe.value = localRecipe()
-    if (shouldUseSoftFallbackMessage(e?.reason)) {
-      recipeError.value = 'Local recipe mode is active. Generated instantly from template.'
-      return
+    if (seq !== recipeGenerationSeq) return
+    if (RECIPE_USE_TEMPLATE_FALLBACK) {
+      recipe.value = buildTemplateFallbackRecipe()
+    } else {
+      recipe.value = null
     }
     recipeError.value = recipeGenerationUserMessage(e)
   } finally {
-    recipeLoading.value = false
+    if (seq === recipeGenerationSeq) {
+      recipeLoading.value = false
+    }
   }
 }
 
