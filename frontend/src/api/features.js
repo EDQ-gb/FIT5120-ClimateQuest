@@ -397,10 +397,9 @@ export async function generateRecipeFromModel(ingredients) {
   if (!res.ok) {
     const err = new Error(data?.error || `HTTP_${res.status}`)
     err.status = res.status
-    err.reason = data?.reason
-    err.hint = data?.hint
-    err.detail = data?.detail
-    err.exitCode = data?.exitCode
+    err.reason = data?.code || data?.reason
+    err.hint = data?.error || data?.hint
+    err.retryable = data?.retryable === true
     throw err
   }
   return data

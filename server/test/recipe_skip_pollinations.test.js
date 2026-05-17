@@ -17,11 +17,13 @@ test("runRecipeModel does not call Pollinations fast cloud", () => {
   assert.equal(body.includes("recipeFastCloudEnabled()"), false);
 });
 
-test("recipe route does not map RECIPE_FAST errors to 503", () => {
+test("recipe route uses sanitized client error helper", () => {
   const start = indexSrc.indexOf('app.post("/api/recipes/generate"');
   assert.ok(start >= 0);
   const end = indexSrc.indexOf("app.post(", start + 10);
   const block = indexSrc.slice(start, end > start ? end : start + 4000);
-  assert.equal(block.includes("RECIPE_FAST_MODEL_FAILED"), false);
+  assert.equal(block.includes("recipeErrorToClientResponse"), true);
   assert.equal(block.includes("快速云端模型"), false);
+  assert.equal(block.includes("hint:"), false);
+  assert.equal(block.includes("detail:"), false);
 });
