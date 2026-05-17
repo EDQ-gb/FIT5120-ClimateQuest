@@ -1670,21 +1670,17 @@ app.post("/api/recipes/generate", async (req, res, next) => {
     ingredientCount: ingredients.length,
   });
   try {
-    if (ingredients.length > 3) {
+    if (ingredients.length !== 3) {
+      const code =
+        ingredients.length > 3 ? "TOO_MANY_INGREDIENTS" : "INGREDIENT_COUNT_MUST_BE_3";
       logRecipeApi(`[recipe-api] response sent requestId=${requestId}`, {
         status: 400,
-        code: "TOO_MANY_INGREDIENTS",
+        code,
+        ingredientCount: ingredients.length,
       });
       return res.status(400).json({
-        error: "Please select no more than 3 ingredients.",
-        code: "TOO_MANY_INGREDIENTS",
-      });
-    }
-    if (ingredients.length < 1) {
-      logRecipeApi(`[recipe-api] response sent requestId=${requestId}`, { status: 400 });
-      return res.status(400).json({
-        error: "Please select at least one ingredient.",
-        code: "INGREDIENT_COUNT_TOO_LOW",
+        error: "Please select exactly 3 ingredients.",
+        code,
       });
     }
     logRecipeApi(`[recipe-api] generation started requestId=${requestId}`, {

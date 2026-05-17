@@ -25,8 +25,8 @@ export function sanitizeRecipeErrorMessage(...parts) {
 export function recipeGenerationUserMessage(error) {
   const status = error?.status
   const reason = String(error?.reason || '').trim()
-  if (reason === 'TOO_MANY_INGREDIENTS') {
-    return 'Please select no more than 3 ingredients.'
+  if (reason === 'TOO_MANY_INGREDIENTS' || reason === 'INGREDIENT_COUNT_MUST_BE_3') {
+    return 'Please select exactly 3 ingredients.'
   }
   if (
     status === 408 ||
