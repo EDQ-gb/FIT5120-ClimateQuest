@@ -171,13 +171,13 @@
               </section>
               <section v-if="isPlantMealTask(task) && mealBuilderTaskId === task.id" class="recipe-helper" aria-label="Light emission meal helper">
                 <div class="recipe-helper__head">
-                  <span class="recipe-helper__title">Choose up to 3 ingredients</span>
+                  <span class="recipe-helper__title">Choose exactly 3 ingredients</span>
                   <button class="recipe-helper__generate" type="button" @click="refreshIngredientOptions">
                     New 10
                   </button>
                 </div>
                 <div class="recipe-helper__hint">{{ ingredientSelectionHint }}</div>
-                <p class="recipe-helper__limit">Select up to 3 ingredients for faster and more reliable generation.</p>
+                <p class="recipe-helper__limit">Select exactly 3 ingredients for faster and more reliable generation.</p>
                 <div class="ingredient-picker">
                   <button
                     v-for="ingredient in visibleIngredients"
@@ -298,22 +298,22 @@ function logRecipeUi(message) {
 const doneCount = computed(() => tasks.value.filter(t => t.completed).length)
 const pct       = computed(() => tasks.value.length ? Math.round(doneCount.value/tasks.value.length*100) : 0)
 const coinText  = computed(() => Number(props.coins || 0).toLocaleString())
-const MAX_RECIPE_INGREDIENTS = 3
+const REQUIRED_RECIPE_INGREDIENTS = 3
 const canGenerateRecipe = computed(
-  () =>
-    selectedIngredients.value.length >= 1 &&
-    selectedIngredients.value.length <= MAX_RECIPE_INGREDIENTS,
+  () => selectedIngredients.value.length === REQUIRED_RECIPE_INGREDIENTS,
 )
 const ingredientSelectionHint = computed(() => {
   const count = selectedIngredients.value.length
-  if (count === 0) return 'Pick 1–3 ingredients, then generate.'
-  if (count >= MAX_RECIPE_INGREDIENTS) return 'Maximum selected (3). Tap one to swap or generate.'
-  return `${count} selected. You can add ${MAX_RECIPE_INGREDIENTS - count} more.`
+  if (count === 0) return 'Pick exactly 3 ingredients to generate.'
+  if (count >= REQUIRED_RECIPE_INGREDIENTS) {
+    return '3 selected. Tap one to swap, then generate.'
+  }
+  return `${count} of 3 selected. Pick ${REQUIRED_RECIPE_INGREDIENTS - count} more.`
 })
 
 function isIngredientDisabled(ingredient) {
   if (selectedIngredients.value.includes(ingredient)) return false
-  return selectedIngredients.value.length >= MAX_RECIPE_INGREDIENTS
+  return selectedIngredients.value.length >= REQUIRED_RECIPE_INGREDIENTS
 }
 
 function resetRecipeGenerationFeedback({ clearRecipe = false } = {}) {
@@ -622,7 +622,7 @@ function refreshIngredientOptions() {
   visibleIngredients.value = nextBatch
   selectedIngredients.value = selectedIngredients.value
     .filter(item => visibleIngredients.value.includes(item))
-    .slice(0, MAX_RECIPE_INGREDIENTS)
+    .slice(0, REQUIRED_RECIPE_INGREDIENTS)
   recipeGenerationSeq += 1
   resetRecipeGenerationFeedback({ clearRecipe: selectedIngredients.value.length < 3 })
   ingredientWindow += 1
@@ -644,7 +644,7 @@ function toggleIngredient(ingredient) {
     selectedIngredients.value = current.filter(item => item !== ingredient)
     return
   }
-  if (current.length >= MAX_RECIPE_INGREDIENTS) return
+  if (current.length >= REQUIRED_RECIPE_INGREDIENTS) return
   selectedIngredients.value = [...current, ingredient]
 }
 
